@@ -26,6 +26,10 @@
 #include "move.h"
 #include "movegen.h"
 #include "search.h"
+#ifdef GPSFISH
+#include "osl/record/usi.h"
+#include "osl/record/csa.h"
+#endif
 
 using std::string;
 
@@ -34,6 +38,9 @@ namespace {
   const string score_string(Value v);
 }
 
+#ifdef GPSFISH
+bool using_tcp_connection = false;
+#endif
 
 /// move_to_uci() converts a move to a string in coordinate notation
 /// (g1f3, a7a8q, etc.). The only special case is castling moves, where we
@@ -42,6 +49,9 @@ namespace {
 
 const string move_to_uci(Move m, bool chess960) {
 
+#ifdef GPSFISH
+  return osl::record::usi::show(m);
+#else
   Square from = move_from(m);
   Square to = move_to(m);
   string promotion;
@@ -62,6 +72,7 @@ const string move_to_uci(Move m, bool chess960) {
       promotion = char(tolower(piece_type_to_char(move_promotion_piece(m))));
 
   return square_to_string(from) + square_to_string(to) + promotion;
+#endif
 }
 
 
@@ -71,6 +82,9 @@ const string move_to_uci(Move m, bool chess960) {
 
 Move move_from_uci(const Position& pos, const string& str) {
 
+#ifdef GPSFISH
+  return osl::record::usi::strToMove(str,pos.osl_state);
+#else
   MoveStack mlist[MAX_MOVES];
   MoveStack* last = generate<MV_LEGAL>(pos, mlist);
 
@@ -79,6 +93,7 @@ Move move_from_uci(const Position& pos, const string& str) {
           return cur->move;
 
   return MOVE_NONE;
+#endif
 }
 
 
@@ -86,6 +101,11 @@ Move move_from_uci(const Position& pos, const string& str) {
 /// that the move is a legal move from the position. The return value is
 /// a string containing the move in short algebraic notation.
 
+#ifdef GPSFISH
+const string move_to_san(Position&, Move m) {
+  return osl::record::csa::show(m);
+}
+#else
 const string move_to_san(Position& pos, Move m) {
 
   assert(pos.is_ok());
@@ -166,6 +186,7 @@ const string move_to_san(Position& pos, Move m) {
 
   return san;
 }
+#endif
 
 
 /// pretty_pv() creates a human-readable string from a position and a PV.
@@ -198,10 +219,17 @@ const string pretty_pv(Position& pos, int depth, Value score, int time, Move pv[
   else
       s << std::setw(7) << pos.nodes_searched() / M << "M  ";
 
+#ifdef GPSFISH
+  Position pos_backup(pos,pos.thread());
+#endif
   // ...then print the full PV line in short algebraic notation
   while (*m != MOVE_NONE)
   {
+#ifdef GPSFISH
+      san = move_to_san(pos_backup, *m);
+#else
       san = move_to_san(pos, *m);
+#endif
       length += san.length() + 1;
 
       if (length > maxLength)
@@ -211,11 +239,17 @@ const string pretty_pv(Position& pos, int depth, Value score, int time, Move pv[
       }
       s << san << ' ';
 
+#ifdef GPSFISH
+      pos_backup.do_move(*m++, *st++);
+#else
       pos.do_move(*m++, *st++);
+#endif
   }
 
   // Restore original position before to leave
+#ifndef GPSFISH
   while (m != pv) pos.undo_move(*--m);
+#endif
 
   return s.str();
 }

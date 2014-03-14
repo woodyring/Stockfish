@@ -21,6 +21,10 @@
 #define EVALUATE_H_INCLUDED
 
 #include "types.h"
+#ifdef GPSFISH
+#include "osl/eval/ml/openMidEndingEval.h"
+typedef osl::eval::ml::OpenMidEndingEval eval_t; 
+#endif
 
 class Position;
 

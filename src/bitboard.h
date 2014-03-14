@@ -259,7 +259,7 @@ inline bool squares_aligned(Square s1, Square s2, Square s3) {
 
 #if defined(USE_BSFQ)
 
-#if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
+#if ( defined(_MSC_VER) || defined(_WIN32) ) && !defined(__INTEL_COMPILER)
 
 FORCE_INLINE Square first_1(Bitboard b) {
    unsigned long index;

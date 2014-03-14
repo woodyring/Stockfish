@@ -85,7 +85,15 @@ void TranspositionTable::clear() {
 /// more valuable than a TTEntry t2 if t1 is from the current search and t2 is from
 /// a previous search, or if the depth of t1 is bigger than the depth of t2.
 
+#ifdef GPSFISH
+void TranspositionTable::store(const Key posKey, Value v, ValueType type, Depth d, Move m, Value statV, Value kingD){
+  store(posKey,v,type,d,toMove16(m),statV,kingD);
+}
+
+void TranspositionTable::store(const Key posKey, Value v, ValueType t, Depth d, Move16 m, Value statV, Value kingD) {
+#else
 void TranspositionTable::store(const Key posKey, Value v, ValueType t, Depth d, Move m, Value statV, Value kingD) {
+#endif
 
   int c1, c2, c3;
   TTEntry *tte, *replace;
@@ -98,8 +106,13 @@ void TranspositionTable::store(const Key posKey, Value v, ValueType t, Depth d, 
       if (!tte->key() || tte->key() == posKey32) // Empty or overwrite old
       {
           // Preserve any existing ttMove
+#ifdef GPSFISH
+          if (m == MOVE16_NONE)
+              m = tte->move16Val();
+#else
           if (m == MOVE_NONE)
               m = tte->move();
+#endif
 
           tte->save(posKey32, v, t, d, m, generation, statV, kingD);
           return;

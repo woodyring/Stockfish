@@ -63,7 +63,9 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h,
 
   assert(d > DEPTH_ZERO);
 
+#ifndef GPSFISH
   pinned = p.pinned_pieces(pos.side_to_move());
+#endif
 
   if (p.in_check())
   {
@@ -97,7 +99,9 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h)
 
   assert(d <= DEPTH_ZERO);
 
+#ifndef GPSFISH
   pinned = p.pinned_pieces(pos.side_to_move());
+#endif
 
   if (p.in_check())
       phasePtr = EvasionTable;
@@ -207,11 +211,17 @@ void MovePicker::score_captures() {
   for (MoveStack* cur = moves; cur != lastMove; cur++)
   {
       m = cur->move;
+#ifdef GPSFISH
+      cur->score= pos.midgame_value_of_piece_on(move_to(m))-pos.type_value_of_piece_on(move_from(m));
+      if (move_is_promotion(m))
+	cur->score++;
+#else
       if (move_is_promotion(m))
           cur->score = QueenValueMidgame;
       else
           cur->score =  pos.midgame_value_of_piece_on(move_to(m))
                       - pos.type_of_piece_on(move_from(m));
+#endif
   }
 }
 
@@ -223,8 +233,12 @@ void MovePicker::score_noncaptures() {
   for (MoveStack* cur = moves; cur != lastMove; cur++)
   {
       m = cur->move;
+#ifdef GPSFISH
+      cur->score = H.value(m.ptypeO(), move_to(m));
+#else
       from = move_from(m);
       cur->score = H.value(pos.piece_on(from), move_to(m));
+#endif
   }
 }
 
@@ -246,10 +260,19 @@ void MovePicker::score_evasions() {
       if ((seeScore = pos.see_sign(m)) < 0)
           cur->score = seeScore - History::MaxValue; // Be sure we are at the bottom
       else if (pos.move_is_capture(m))
+#ifdef GPSFISH
+          cur->score =  pos.midgame_value_of_piece_on(move_to(m))
+                      - pos.type_value_of_piece_on(move_from(m)) + History::MaxValue;
+#else
           cur->score =  pos.midgame_value_of_piece_on(move_to(m))
                       - pos.type_of_piece_on(move_from(m)) + History::MaxValue;
+#endif
       else
+#ifdef GPSFISH
+	cur->score = H.value(m.ptypeO(), move_to(m));
+#else
           cur->score = H.value(pos.piece_on(move_from(m)), move_to(m));
+#endif
   }
 }
 

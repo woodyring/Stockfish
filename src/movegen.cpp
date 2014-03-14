@@ -19,18 +19,32 @@
 
 #include <cassert>
 
+#ifdef GPSFISH
+#include "osl/move_generator/allMoves.tcc"
+#include "osl/move_generator/capture_.tcc"
+#include "osl/move_generator/promote_.tcc"
+#include "osl/move_generator/escape_.tcc"
+#include "osl/move_generator/addEffectWithEffect.tcc"
+#include "osl/move_generator/drop.tcc"
+#include "osl/move_action/notKingOpenFilter.h"
+#include "osl/player.h"
+#else
 #include "bitcount.h"
+#endif
 #include "movegen.h"
 
+#ifndef GPSFISH
 // Simple macro to wrap a very common while loop, no facny, no flexibility,
 // hardcoded list name 'mlist' and from square 'from'.
 #define SERIALIZE_MOVES(b) while (b) (*mlist++).move = make_move(from, pop_1st_bit(&b))
 
 // Version used for pawns, where the 'from' square is given as a delta from the 'to' square
 #define SERIALIZE_MOVES_D(b, d) while (b) { to = pop_1st_bit(&b); (*mlist++).move = make_move(to + (d), to); }
+#endif
 
 namespace {
 
+#ifndef GPSFISH
   enum CastlingSide {
     KING_SIDE,
     QUEEN_SIDE
@@ -134,7 +148,7 @@ namespace {
     SERIALIZE_MOVES(b);
     return mlist;
   }
-
+#endif
 }
 
 
@@ -147,6 +161,19 @@ namespace {
 /// generate<MV_NON_EVASION> generates all pseudo-legal captures and
 /// non-captures. Returns a pointer to the end of the move list.
 
+#ifdef GPSFISH
+#include "movegen_gps.h"
+#endif
+
+#ifdef GPSFISH
+template<MoveType Type>
+MoveStack* generate(const Position& pos, MoveStack* mlist) {
+  if(pos.side_to_move()==BLACK)
+    return generateC<BLACK,Type>(pos,mlist);
+  else
+    return generateC<WHITE,Type>(pos,mlist);
+}
+#else
 template<MoveType Type>
 MoveStack* generate(const Position& pos, MoveStack* mlist) {
 
@@ -189,13 +216,18 @@ MoveStack* generate(const Position& pos, MoveStack* mlist) {
 
   return mlist;
 }
+#endif
 
 // Explicit template instantiations
 template MoveStack* generate<MV_CAPTURE>(const Position& pos, MoveStack* mlist);
 template MoveStack* generate<MV_NON_CAPTURE>(const Position& pos, MoveStack* mlist);
 template MoveStack* generate<MV_NON_EVASION>(const Position& pos, MoveStack* mlist);
+#ifdef GPSFISH
+template MoveStack* generate<MV_NON_CAPTURE_CHECK>(const Position& pos, MoveStack* mlist);
+template MoveStack* generate<MV_EVASION>(const Position& pos, MoveStack* mlist);
+#endif
 
-
+#ifndef GPSFISH
 /// generate_non_capture_checks() generates all pseudo-legal non-captures and knight
 /// underpromotions that give check. Returns a pointer to the end of the move list.
 template<>
@@ -302,6 +334,7 @@ MoveStack* generate<MV_EVASION>(const Position& pos, MoveStack* mlist) {
   mlist = generate_piece_moves<ROOK>(pos, mlist, us, target);
   return  generate_piece_moves<QUEEN>(pos, mlist, us, target);
 }
+#endif
 
 
 /// generate<MV_LEGAL / MV_PSEUDO_LEGAL> computes a complete list of legal
@@ -318,6 +351,9 @@ MoveStack* generate<MV_PSEUDO_LEGAL>(const Position& pos, MoveStack* mlist) {
 template<>
 MoveStack* generate<MV_LEGAL>(const Position& pos, MoveStack* mlist) {
 
+#ifdef GPSFISH
+  return generate<MV_PSEUDO_LEGAL>(pos, mlist);
+#else
   assert(pos.is_ok());
 
   MoveStack *last, *cur = mlist;
@@ -333,11 +369,12 @@ MoveStack* generate<MV_LEGAL>(const Position& pos, MoveStack* mlist) {
           cur++;
 
   return last;
+#endif
 }
 
 
 namespace {
-
+#ifndef GPSFISH
   template<Square Delta>
   inline Bitboard move_pawns(Bitboard p) {
 
@@ -538,5 +575,5 @@ namespace {
 
     return mlist;
   }
-
+#endif
 } // namespace

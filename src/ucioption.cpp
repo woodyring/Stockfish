@@ -20,7 +20,15 @@
 #include <cctype>
 #include <iostream>
 #include <sstream>
-
+#ifdef GPSFISH
+#  include <fstream>
+#  ifdef __APPLE__
+#    include <sys/sysctl.h>
+#  endif
+#  ifdef _WIN32
+#    include <windows.h>
+#  endif
+#endif
 #include "misc.h"
 #include "thread.h"
 #include "ucioption.h"
@@ -70,8 +78,11 @@ OptionsMap::OptionsMap() {
 
   o["Use Search Log"] = UCIOption(false);
   o["Search Log Filename"] = UCIOption("SearchLog.txt");
+#ifndef GPSFISH
   o["Book File"] = UCIOption("book.bin");
+#endif
   o["Best Book Move"] = UCIOption(false);
+#ifndef GPSFISH
   o["Mobility (Middle Game)"] = UCIOption(100, 0, 200);
   o["Mobility (Endgame)"] = UCIOption(100, 0, 200);
   o["Passed Pawns (Middle Game)"] = UCIOption(100, 0, 200);
@@ -79,22 +90,73 @@ OptionsMap::OptionsMap() {
   o["Space"] = UCIOption(100, 0, 200);
   o["Aggressiveness"] = UCIOption(100, 0, 200);
   o["Cowardice"] = UCIOption(100, 0, 200);
+#endif
   o["Minimum Split Depth"] = UCIOption(4, 4, 7);
   o["Maximum Number of Threads per Split Point"] = UCIOption(5, 4, 8);
   o["Threads"] = UCIOption(1, 1, MAX_THREADS);
   o["Use Sleeping Threads"] = UCIOption(false);
+#ifdef GPSFISH
+  size_t memory = 32;
+#  ifdef __APPLE__
+  {
+    int mib[2];
+    size_t usermem;
+    size_t len=sizeof(usermem);
+    mib[0] = CTL_HW;
+    mib[1] = HW_USERMEM;
+    if (sysctl(mib, 2, &usermem, &len, NULL, 0) == 0
+       && len == sizeof(usermem)) {
+      memory = std::min((size_t)2048, usermem/1024/1024/4);
+    }
+  }
+#  elif defined (_WIN32)
+  {
+    MEMORYSTATUSEX statex;
+    statex.dwLength = sizeof(statex);
+    GlobalMemoryStatusEx(&statex);
+    const size_t bytes = statex.ullTotalPhys; // in bytes
+    memory = std::min((size_t)2048, std::max(memory, bytes/1024/1024/4));
+  }
+#  else
+  {
+    std::string name, unit;
+    size_t value;
+    std::ifstream is("/proc/meminfo");
+    if (is >> name >> value >> unit
+       && name == "MemTotal:" && unit == "kB")
+      memory = std::min((size_t)2048, std::max(memory, value/1024/4));
+  }
+#  endif
+  o["Hash"] = UCIOption(memory, 4, 8192);
+#else
   o["Hash"] = UCIOption(32, 4, 8192);
+#endif
   o["Clear Hash"] = UCIOption(false, "button");
+#ifdef GPSFISH
+  o["Ponder"] = UCIOption(false);
+#else
   o["Ponder"] = UCIOption(true);
+#endif
   o["OwnBook"] = UCIOption(true);
   o["MultiPV"] = UCIOption(1, 1, 500);
   o["Skill Level"] = UCIOption(20, 0, 20);
+#ifdef GPSFISH
+  o["Emergency Move Horizon"] = UCIOption(50, 0, 60);
+  o["Emergency Base Time"] = UCIOption(20000, 0, 30000);
+  o["Emergency Move Time"] = UCIOption(1000, 0, 5000);
+#else
   o["Emergency Move Horizon"] = UCIOption(40, 0, 50);
   o["Emergency Base Time"] = UCIOption(200, 0, 30000);
   o["Emergency Move Time"] = UCIOption(70, 0, 5000);
+#endif
   o["Minimum Thinking Time"] = UCIOption(20, 0, 5000);
+#ifndef GPSFISH
   o["UCI_Chess960"] = UCIOption(false);
   o["UCI_AnalyseMode"] = UCIOption(false);
+#endif
+#ifdef GPSFISH
+  o["DrawValue"] = UCIOption(0, -30000, 30000);
+#endif
 
   // Set some SMP parameters accordingly to the detected CPU count
   UCIOption& thr = o["Threads"];

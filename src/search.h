@@ -44,6 +44,9 @@ struct SearchStack {
   Value eval;
   Value evalMargin;
   bool skipNullMove;
+#ifdef GPSFISH
+  bool checkmateTested;
+#endif
   SplitPoint* sp;
 };
 
@@ -69,5 +72,7 @@ struct SearchLimits {
 extern void init_search();
 extern int64_t perft(Position& pos, Depth depth);
 extern bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]);
+extern void do_checkmate(Position& pos, int mateTime);
+extern void show_tree(Position& pos);
 
 #endif // !defined(SEARCH_H_INCLUDED)

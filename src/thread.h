@@ -23,9 +23,13 @@
 #include <cstring>
 
 #include "lock.h"
+#ifndef GPSFISH
 #include "material.h"
+#endif
 #include "movepick.h"
+#ifndef GPSFISH
 #include "pawns.h"
+#endif
 #include "position.h"
 
 const int MAX_THREADS = 32;
@@ -79,8 +83,10 @@ struct Thread {
   bool cutoff_occurred() const;
   bool is_available_to(int master) const;
 
+#ifndef GPSFISH
   MaterialInfoTable materialTable;
   PawnInfoTable pawnTable;
+#endif
   int maxPly;
   Lock sleepLock;
   WaitCondition sleepCond;

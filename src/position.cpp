@@ -24,28 +24,114 @@
 #include <iostream>
 #include <sstream>
 
+#ifndef GPSFISH
 #include "bitcount.h"
+#endif
 #include "movegen.h"
 #include "position.h"
+#ifndef GPSFISH
 #include "psqtab.h"
+#endif
 #include "rkiss.h"
 #include "thread.h"
 #include "tt.h"
 #include "ucioption.h"
-
+#ifdef GPSFISH
+#include "osl/eval/ptypeEvalTraits.h"
+using osl::eval::PtypeEvalTraits;
+#include "osl/state/simpleState.h"
+#include "osl/state/numEffectState.h"
+#include "osl/move_classifier/check_.h"
+#include "osl/record/usi.h"
+#include "osl/eval/see.h"
+#include "osl/move_classifier/safeMove.h"
+#include "evaluate.h"
+#endif
 using std::string;
 using std::cout;
 using std::endl;
 
+#ifdef GPSFISH
+osl::misc::CArray3d<Key,2,osl::PTYPE_SIZE,osl::Square::SIZE> Position::zobrist;
+#else
 Key Position::zobrist[2][8][64];
 Key Position::zobEp[64];
 Key Position::zobCastle[16];
+#endif
 Key Position::zobSideToMove;
 Key Position::zobExclusion;
 
+#ifndef GPSFISH
 Score Position::PieceSquareTable[16][64];
+#endif
 
 // Material values arrays, indexed by Piece
+#ifdef GPSFISH
+const Value Position::PieceValueMidgame[osl::PTYPE_SIZE] = {
+  VALUE_ZERO,VALUE_ZERO,
+  Value(PtypeEvalTraits<osl::PPAWN>::val), Value(PtypeEvalTraits<osl::PLANCE>::val), 
+  Value(PtypeEvalTraits<osl::PKNIGHT>::val), Value(PtypeEvalTraits<osl::PSILVER>::val), 
+  Value(PtypeEvalTraits<osl::PBISHOP>::val), Value(PtypeEvalTraits<osl::PROOK>::val), 
+#if 0
+  Value(PtypeEvalTraits<osl::GOLD>::val), Value(PtypeEvalTraits<osl::KING>::val), 
+#else
+  Value(PtypeEvalTraits<osl::KING>::val), Value(PtypeEvalTraits<osl::GOLD>::val), 
+#endif
+  Value(PtypeEvalTraits<osl::PAWN>::val), Value(PtypeEvalTraits<osl::LANCE>::val), 
+  Value(PtypeEvalTraits<osl::KNIGHT>::val), Value(PtypeEvalTraits<osl::SILVER>::val), 
+  Value(PtypeEvalTraits<osl::BISHOP>::val), Value(PtypeEvalTraits<osl::ROOK>::val), 
+};
+
+const Value Position::PieceValueEndgame[osl::PTYPE_SIZE] = {
+  VALUE_ZERO,VALUE_ZERO,
+  Value(PtypeEvalTraits<osl::PPAWN>::val+PtypeEvalTraits<osl::PAWN>::val), 
+  Value(PtypeEvalTraits<osl::PLANCE>::val+PtypeEvalTraits<osl::LANCE>::val), 
+  Value(PtypeEvalTraits<osl::PKNIGHT>::val+PtypeEvalTraits<osl::KNIGHT>::val), 
+  Value(PtypeEvalTraits<osl::PSILVER>::val+PtypeEvalTraits<osl::SILVER>::val), 
+  Value(PtypeEvalTraits<osl::PBISHOP>::val+PtypeEvalTraits<osl::BISHOP>::val), 
+  Value(PtypeEvalTraits<osl::PROOK>::val+PtypeEvalTraits<osl::ROOK>::val), 
+#if 0
+  Value(PtypeEvalTraits<osl::GOLD>::val*2), 
+  Value(PtypeEvalTraits<osl::KING>::val*2), 
+#else
+  Value(PtypeEvalTraits<osl::KING>::val*2), 
+  Value(PtypeEvalTraits<osl::GOLD>::val*2), 
+#endif
+  Value(PtypeEvalTraits<osl::PAWN>::val*2), 
+  Value(PtypeEvalTraits<osl::LANCE>::val*2), 
+  Value(PtypeEvalTraits<osl::KNIGHT>::val*2), 
+  Value(PtypeEvalTraits<osl::SILVER>::val*2), 
+  Value(PtypeEvalTraits<osl::BISHOP>::val*2), 
+  Value(PtypeEvalTraits<osl::ROOK>::val*2), 
+};
+
+const Value Position::PromoteValue[osl::PTYPE_SIZE] = {
+  VALUE_ZERO,VALUE_ZERO,
+  VALUE_ZERO,VALUE_ZERO,
+  VALUE_ZERO,VALUE_ZERO,
+  VALUE_ZERO,VALUE_ZERO,
+  VALUE_ZERO,VALUE_ZERO,
+  Value(PtypeEvalTraits<osl::PPAWN>::val)-Value(PtypeEvalTraits<osl::PAWN>::val), 
+  Value(PtypeEvalTraits<osl::PLANCE>::val)-Value(PtypeEvalTraits<osl::LANCE>::val), 
+  Value(PtypeEvalTraits<osl::PKNIGHT>::val)-Value(PtypeEvalTraits<osl::KNIGHT>::val), 
+  Value(PtypeEvalTraits<osl::PSILVER>::val)-Value(PtypeEvalTraits<osl::SILVER>::val), 
+  Value(PtypeEvalTraits<osl::PBISHOP>::val)-Value(PtypeEvalTraits<osl::BISHOP>::val), 
+  Value(PtypeEvalTraits<osl::PROOK>::val)-Value(PtypeEvalTraits<osl::ROOK>::val), 
+};
+
+const Value Position::PieceValueType[osl::PTYPE_SIZE] = {
+  VALUE_ZERO,VALUE_ZERO,
+  Value(4), Value(8), 
+  Value(12), Value(16), 
+  Value(24), Value(26), 
+  Value(18), Value(26), 
+  Value(2), Value(6), 
+  Value(10), Value(14), 
+  Value(20), Value(22), 
+};
+
+
+#else
 const Value Position::PieceValueMidgame[17] = {
   VALUE_ZERO,
   PawnValueMidgame, KnightValueMidgame, BishopValueMidgame,
@@ -63,24 +149,62 @@ const Value Position::PieceValueEndgame[17] = {
   PawnValueEndgame, KnightValueEndgame, BishopValueEndgame,
   RookValueEndgame, QueenValueEndgame
 };
+#endif
 
 // Material values array used by SEE, indexed by PieceType
+#ifdef GPSFISH
+const Value Position::seeValues[] = {
+  VALUE_ZERO,VALUE_ZERO,
+  Value(PtypeEvalTraits<osl::PPAWN>::val), Value(PtypeEvalTraits<osl::PLANCE>::val), 
+  Value(PtypeEvalTraits<osl::PKNIGHT>::val), Value(PtypeEvalTraits<osl::PSILVER>::val), 
+  Value(PtypeEvalTraits<osl::PBISHOP>::val), Value(PtypeEvalTraits<osl::PROOK>::val), 
+#if 0
+  Value(PtypeEvalTraits<osl::GOLD>::val), Value(PtypeEvalTraits<osl::KING>::val), 
+#else
+  Value(PtypeEvalTraits<osl::KING>::val), Value(PtypeEvalTraits<osl::GOLD>::val), 
+#endif
+  Value(PtypeEvalTraits<osl::PAWN>::val), Value(PtypeEvalTraits<osl::LANCE>::val), 
+  Value(PtypeEvalTraits<osl::KNIGHT>::val), Value(PtypeEvalTraits<osl::SILVER>::val), 
+  Value(PtypeEvalTraits<osl::BISHOP>::val), Value(PtypeEvalTraits<osl::ROOK>::val), 
+};
+#else
 const Value Position::seeValues[] = {
     VALUE_ZERO,
     PawnValueMidgame, KnightValueMidgame, BishopValueMidgame,
     RookValueMidgame, QueenValueMidgame, QueenValueMidgame*10
 };
+#endif
 
 
 namespace {
 
+#ifndef GPSFISH
   // Bonus for having the side to move (modified by Joona Kiiski)
   const Score TempoValue = make_score(48, 22);
+#endif
 
   struct PieceLetters : public std::map<char, Piece> {
 
     PieceLetters() {
-
+#ifdef GPSFISH
+      operator[]('K') = NEW_PTYPEO(BLACK,osl::KING);
+      operator[]('k') = NEW_PTYPEO(WHITE,osl::KING);
+      operator[]('R') = NEW_PTYPEO(BLACK,osl::ROOK);
+      operator[]('r') = NEW_PTYPEO(WHITE,osl::ROOK);
+      operator[]('B') = NEW_PTYPEO(BLACK,osl::BISHOP);
+      operator[]('b') = NEW_PTYPEO(WHITE,osl::BISHOP);
+      operator[]('G') = NEW_PTYPEO(BLACK,osl::GOLD);
+      operator[]('g') = NEW_PTYPEO(WHITE,osl::GOLD);
+      operator[]('S') = NEW_PTYPEO(BLACK,osl::SILVER);
+      operator[]('s') = NEW_PTYPEO(WHITE,osl::SILVER);
+      operator[]('N') = NEW_PTYPEO(BLACK,osl::KNIGHT);
+      operator[]('n') = NEW_PTYPEO(WHITE,osl::KNIGHT);
+      operator[]('L') = NEW_PTYPEO(BLACK,osl::LANCE);
+      operator[]('l') = NEW_PTYPEO(WHITE,osl::LANCE);
+      operator[]('P') = NEW_PTYPEO(BLACK,osl::PAWN);
+      operator[]('p') = NEW_PTYPEO(WHITE,osl::PAWN);
+      operator[]('.') = osl::PTYPEO_EMPTY;
+#else
       operator[]('K') = WK; operator[]('k') = BK;
       operator[]('Q') = WQ; operator[]('q') = BQ;
       operator[]('R') = WR; operator[]('r') = BR;
@@ -89,14 +213,24 @@ namespace {
       operator[]('P') = WP; operator[]('p') = BP;
       operator[](' ') = PIECE_NONE;
       operator[]('.') = PIECE_NONE_DARK_SQ;
+#endif
     }
 
+#ifdef GPSFISH
+    string from_piece(Piece p) const {
+#else
     char from_piece(Piece p) const {
+#endif
 
       std::map<char, Piece>::const_iterator it;
       for (it = begin(); it != end(); ++it)
+#ifdef GPSFISH
+          if (it->second == unpromote(p))
+              return (isPromoted(p) ? string("+") : string(""))+string(1,it->first);
+#else
           if (it->second == p)
               return it->first;
+#endif
 
       assert(false);
       return 0;
@@ -107,6 +241,7 @@ namespace {
 }
 
 
+#ifndef GPSFISH
 /// CheckInfo c'tor
 
 CheckInfo::CheckInfo(const Position& pos) {
@@ -124,6 +259,7 @@ CheckInfo::CheckInfo(const Position& pos) {
   checkSq[QUEEN] = checkSq[BISHOP] | checkSq[ROOK];
   checkSq[KING] = EmptyBoardBB;
 }
+#endif
 
 
 /// Position c'tors. Here we always create a copy of the original position
@@ -136,10 +272,16 @@ Position::Position(const Position& pos, int th) {
   detach(); // Always detach() in copy c'tor to avoid surprises
   threadID = th;
   nodes = 0;
+#ifdef GPSFISH
+  eval=NULL;
+#endif
 }
 
 Position::Position(const string& fen, bool isChess960, int th) {
 
+#ifdef GPSFISH
+  eval=NULL;
+#endif
   from_fen(fen, isChess960);
   threadID = th;
 }
@@ -190,6 +332,12 @@ void Position::from_fen(const string& fen, bool isChess960) {
    6) Fullmove number: The number of the full move. It starts at 1, and is incremented after Black's move.
 */
 
+#ifdef GPSFISH
+  clear();
+  osl::record::usi::parse(string("sfen ")+fen,osl_state);
+  std::istringstream ss(fen);
+  int fmn;
+#else
   char token;
   int hmc, fmn;
   std::istringstream ss(fen);
@@ -243,11 +391,18 @@ void Position::from_fen(const string& fen, bool isChess960) {
   // 5. Halfmove clock
   if (ss >> hmc)
       st->rule50 = hmc;
+#endif
 
   // 6. Fullmove number
+#ifdef GPSFISH
+  if (ss >> fmn)
+      startPosPlyCounter = (fmn - 1) * 2 + int(side_to_move() == BLACK);
+#else
   if (ss >> fmn)
       startPosPlyCounter = (fmn - 1) * 2 + int(sideToMove == BLACK);
+#endif
 
+#ifndef GPSFISH
   // Various initialisations
   castleRightsMask[make_square(initialKFile,  RANK_1)] ^= WHITE_OO | WHITE_OOO;
   castleRightsMask[make_square(initialKFile,  RANK_8)] ^= BLACK_OO | BLACK_OOO;
@@ -258,20 +413,28 @@ void Position::from_fen(const string& fen, bool isChess960) {
 
   chess960 = isChess960;
   find_checkers();
+#endif
 
   st->key = compute_key();
+#ifdef GPSFISH
+  if(eval!=NULL) *eval=eval_t(osl_state,false);
+#else
   st->pawnKey = compute_pawn_key();
   st->materialKey = compute_material_key();
   st->value = compute_value();
   st->npMaterial[WHITE] = compute_non_pawn_material(WHITE);
   st->npMaterial[BLACK] = compute_non_pawn_material(BLACK);
+#endif
   return;
 
+#ifndef GPSFISH
 incorrect_fen:
   cout << "Error in FEN string: " << fen << endl;
+#endif
 }
 
 
+#ifndef GPSFISH
 /// Position::set_castling_rights() sets castling parameters castling avaiability.
 /// This function is compatible with 3 standards: Normal FEN standard, Shredder-FEN
 /// that uses the letters of the columns on which the rooks began the game instead
@@ -328,7 +491,7 @@ bool Position::set_castling_rights(char token) {
 
   return true;
 }
-
+#endif
 
 /// Position::to_fen() returns a FEN representation of the position. In case
 /// of Chess960 the Shredder-FEN notation is used. Mainly a debugging function.
@@ -339,9 +502,17 @@ const string Position::to_fen() const {
   Square sq;
   char emptyCnt = '0';
 
+#ifdef GPSFISH
+  for (Rank rank = RANK_1; rank <= RANK_9; rank++, fen += '/')
+#else
   for (Rank rank = RANK_8; rank >= RANK_1; rank--, fen += '/')
+#endif
   {
+#ifdef GPSFISH
+      for (File file = FILE_9; file >= FILE_1; file--)
+#else
       for (File file = FILE_A; file <= FILE_H; file++)
+#endif
       {
           sq = make_square(file, rank);
 
@@ -364,8 +535,13 @@ const string Position::to_fen() const {
       }
   }
 
+#ifdef GPSFISH
+  fen += (side_to_move() == WHITE ? " w " : " b ");
+#else
   fen += (sideToMove == WHITE ? " w " : " b ");
+#endif
 
+#ifndef GPSFISH
   if (st->castleRights != CASTLES_NONE)
   {
       if (can_castle_kingside(WHITE))
@@ -383,6 +559,7 @@ const string Position::to_fen() const {
       fen += '-';
 
   fen += (ep_square() == SQ_NONE ? " -" : " " + square_to_string(ep_square()));
+#endif
   return fen;
 }
 
@@ -394,13 +571,19 @@ void Position::print(Move move) const {
 
   const char* dottedLine = "\n+---+---+---+---+---+---+---+---+\n";
 
+#ifdef GPSFISH
+  if (move.isValid())
+#else
   if (move)
+#endif
   {
       Position p(*this, thread());
       string dd = (color_of_piece_on(move_from(move)) == BLACK ? ".." : "");
       cout << "\nMove is: " << dd << move_to_san(p, move);
   }
-
+#ifdef GPSFISH
+  cout << osl_state << endl;
+#else
   for (Rank rank = RANK_8; rank >= RANK_1; rank--)
   {
       cout << dottedLine << '|';
@@ -416,10 +599,12 @@ void Position::print(Move move) const {
           cout << c << pieceLetters.from_piece(piece) << c << '|';
       }
   }
+#endif
   cout << dottedLine << "Fen is: " << to_fen() << "\nKey is: " << st->key << endl;
 }
 
 
+#ifndef GPSFISH
 /// Position:hidden_checkers<>() returns a bitboard of all pinned (against the
 /// king) pieces for the given color and for the given pinner type. Or, when
 /// template parameter FindPinned is false, the pieces of the given color
@@ -547,8 +732,10 @@ bool Position::move_attacks_square(Move m, Square s) const {
   // and are not already existent ones.
   return xray && (xray ^ (xray & attacks_from<QUEEN>(s)));
 }
+#endif
 
 
+#ifndef GPSFISH
 /// Position::find_checkers() computes the checkersBB bitboard, which
 /// contains a nonzero bit for each checking piece (0, 1 or 2). It
 /// currently works by calling Position::attackers_to, which is probably
@@ -560,12 +747,27 @@ void Position::find_checkers() {
   Color us = side_to_move();
   st->checkersBB = attackers_to(king_square(us)) & pieces_of_color(opposite_color(us));
 }
+#endif
 
 
 /// Position::pl_move_is_legal() tests whether a pseudo-legal move is legal
 
+#ifdef GPSFISH
+bool Position::pl_move_is_legal(Move m) const {
+  if(!osl_state.isAlmostValidMove<false>(m)) return false;
+  if(m.isDrop()) return true;
+  if(side_to_move()==BLACK)
+    return osl::move_classifier::SafeMove<BLACK>::isMember(osl_state,m.ptype(),m.from(),m.to());
+  else
+    return osl::move_classifier::SafeMove<WHITE>::isMember(osl_state,m.ptype(),m.from(),m.to());
+}
+#endif
+
 bool Position::pl_move_is_legal(Move m, Bitboard pinned) const {
 
+#ifdef GPSFISH
+  return pl_move_is_legal(m);
+#else
   assert(is_ok());
   assert(move_is_ok(m));
   assert(pinned == pinned_pieces(side_to_move()));
@@ -616,13 +818,24 @@ bool Position::pl_move_is_legal(Move m, Bitboard pinned) const {
   return   !pinned
         || !bit_is_set(pinned, from)
         ||  squares_aligned(from, move_to(m), king_square(us));
+#endif
 }
 
 
 /// Position::pl_move_is_evasion() tests whether a pseudo-legal move is a legal evasion
 
+#ifdef GPSFISH
+bool Position::pl_move_is_evasion(Move m) const
+{
+  return true;
+}
+#endif
+
 bool Position::pl_move_is_evasion(Move m, Bitboard pinned) const
 {
+#ifdef GPSFISH
+  return pl_move_is_evasion(m);
+#else
   assert(in_check());
 
   Color us = side_to_move();
@@ -642,14 +855,16 @@ bool Position::pl_move_is_evasion(Move m, Bitboard pinned) const
   // Our move must be a blocking evasion or a capture of the checking piece
   target = squares_between(checksq, king_square(us)) | checkers();
   return bit_is_set(target, to) && pl_move_is_legal(m, pinned);
+#endif
 }
-
 /// Position::move_is_legal() takes a position and a (not necessarily pseudo-legal)
 /// move and tests whether the move is legal. This version is not very fast and
 /// should be used only in non time-critical paths.
 
 bool Position::move_is_legal(const Move m) const {
-
+#ifdef GPSFISH
+  return m.isNormal() && pl_move_is_legal(m);
+#else
   MoveStack mlist[MAX_MOVES];
   MoveStack *cur, *last = generate<MV_PSEUDO_LEGAL>(*this, mlist);
 
@@ -658,6 +873,7 @@ bool Position::move_is_legal(const Move m) const {
           return pl_move_is_legal(m, pinned_pieces(sideToMove));
 
   return false;
+#endif
 }
 
 
@@ -666,6 +882,9 @@ bool Position::move_is_legal(const Move m) const {
 
 bool Position::move_is_legal(const Move m, Bitboard pinned) const {
 
+#ifdef GPSFISH
+  return move_is_legal(m);
+#else
   assert(is_ok());
   assert(pinned == pinned_pieces(sideToMove));
 
@@ -751,16 +970,24 @@ bool Position::move_is_legal(const Move m, Bitboard pinned) const {
 
   // The move is pseudo-legal, check if it is also legal
   return in_check() ? pl_move_is_evasion(m, pinned) : pl_move_is_legal(m, pinned);
+#endif
 }
 
 
 /// Position::move_gives_check() tests whether a pseudo-legal move is a check
 
 bool Position::move_gives_check(Move m) const {
-
+#ifdef GPSFISH
+  if(side_to_move()==BLACK)
+    return osl::move_classifier::Check<BLACK>::isMember(osl_state,m.ptype(),m.from(),m.to());
+  else 
+    return osl::move_classifier::Check<WHITE>::isMember(osl_state,m.ptype(),m.from(),m.to());
+#else
   return move_gives_check(m, CheckInfo(*this));
+#endif
 }
 
+#ifndef GPSFISH
 bool Position::move_gives_check(Move m, const CheckInfo& ci) const {
 
   assert(is_ok());
@@ -851,7 +1078,7 @@ bool Position::move_gives_check(Move m, const CheckInfo& ci) const {
 
   return false;
 }
-
+#endif
 
 /// Position::do_setup_move() makes a permanent move on the board. It should
 /// be used when setting up a position on board. You can't undo the move.
@@ -861,11 +1088,22 @@ void Position::do_setup_move(Move m) {
   StateInfo newSt;
 
   do_move(m, newSt);
+  if(eval)
+    *eval=eval_t(osl_state,false);
 
   // Reset "game ply" in case we made a non-reversible move.
   // "game ply" is used for repetition detection.
+#ifdef GPSFISH
+  if(st->gamePly>16){
+    for(int i=0;i<16;i++){
+      history[i]=history[i+st->gamePly-16];
+    }
+    st->gamePly=16;
+  }
+#else
   if (st->rule50 == 0)
       st->gamePly = 0;
+#endif
 
   // Update the number of plies played from the starting position
   startPosPlyCounter++;
@@ -882,10 +1120,58 @@ void Position::do_setup_move(Move m) {
 
 void Position::do_move(Move m, StateInfo& newSt) {
 
+#ifdef GPSFISH
+  assert(is_ok());
+  assert(!m.isPass());
+  nodes++;
+  Key key = st->key;
+  struct ReducedStateInfo {
+    int gamePly, pliesFromNull;
+    Key key;
+  };
+  memcpy(&newSt, st, sizeof(ReducedStateInfo));
+
+  newSt.previous = st;
+  st = &newSt;
+  history[st->gamePly++] = key;
+
+  // Update side to move
+  key ^= zobSideToMove;
+
+  st->pliesFromNull++;
+
+  prefetch((char*)TT.first_entry(key));
+
+  Color us = side_to_move();
+  Color them = opposite_color(us);
+  Square from = move_from(m);
+  Square to = move_to(m);
+
+  PieceType pt=m.ptype();
+  osl::Ptype capture = m.capturePtype();
+  st->capturedType = capture;
+  if(capture!=osl::PTYPE_EMPTY){
+    key -= zobrist[them][(int)capture][to.index()];
+    key += zobrist[us][unpromote(capture)][Square::STAND().index()];
+  }
+  // Update hash key
+  if(move_is_promotion(m))
+    key += zobrist[us][(int)pt][to.index()]-zobrist[us][(int)unpromote(pt)][from.index()];
+  else
+    key += zobrist[us][(int)pt][to.index()]-zobrist[us][(int)pt][from.index()];
+
+  st->key = key;
+  osl_state.makeMove(m);
+  if(osl_state.inCheck()) continuous_check[us]++;
+  else continuous_check[us]=0;
+  assert(is_ok());
+#else
   CheckInfo ci(*this);
   do_move(m, newSt, ci, move_gives_check(m, ci));
+#endif
 }
 
+#ifndef GPSFISH
 void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveIsCheck) {
 
   assert(is_ok());
@@ -1482,7 +1768,7 @@ void Position::undo_null_move() {
   st->rule50--;
   st->gamePly--;
 }
-
+#endif
 
 /// Position::see() is a static exchange evaluator: It tries to estimate the
 /// material gain or loss resulting from a move. There are three versions of
@@ -1493,7 +1779,12 @@ void Position::undo_null_move() {
 int Position::see(Move m) const {
 
   assert(move_is_ok(m));
+#ifdef GPSFISH
+  Player p=osl_state.turn();
+  return osl::See::see(osl_state,m,osl_state.pin(p),osl_state.pin(alt(p)));
+#else
   return see(move_from(m), move_to(m));
+#endif
 }
 
 int Position::see_sign(Move m) const {
@@ -1509,9 +1800,15 @@ int Position::see_sign(Move m) const {
   if (midgame_value_of_piece_on(to) >= midgame_value_of_piece_on(from))
       return 1;
 
+#ifdef GPSFISH
+  Player p=osl_state.turn();
+  return osl::See::see(osl_state,m,osl_state.pin(p),osl_state.pin(alt(p)));
+#else
   return see(from, to);
+#endif
 }
 
+#ifndef GPSFISH
 int Position::see(Square from, Square to) const {
 
   Bitboard occupied, attackers, stmAttackers, b;
@@ -1611,6 +1908,7 @@ int Position::see(Square from, Square to) const {
 
   return swapList[0];
 }
+#endif
 
 
 /// Position::clear() erases the position object to a pristine state, with an
@@ -1620,10 +1918,13 @@ void Position::clear() {
 
   st = &startState;
   memset(st, 0, sizeof(StateInfo));
+#ifndef GPSFISH
   st->epSquare = SQ_NONE;
+#endif
   startPosPlyCounter = 0;
   nodes = 0;
 
+#ifndef GPSFISH
   memset(byColorBB,  0, sizeof(Bitboard) * 2);
   memset(byTypeBB,   0, sizeof(Bitboard) * 8);
   memset(pieceCount, 0, sizeof(int) * 2 * 8);
@@ -1638,17 +1939,25 @@ void Position::clear() {
 
   for (Square sq = SQ_A1; sq <= SQ_H8; sq++)
       castleRightsMask[sq] = ALL_CASTLES;
+#endif
 
+#ifdef GPSFISH
+  osl_state=osl::NumEffectState();
+  osl_state.setTurn(BLACK);
+  continuous_check[BLACK]=continuous_check[WHITE]=0;
+#else
   sideToMove = WHITE;
   initialKFile = FILE_E;
   initialKRFile = FILE_H;
   initialQRFile = FILE_A;
+#endif
 }
 
 
 /// Position::put_piece() puts a piece on the given square of the board,
 /// updating the board array, pieces list, bitboards, and piece counts.
 
+#ifndef GPSFISH
 void Position::put_piece(Piece p, Square s) {
 
   Color c = color_of_piece(p);
@@ -1662,6 +1971,7 @@ void Position::put_piece(Piece p, Square s) {
   set_bit(&(byColorBB[c]), s);
   set_bit(&(byTypeBB[0]), s); // HACK: byTypeBB[0] contains all occupied squares.
 }
+#endif
 
 
 /// Position::compute_key() computes the hash key of the position. The hash
@@ -1671,6 +1981,14 @@ void Position::put_piece(Piece p, Square s) {
 
 Key Position::compute_key() const {
 
+#ifdef GPSFISH
+  Key result = 0;
+  for(int num=0;num<osl::Piece::SIZE;num++){
+    osl::Piece p=osl_state.pieceOf(num);
+    if(osl_state.usedMask().test(num))
+      result += zobrist[playerToIndex(p.owner())][p.ptype()][p.square().index()];
+  }
+#else
   Key result = zobCastle[st->castleRights];
 
   for (Square s = SQ_A1; s <= SQ_H8; s++)
@@ -1679,6 +1997,7 @@ Key Position::compute_key() const {
 
   if (ep_square() != SQ_NONE)
       result ^= zobEp[ep_square()];
+#endif
 
   if (side_to_move() == BLACK)
       result ^= zobSideToMove;
@@ -1693,6 +2012,7 @@ Key Position::compute_key() const {
 /// up, and to verify the correctness of the pawn hash key when running in
 /// debug mode.
 
+#ifndef GPSFISH
 Key Position::compute_pawn_key() const {
 
   Bitboard b;
@@ -1728,12 +2048,14 @@ Key Position::compute_material_key() const {
       }
   return result;
 }
+#endif
 
 
 /// Position::compute_value() compute the incremental scores for the middle
 /// game and the endgame. These functions are used to initialize the incremental
 /// scores when a new position is set up, and to verify that the scores are correctly
 /// updated by do_move and undo_move when the program is running in debug mode.
+#ifndef GPSFISH
 Score Position::compute_value() const {
 
   Bitboard b;
@@ -1750,13 +2072,14 @@ Score Position::compute_value() const {
   result += (side_to_move() == WHITE ? TempoValue / 2 : -TempoValue / 2);
   return result;
 }
-
+#endif
 
 /// Position::compute_non_pawn_material() computes the total non-pawn middle
 /// game material value for the given side. Material values are updated
 /// incrementally during the search, this function is only used while
 /// initializing a new Position object.
 
+#ifndef GPSFISH
 Value Position::compute_non_pawn_material(Color c) const {
 
   Value result = VALUE_ZERO;
@@ -1766,12 +2089,28 @@ Value Position::compute_non_pawn_material(Color c) const {
 
   return result;
 }
+#endif
 
 
 /// Position::is_draw() tests whether the position is drawn by material,
 /// repetition, or the 50 moves rule. It does not detect stalemates, this
 /// must be done by the search.
 
+#ifdef GPSFISH
+bool Position::is_draw(int& ret) const {
+
+  ret=0;
+  for (int i = 4, e = Min(st->gamePly,st->pliesFromNull); i <= e; i += 2)
+    if (history[st->gamePly - i] == st->key){
+      Color us = side_to_move();
+      Color them = opposite_color(us);
+      if(continuous_check[us]*2>=i) {ret= -1; return false;}
+      else if(continuous_check[them]*2>=i) {ret= 1; return false;}
+      else return true;
+    }
+  return false;
+}
+#else
 bool Position::is_draw() const {
 
   // Draw by material?
@@ -1790,6 +2129,7 @@ bool Position::is_draw() const {
 
   return false;
 }
+#endif
 
 
 /// Position::is_mate() returns true or false depending on whether the
@@ -1810,6 +2150,10 @@ void Position::init_zobrist() {
   int i,j, k;
   RKISS rk;
 
+#ifdef GPSFISH
+  for (i = 0; i < 2; i++) for (j = 0; j < osl::PTYPE_SIZE; j++) for (k = 0; k < osl::Square::SIZE; k++)
+      zobrist[i][j][k] = rk.rand<Key>() & ~1;
+#else
   for (i = 0; i < 2; i++) for (j = 0; j < 8; j++) for (k = 0; k < 64; k++)
       zobrist[i][j][k] = rk.rand<Key>();
 
@@ -1818,9 +2162,15 @@ void Position::init_zobrist() {
 
   for (i = 0; i < 16; i++)
       zobCastle[i] = rk.rand<Key>();
+#endif
 
+#ifdef GPSFISH
+  zobSideToMove = 1;
+  zobExclusion  = rk.rand<Key>() & ~1;
+#else
   zobSideToMove = rk.rand<Key>();
   zobExclusion  = rk.rand<Key>();
+#endif
 }
 
 
@@ -1830,6 +2180,7 @@ void Position::init_zobrist() {
 /// of the tables are initialized by mirroring and changing the sign of the
 /// corresponding white scores.
 
+#ifndef GPSFISH
 void Position::init_piece_square_tables() {
 
   for (Square s = SQ_A1; s <= SQ_H8; s++)
@@ -1840,11 +2191,13 @@ void Position::init_piece_square_tables() {
       for (Piece p = BP; p <= BK; p++)
           PieceSquareTable[p][s] = -PieceSquareTable[p-8][flip_square(s)];
 }
+#endif
 
 
 /// Position::flip() flips position with the white and black sides reversed. This
 /// is only useful for debugging especially for finding evaluation symmetry bugs.
 
+#ifndef GPSFISH
 void Position::flip() {
 
   assert(is_ok());
@@ -1901,21 +2254,25 @@ void Position::flip() {
 
   assert(is_ok());
 }
-
+#endif
 
 /// Position::is_ok() performs some consitency checks for the position object.
 /// This is meant to be helpful when debugging.
 
 bool Position::is_ok(int* failedStep) const {
 
+#ifndef MINIMAL
   // What features of the position should be verified?
   const bool debugAll = false;
+#ifndef GPSFISH
 
   const bool debugBitboards       = debugAll || false;
   const bool debugKingCount       = debugAll || false;
   const bool debugKingCapture     = debugAll || false;
   const bool debugCheckerCount    = debugAll || false;
+#endif
   const bool debugKey             = debugAll || false;
+#ifndef GPSFISH
   const bool debugMaterialKey     = debugAll || false;
   const bool debugPawnKey         = debugAll || false;
   const bool debugIncrementalEval = debugAll || false;
@@ -1923,6 +2280,7 @@ bool Position::is_ok(int* failedStep) const {
   const bool debugPieceCounts     = debugAll || false;
   const bool debugPieceList       = debugAll || false;
   const bool debugCastleSquares   = debugAll || false;
+#endif
 
   if (failedStep) *failedStep = 1;
 
@@ -1930,6 +2288,7 @@ bool Position::is_ok(int* failedStep) const {
   if (!color_is_ok(side_to_move()))
       return false;
 
+#ifndef GPSFISH
   // Are the king squares in the position correct?
   if (failedStep) (*failedStep)++;
   if (piece_on(king_square(WHITE)) != WK)
@@ -1946,7 +2305,11 @@ bool Position::is_ok(int* failedStep) const {
 
   if (!file_is_ok(initialQRFile))
       return false;
+#endif
 
+#ifdef GPSFISH
+  if(!osl_state.isConsistent()) return false;
+#else
   // Do both sides have exactly one king?
   if (failedStep) (*failedStep)++;
   if (debugKingCount)
@@ -2005,12 +2368,14 @@ bool Position::is_ok(int* failedStep) const {
       if (relative_rank(side_to_move(), ep_square()) != RANK_6)
           return false;
   }
+#endif
 
   // Hash key OK?
   if (failedStep) (*failedStep)++;
   if (debugKey && st->key != compute_key())
       return false;
 
+#ifndef GPSFISH
   // Pawn hash key OK?
   if (failedStep) (*failedStep)++;
   if (debugPawnKey && st->pawnKey != compute_pawn_key())
@@ -2020,9 +2385,11 @@ bool Position::is_ok(int* failedStep) const {
   if (failedStep) (*failedStep)++;
   if (debugMaterialKey && st->materialKey != compute_material_key())
       return false;
+#endif
 
   // Incremental eval OK?
   if (failedStep) (*failedStep)++;
+#ifndef GPSFISH
   if (debugIncrementalEval && st->value != compute_value())
       return false;
 
@@ -2078,7 +2445,18 @@ bool Position::is_ok(int* failedStep) const {
       if (castleRightsMask[initial_qr_square(BLACK)] != (ALL_CASTLES ^ BLACK_OOO))
           return false;
   }
+#endif
 
   if (failedStep) *failedStep = 0;
+#endif
   return true;
 }
+#ifdef GPSFISH
+bool Position::eval_is_ok() const {
+  if(!is_ok()) return false;
+  if(!eval) return true;
+  int ret1=eval_t(osl_state,false).value();
+  int ret2=eval->value();
+  return ret1==ret2;
+}
+#endif

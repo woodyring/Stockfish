@@ -28,6 +28,7 @@
 #include "rkiss.h"
 
 
+#ifndef GPSFISH
 // A Polyglot book is a series of "entries" of 16 bytes. All integers are
 // stored highest byte first (regardless of size). The entries are ordered
 // according to key. Lowest key first.
@@ -37,6 +38,7 @@ struct BookEntry {
   uint16_t count;
   uint32_t learn;
 };
+#endif
 
 class Book {
 public:
@@ -45,6 +47,7 @@ public:
   void open(const std::string& fileName);
   void close();
   Move get_move(const Position& pos, bool findBestMove);
+#ifndef GPSFISH
   const std::string name() const { return bookName; }
 
 private:
@@ -62,10 +65,13 @@ private:
   std::string bookName;
   int bookSize;
   RKISS RKiss;
+#endif
 };
 
+#ifndef GPSFISH
 // Yes, we indulge a bit here ;-)
 template<int n> inline uint64_t Book::get_int() { return 256 * get_int<n-1>() + bookFile.get(); }
 template<> inline uint64_t Book::get_int<1>() { return bookFile.get(); }
+#endif
 
 #endif // !defined(BOOK_H_INCLUDED)

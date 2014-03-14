@@ -26,7 +26,11 @@
 #include "types.h"
 
 // Maximum number of allowed moves per position
+#ifdef GPSFISH
+const int MAX_MOVES = 593;
+#else
 const int MAX_MOVES = 256;
+#endif
 
 /// A move needs 16 bits to be stored
 ///
@@ -40,10 +44,17 @@ const int MAX_MOVES = 256;
 /// from origin square while MOVE_NONE and MOVE_NULL have the same
 /// origin and destination square, 0 and 1 respectively.
 
+#ifdef GPSFISH
+extern bool using_tcp_connection; // to enable/disable Move::DeclareWin() at root
+#include "osl/move.h"
+typedef osl::Move Move;
+static const Move MOVE_NONE=Move::INVALID();
+#else
 enum Move {
   MOVE_NONE = 0,
   MOVE_NULL = 65
 };
+#endif
 
 
 struct MoveStack {
@@ -130,37 +141,76 @@ inline T pick_best(T* curMove, T* lastMove)
 
 
 inline Square move_from(Move m) {
+#ifdef GPSFISH
+  return m.from();
+#else
   return Square((int(m) >> 6) & 0x3F);
+#endif
 }
 
 inline Square move_to(Move m) {
+#ifdef GPSFISH
+  return m.to();
+#else
   return Square(m & 0x3F);
+#endif
 }
 
 inline bool move_is_special(Move m) {
+#ifdef GPSFISH
+  return false;
+#else
   return m & (3 << 14);
+#endif
 }
 
 inline bool move_is_promotion(Move m) {
+#ifdef GPSFISH
+  return m.isPromotion();
+#else
   return (m & (3 << 14)) == (1 << 14);
+#endif
 }
 
 inline int move_is_ep(Move m) {
+#ifdef GPSFISH
+  return false;
+#else
   return (m & (3 << 14)) == (2 << 14);
+#endif
 }
 
 inline int move_is_castle(Move m) {
+#ifdef GPSFISH
+  return false;
+#else
   return (m & (3 << 14)) == (3 << 14);
+#endif
 }
 
 inline bool move_is_short_castle(Move m) {
+#ifdef GPSFISH
+  return false;
+#else
   return move_is_castle(m) && (move_to(m) > move_from(m));
+#endif
 }
+
+#ifdef GPSFISH
+inline bool move_is_pawn_drop(Move m){
+  return m.isDrop() && m.ptype()==osl::PAWN;
+}
+#endif
 
 inline bool move_is_long_castle(Move m) {
+#ifdef GPSFISH
+  return false;
+#else
   return move_is_castle(m) && (move_to(m) < move_from(m));
+#endif
 }
 
+#ifndef GPSFISH
 inline PieceType move_promotion_piece(Move m) {
   return move_is_promotion(m) ? PieceType(((int(m) >> 12) & 3) + 2) : PIECE_TYPE_NONE;
 }
@@ -180,6 +230,7 @@ inline Move make_ep_move(Square from, Square to) {
 inline Move make_castle_move(Square from, Square to) {
   return Move(int(to) | (int(from) << 6) | (3 << 14));
 }
+#endif
 
 inline bool move_is_ok(Move m) {
   return move_from(m) != move_to(m); // Catches also MOVE_NONE

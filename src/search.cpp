@@ -37,6 +37,34 @@
 #include "thread.h"
 #include "tt.h"
 #include "ucioption.h"
+#ifdef GPSFISH
+#include "position.tcc"
+#include "osl/boardTable.h"
+using osl::Board_Table;
+#include "osl/ptypeTable.h"
+using osl::Ptype_Table;
+#include "osl/offset32.h"
+using osl::Offset32;
+#include "osl/checkmate/immediateCheckmate.h"
+#include "osl/checkmate/fixedDepthSearcher.h"
+#include "osl/checkmate/dfpn.h"
+using osl::checkmate::ImmediateCheckmate;
+using std::string;
+#include "osl/enter_king/enterKing.h"
+#include "osl/misc/milliSeconds.h"
+#include "osl/checkmate/dfpn.h"
+#include "osl/checkmate/dfpnParallel.h"
+#include "osl/hash/hashKey.h"
+#endif
+#ifdef MOVE_STACK_REJECTIONS
+#include "osl/search/moveStackRejections.h"
+#endif
+
+#ifdef GPSFISH
+# define GPSFISH_CHECKMATE3
+# define GPSFISH_CHECKMATE3_QUIESCE
+# define GPSFISH_DFPN
+#endif
 
 using std::cout;
 using std::endl;
@@ -70,7 +98,13 @@ namespace {
                                     : non_pv_score < m.non_pv_score;
     }
 
+#ifdef GPSFISH
+    void extract_pv_from_tt_rec(Position& pos,int ply);
+#endif
     void extract_pv_from_tt(Position& pos);
+#ifdef GPSFISH
+    void insert_pv_in_tt_rec(Position& pos,int ply);
+#endif
     void insert_pv_in_tt(Position& pos);
     std::string pv_info_to_uci(Position& pos, int depth, int selDepth,
                                Value alpha, Value beta, int pvIdx);
@@ -130,8 +164,10 @@ namespace {
   /// Constants
 
   // Lookup table to check if a Piece is a slider and its access function
+#ifndef GPSFISH
   const bool Slidings[18] = { 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1 };
   inline bool piece_is_slider(Piece p) { return Slidings[p]; }
+#endif
 
   // Step 6. Razoring
 
@@ -157,9 +193,11 @@ namespace {
 
   // Extensions. Array index 0 is used for non-PV nodes, index 1 for PV nodes
   const Depth CheckExtension[]         = { ONE_PLY / 2, ONE_PLY / 1 };
+#ifndef GPSFISH
   const Depth PawnEndgameExtension[]   = { ONE_PLY / 1, ONE_PLY / 1 };
   const Depth PawnPushTo7thExtension[] = { ONE_PLY / 2, ONE_PLY / 2 };
   const Depth PassedPawnExtension[]    = {  DEPTH_ZERO, ONE_PLY / 2 };
+#endif
 
   // Minimum depth for use of singular extension
   const Depth SingularExtensionDepth[] = { 8 * ONE_PLY, 6 * ONE_PLY };
@@ -207,6 +245,9 @@ namespace {
   // MultiPV mode
   int MultiPV, UCIMultiPV;
 
+#ifdef GPSFISH
+  Value DrawValue;
+#endif
   // Time management variables
   bool StopOnPonderhit, FirstRootMove, StopRequest, QuitRequest, AspirationFailLow;
   TimeManager TimeMgr;
@@ -266,6 +307,7 @@ namespace {
   void poll(const Position& pos);
   void wait_for_stop_or_ponderhit();
 
+#ifndef GPSFISH
   // Overload operator<<() to make it easier to print moves in a coordinate
   // notation compatible with UCI protocol.
   std::ostream& operator<<(std::ostream& os, Move m) {
@@ -287,7 +329,67 @@ namespace {
     os.iword(0) = int(f);
     return os;
   }
+#endif
 
+#ifdef GPSFISH
+  void show_tree_rec(Position &pos){
+    TTEntry* tte;
+    StateInfo st;
+    if ((tte = TT.probe(pos.get_key())) != NULL){
+      std::cerr << "tte->value=" << tte->value() << std::endl;
+      std::cerr << "tte->type=" << tte->type() << std::endl;
+      std::cerr << "tte->generation=" << tte->generation() << std::endl;
+      std::cerr << "tte->depth=" << tte->depth() << std::endl;
+      std::cerr << "tte->static_value=" << tte->static_value() << std::endl;
+      Move m=tte->move(pos);
+      int dummy;
+      if(m != MOVE_NONE
+	 && pos.move_is_legal(m)
+	 && !pos.is_draw(dummy)){
+	std::cerr << "move=" << m << std::endl;
+	pos.do_undo_move(m,st,
+			 [&](osl::Square){ show_tree_rec(pos); }
+	  );
+      }
+    }
+  }
+#endif
+#ifdef GPSFISH
+  Value value_draw(Position const& pos){
+    if(pos.side_to_move()==osl::BLACK) return DrawValue;
+    else return -DrawValue;
+  }
+#endif  
+#ifdef MOVE_STACK_REJECTIONS
+  osl::container::MoveStack moveStacks[MAX_THREADS];
+  bool move_stack_rejections_probe(osl::Move m, Position const &pos,SearchStack* ss,Value alpha){
+    if(DrawValue!=0) return false;
+    int i=std::min(7,std::min(ss->ply,pos.pliesFromNull()+1));
+    if(i<3) return false;
+    osl::state::NumEffectState const& state=pos.osl_state;
+    osl::container::MoveStack &moveStack=moveStacks[pos.thread()];
+    moveStack.clear();
+    while(--i>0) moveStack.push((ss-i)->currentMove);
+    osl::Player player=m.player();
+    int checkCountOfAltP=pos.continuous_check[osl::alt(player)];
+    bool ret=false;
+    if(m.player()==osl::BLACK){
+      ret=osl::search::MoveStackRejections::probe<osl::BLACK>(state,moveStack,ss->ply,m,alpha,checkCountOfAltP);
+    }
+    else {
+      ret=osl::search::MoveStackRejections::probe<osl::WHITE>(state,moveStack,ss->ply,m,-alpha,checkCountOfAltP);
+    }
+    return ret;
+  }
+#endif  
+#ifdef GPSFISH
+  bool can_capture_king(Position const& pos){
+    Color us=pos.side_to_move();
+    Color them=opposite_color(us);
+    const osl::Square king = pos.king_square(them);
+    return pos.osl_state.hasEffectAt(us, king);
+  }
+#endif  
 } // namespace
 
 
@@ -317,7 +419,6 @@ void init_search() {
       FutilityMoveCounts[d] = int(3.001 + 0.25 * pow(d, 2.0));
 }
 
-
 /// perft() is our utility to verify move generation. All the leaf nodes up to
 /// the given depth are generated and counted and the sum returned.
 
@@ -337,17 +438,29 @@ int64_t perft(Position& pos, Depth depth) {
       return int(last - mlist);
 
   // Loop through all legal moves
+#ifndef GPSFISH
   CheckInfo ci(pos);
+#endif
   for (MoveStack* cur = mlist; cur != last; cur++)
   {
       m = cur->move;
+#ifdef GPSFISH
+      pos.do_undo_move(m,st,
+              [&](osl::Square){
+              assert(pos.is_ok());
+#else
       pos.do_move(m, st, ci, pos.move_gives_check(m, ci));
+#endif
       sum += perft(pos, depth - ONE_PLY);
+#ifdef GPSFISH
+      }
+      );
+#else
       pos.undo_move(m);
+#endif
   }
   return sum;
 }
-
 
 /// think() is the external interface to Stockfish's search, and is called when
 /// the program receives the UCI 'go' command. It initializes various global
@@ -374,12 +487,17 @@ bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]) {
       NodesBetweenPolls = 5000;
   else
       NodesBetweenPolls = 30000;
+#ifdef GPSFISH
+  NodesBetweenPolls = Min(NodesBetweenPolls, 1000);
+#endif
 
   // Look for a book move
   if (Options["OwnBook"].value<bool>())
   {
+#ifndef GPSFISH
       if (Options["Book File"].value<std::string>() != book.name())
           book.open(Options["Book File"].value<std::string>());
+#endif
 
       Move bookMove = book.get_move(pos, Options["Best Book Move"].value<bool>());
       if (bookMove != MOVE_NONE)
@@ -387,7 +505,11 @@ bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]) {
           if (Limits.ponder)
               wait_for_stop_or_ponderhit();
 
+#ifdef GPSFISH
+          cout << "bestmove " << move_to_uci(bookMove,false) << endl;
+#else
           cout << "bestmove " << bookMove << endl;
+#endif
           return !QuitRequest;
       }
   }
@@ -395,6 +517,12 @@ bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]) {
   // Read UCI options
   UCIMultiPV = Options["MultiPV"].value<int>();
   SkillLevel = Options["Skill Level"].value<int>();
+#ifdef GPSFISH
+  if(pos.side_to_move()==osl::BLACK)
+    DrawValue = (Value)(Options["DrawValue"].value<int>()*2);
+  else
+    DrawValue = -(Value)(Options["DrawValue"].value<int>()*2);
+#endif
 
   read_evaluation_uci_options(pos.side_to_move());
   Threads.read_uci_options();
@@ -453,9 +581,21 @@ bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]) {
               << "\nBest move: "    << move_to_san(pos, bestMove);
 
       StateInfo st;
+#ifdef GPSFISH
+      if(bestMove.isNormal())
+          pos.do_undo_move(bestMove,st,
+                  [&](osl::Square){
+                  assert(pos.is_ok());
+#else
       pos.do_move(bestMove, st);
+#endif
       LogFile << "\nPonder move: " << move_to_san(pos, ponderMove) << endl;
+#ifdef GPSFISH
+                  }
+                  );
+#else
       pos.undo_move(bestMove); // Return from think() with unchanged position
+#endif
       LogFile.close();
   }
 
@@ -468,18 +608,140 @@ bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]) {
       wait_for_stop_or_ponderhit();
 
   // Could be MOVE_NONE when searching on a stalemate position
+#ifdef GPSFISH
+  cout << "bestmove " << move_to_uci(bestMove,false);
+#else
   cout << "bestmove " << bestMove;
+#endif
 
   // UCI protol is not clear on allowing sending an empty ponder move, instead
   // it is clear that ponder move is optional. So skip it if empty.
+#ifdef GPSFISH
+  if (ponderMove != MOVE_NONE && Options["Ponder"].value<bool>())
+      cout << " ponder " << move_to_uci(ponderMove,false);
+#else
   if (ponderMove != MOVE_NONE)
       cout << " ponder " << ponderMove;
+#endif
 
   cout << endl;
 
   return !QuitRequest;
 }
 
+#ifdef GPSFISH_DFPN
+struct CheckmateSolver
+{
+    osl::checkmate::DfpnTable table_black;
+    osl::checkmate::DfpnTable table_white;
+    osl::checkmate::Dfpn dfpn[2];
+    CheckmateSolver() 
+    {
+        table_black.setAttack(osl::BLACK);
+        table_white.setAttack(osl::WHITE);
+        dfpn[playerToIndex(osl::BLACK)].setTable(&table_black);
+        dfpn[playerToIndex(osl::WHITE)].setTable(&table_white);
+    }
+    Move hasCheckmate(Position& pos, size_t nodes) 
+    {
+        const Depth CheckmateDepth = ONE_PLY*100;
+        TTEntry* tte = TT.probe(pos.get_key());
+        if (tte && tte->type() == VALUE_TYPE_EXACT
+                && tte->depth() >= CheckmateDepth) {
+            Value v = value_from_tt(tte->value(), 0);
+            if (v >= VALUE_MATE_IN_PLY_MAX || v < VALUE_MATED_IN_PLY_MAX)
+                return Move();		// mate or mated
+        }
+
+        osl::PathEncoding path(pos.osl_state.turn());
+        osl::Move checkmate_move;
+        osl::NumEffectState& state = pos.osl_state;
+        osl::stl::vector<osl::Move> pv;
+        osl::checkmate::ProofDisproof result
+            = dfpn[playerToIndex(state.turn())].
+            hasCheckmateMove(state, osl::HashKey(state), path, nodes,
+                    checkmate_move, Move(), &pv);
+        if (result.isCheckmateSuccess()) {
+            TT.store(pos.get_key(), value_mate_in(pv.size()),
+                    VALUE_TYPE_EXACT, CheckmateDepth, checkmate_move,
+                    VALUE_NONE, VALUE_NONE);
+            return checkmate_move;
+        }
+        return Move();
+    }
+    void clear()
+    {
+        dfpn[0].clear();
+        dfpn[1].clear();
+        table_black.clear();
+        table_white.clear();
+    }
+};
+struct TestCheckmate
+{
+    CheckmateSolver *solver;
+    Position *pos;
+    osl::Move *result;
+    uint64_t nodes;
+    const Move *moves;
+    int first, last;
+    TestCheckmate(CheckmateSolver& s, Position& p, osl::Move& r, uint64_t n,
+            const Move *pv, int f, int l)
+        : solver(&s), pos(&p), result(&r), nodes(n),
+        moves(pv), first(f), last(l)
+    {
+    }
+    void operator()(osl::Square) const
+    {
+        *result = Move();
+        if (nodes < (1<<18))
+            *result = solver->hasCheckmate(*pos, nodes);
+        if (result->isNormal()) {
+            if (first > 0)
+                std::cout << "info string checkmate in future (" << first
+                    << ") " << move_to_uci(moves[first],false)
+                    << " by " << move_to_uci(*result,false) << '\n';
+        }
+        else if (! StopRequest) {
+            Move move;
+            TestCheckmate next = *this;
+            next.first++;
+            next.nodes /= 2;
+            next.result = &move;
+            if (next.first < last && pos->move_is_legal(moves[next.first])
+                    && next.nodes >= 1024) {
+                StateInfo st;
+                pos->do_undo_move(moves[next.first], st, next);
+            }
+        }	
+    }
+};
+
+void run_checkmate(int depth, uint64_t nodes, Position& pos) 
+{
+    static boost::scoped_ptr<CheckmateSolver> solver(new CheckmateSolver);
+    StateInfo st;
+    nodes /= 16;
+    int mated = 0;
+    for (size_t i=0; i<Rml.size() && nodes >= 1024 && !StopRequest; ++i) {
+        osl::Move win_move;
+        TestCheckmate function(*solver, pos, win_move, nodes,
+                Rml[i].pv, 0, (i==0) ? depth/2 : 1);
+        pos.do_undo_move(Rml[i].pv[0], st, function);
+        if (! win_move.isNormal())
+            nodes /= 4;
+        else {
+            ++mated;
+            Rml[i].pv_score = -VALUE_INFINITE;
+            Rml[i].non_pv_score = VALUE_MATED_IN_PLY_MAX;
+            std::cout << "info string losing move " << i << "th "
+                << move_to_uci(Rml[i].pv[0],false)
+                << " by " << move_to_uci(win_move,false) << '\n';
+        }
+    }
+    solver->clear();
+}
+#endif
 
 namespace {
 
@@ -492,6 +754,12 @@ namespace {
     SearchStack ss[PLY_MAX_PLUS_2];
     Value bestValues[PLY_MAX_PLUS_2];
     int bestMoveChanges[PLY_MAX_PLUS_2];
+    uint64_t es_base[(PLY_MAX_PLUS_2*sizeof(eval_t)+sizeof(uint64_t)-1)/sizeof(uint64_t)]
+#ifdef __GNUC__
+      __attribute__((aligned(16)))
+#endif
+	;
+    eval_t *es=(eval_t *)&es_base[0];
     int depth, selDepth, aspirationDelta;
     Value value, alpha, beta;
     Move bestMove, easyMove, skillBest, skillPonder;
@@ -503,7 +771,13 @@ namespace {
     *ponderMove = bestMove = easyMove = skillBest = skillPonder = MOVE_NONE;
     depth = aspirationDelta = 0;
     alpha = -VALUE_INFINITE, beta = VALUE_INFINITE;
+#ifdef GPSFISH
+    ss->currentMove = osl::Move::PASS(pos.side_to_move()); // Hack to skip update_gains()
+#else
     ss->currentMove = MOVE_NULL; // Hack to skip update_gains()
+#endif
+    pos.eval= &es[0];
+    *(pos.eval)=eval_t(pos.osl_state,false);
 
     // Moves to search are verified and copied
     Rml.init(pos, searchMoves);
@@ -512,17 +786,23 @@ namespace {
     if (Rml.size() == 0)
     {
         cout << "info depth 0 score "
-             << value_to_uci(pos.in_check() ? -VALUE_MATE : VALUE_DRAW)
+             << value_to_uci(pos.in_check() ? value_mated_in(1) : VALUE_DRAW)
              << endl;
 
         return MOVE_NONE;
     }
-
+#ifdef GPSFISH_DFPN
+    uint64_t next_checkmate = 1<<18;
+#endif
     // Iterative deepening loop until requested to stop or target depth reached
     while (!StopRequest && ++depth <= PLY_MAX && (!Limits.maxDepth || depth <= Limits.maxDepth))
     {
         Rml.bestMoveChanges = 0;
+#ifdef GPSFISH
+        cout << "info depth " << depth << endl;
+#else
         cout << set960(pos.is_chess960()) << "info depth " << depth << endl;
+#endif
 
         // Calculate dynamic aspiration window based on previous iterations
         if (MultiPV == 1 && depth >= 5 && abs(bestValues[depth - 1]) < VALUE_KNOWN_WIN)
@@ -536,6 +816,20 @@ namespace {
             alpha = Max(bestValues[depth - 1] - aspirationDelta, -VALUE_INFINITE);
             beta  = Min(bestValues[depth - 1] + aspirationDelta,  VALUE_INFINITE);
         }
+
+#ifdef GPSFISH_DFPN
+	if (pos.nodes_searched() > next_checkmate
+	    && current_search_time()+1000
+	    < std::max(Limits.maxTime,TimeMgr.maximum_time())*4/5) {
+	    run_checkmate(depth, next_checkmate, pos);
+	    next_checkmate *= 2;
+	    if (Rml[0].pv_score <= VALUE_MATED_IN_PLY_MAX) {
+		depth -= std::min(4, (int)depth/2);
+		alpha = Max(alpha - aspirationDelta*63, -VALUE_INFINITE);
+		beta  = Min(beta  + aspirationDelta*63,  VALUE_INFINITE);
+	    }
+	}
+#endif
 
         // Start with a small aspiration window and, in case of fail high/low,
         // research with bigger window until not failing high/low anymore.
@@ -603,15 +897,26 @@ namespace {
         else if (bestMove != easyMove)
             easyMove = MOVE_NONE;
 
+#ifdef GPSFISH
+	if (! Limits.ponder
+	    && !StopRequest
+	    && depth >= 5
+	    && abs(bestValues[depth])     >= VALUE_MATE_IN_PLY_MAX
+	    && abs(bestValues[depth - 1]) >= VALUE_MATE_IN_PLY_MAX)
+	{
+	    StopRequest = true;
+	}
+#endif
         // Check for some early stop condition
         if (!StopRequest && Limits.useTimeManagement())
         {
+#ifndef GPSFISH
             // Stop search early when the last two iterations returned a mate score
             if (   depth >= 5
                 && abs(bestValues[depth])     >= VALUE_MATE_IN_PLY_MAX
                 && abs(bestValues[depth - 1]) >= VALUE_MATE_IN_PLY_MAX)
                 StopRequest = true;
-
+#endif
             // Stop search early if one move seems to be much better than the
             // others or if there is only a single legal move. Also in the latter
             // case we search up to some depth anyway to get a proper score.
@@ -655,7 +960,6 @@ namespace {
     return bestMove;
   }
 
-
   // search<>() is the main search function for both PV and non-PV nodes and for
   // normal and SplitPoint nodes. When called just after a split point the search
   // is simpler because we have already probed the hash table, done a null move
@@ -685,7 +989,15 @@ namespace {
     int moveCount = 0, playedMoveCount = 0;
     int threadID = pos.thread();
     SplitPoint* sp = NULL;
+#ifdef GPSFISH
+    int repeat_check=0;
+#endif
 
+#ifdef GPSFISH
+    if(can_capture_king(pos)){
+      return value_mate_in(0);
+    }
+#endif
     refinedValue = bestValue = value = -VALUE_INFINITE;
     oldAlpha = alpha;
     inCheck = pos.in_check();
@@ -720,9 +1032,50 @@ namespace {
     // Step 2. Check for aborted search and immediate draw
     if ((   StopRequest
          || Threads[threadID].cutoff_occurred()
+#ifdef GPSFISH
+         || pos.is_draw(repeat_check)
+#else
          || pos.is_draw()
+#endif
          || ss->ply > PLY_MAX) && !Root)
+#ifdef GPSFISH
+        return value_draw(pos);
+#else
         return VALUE_DRAW;
+#endif
+#ifdef GPSFISH
+    if ( !Root ){
+      if(repeat_check<0) 
+        return value_mated_in(ss->ply);
+      else if(repeat_check>0) 
+        return value_mate_in(ss->ply);
+      else if(osl::EnterKing::canDeclareWin(pos.osl_state)) 
+	return value_mate_in(ss->ply+1);
+    }
+    if (!ss->checkmateTested) {
+      ss->checkmateTested = true;
+      if(!pos.osl_state.inCheck()
+	 && ImmediateCheckmate::hasCheckmateMove
+	 (pos.side_to_move(),pos.osl_state,ss->bestMove)) {
+	  return value_mate_in(ss->ply);
+      }
+#  ifdef GPSFISH_CHECKMATE3
+      if ((! (ss-1)->currentMove.isNormal()
+	   || (ss-1)->currentMove.ptype() == osl::KING)) {
+	  osl::checkmate::King8Info king8=pos.osl_state.king8Info(alt(pos.side_to_move()));
+	  assert(king8.uint64Value() == osl::checkmate::King8Info::make(pos.side_to_move(), pos.osl_state).uint64Value());
+	  bool in_danger = king8.dropCandidate() | king8.moveCandidate2();
+	  if (in_danger) {
+	      osl::checkmate::FixedDepthSearcher solver(pos.osl_state);
+	      if (solver.hasCheckmateMoveOfTurn(2,ss->bestMove)
+		  .isCheckmateSuccess()) {
+		  return value_mate_in(ss->ply+2);;
+	      }
+	  }
+      }
+#  endif
+    }
+#endif
 
     // Step 3. Mate distance pruning
     alpha = Max(value_mated_in(ss->ply), alpha);
@@ -734,10 +1087,18 @@ namespace {
     // We don't want the score of a partial search to overwrite a previous full search
     // TT value, so we use a different position key in case of an excluded move.
     excludedMove = ss->excludedMove;
+#ifdef GPSFISH
+    posKey = excludedMove!=MOVE_NONE ? pos.get_exclusion_key() : pos.get_key();
+#else
     posKey = excludedMove ? pos.get_exclusion_key() : pos.get_key();
+#endif
 
     tte = TT.probe(posKey);
+#ifdef GPSFISH
+    ttMove = tte ? fromMove16(tte->move16Val(),pos) : MOVE_NONE;
+#else
     ttMove = tte ? tte->move() : MOVE_NONE;
+#endif
 
     // At PV nodes we check for exact scores, while at non-PV nodes we check for
     // a fail high/low. Biggest advantage at probing at PV nodes is to have a
@@ -779,7 +1140,10 @@ namespace {
         &&  refinedValue + razor_margin(depth) < beta
         &&  ttMove == MOVE_NONE
         &&  abs(beta) < VALUE_MATE_IN_PLY_MAX
-        && !pos.has_pawn_on_7th(pos.side_to_move()))
+#ifndef GPSFISH
+        && !pos.has_pawn_on_7th(pos.side_to_move())
+#endif
+      )
     {
         Value rbeta = beta - razor_margin(depth);
         Value v = qsearch<NonPV>(pos, ss, rbeta-1, rbeta, DEPTH_ZERO);
@@ -798,7 +1162,10 @@ namespace {
         && !inCheck
         &&  refinedValue - futility_margin(depth, 0) >= beta
         &&  abs(beta) < VALUE_MATE_IN_PLY_MAX
-        &&  pos.non_pawn_material(pos.side_to_move()))
+#ifndef GPSFISH
+        &&  pos.non_pawn_material(pos.side_to_move())
+#endif
+	   )
         return refinedValue - futility_margin(depth, 0);
 
     // Step 8. Null move search with verification search (is omitted in PV nodes)
@@ -808,9 +1175,17 @@ namespace {
         && !inCheck
         &&  refinedValue >= beta
         &&  abs(beta) < VALUE_MATE_IN_PLY_MAX
+#ifdef GPSFISH
+      )
+#else
         &&  pos.non_pawn_material(pos.side_to_move()))
+#endif
     {
+#ifdef GPSFISH
+        ss->currentMove = Move::PASS(pos.side_to_move());
+#else
         ss->currentMove = MOVE_NULL;
+#endif
 
         // Null move dynamic reduction based on depth
         int R = 3 + (depth >= 5 * ONE_PLY ? depth / 8 : 0);
@@ -819,11 +1194,25 @@ namespace {
         if (refinedValue - PawnValueMidgame > beta)
             R++;
 
+#ifdef GPSFISH
+        pos.do_undo_null_move(st,
+                [&](osl::Square){
+                *(pos.eval+1)= *(pos.eval);
+                pos.eval++;
+                pos.eval->update(pos.osl_state,ss->currentMove);
+#else
         pos.do_null_move(st);
+#endif
         (ss+1)->skipNullMove = true;
         nullValue = -search<NonPV>(pos, ss+1, -beta, -alpha, depth-R*ONE_PLY);
         (ss+1)->skipNullMove = false;
+#ifdef GPSFISH
+	    --pos.eval;
+	  }
+	  );
+#else
         pos.undo_null_move();
+#endif
 
         if (nullValue >= beta)
         {
@@ -879,15 +1268,22 @@ split_point_start: // At split points actual search starts from here
 
     // Initialize a MovePicker object for the current position
     MovePickerExt<SpNode, Root> mp(pos, ttMove, depth, H, ss, (PvNode ? -VALUE_INFINITE : beta));
+#ifndef GPSFISH
     CheckInfo ci(pos);
+#endif
     ss->bestMove = MOVE_NONE;
     futilityBase = ss->eval + ss->evalMargin;
     singularExtensionNode =   !Root
                            && !SpNode
                            && depth >= SingularExtensionDepth[PvNode]
                            && tte
+#ifdef GPSFISH
+                           && tte->move16Val()!=MOVE16_NONE
+                           && excludedMove==MOVE_NONE // Do not allow recursive singular extension search
+#else
                            && tte->move()
                            && !excludedMove // Do not allow recursive singular extension search
+#endif
                            && (tte->type() & VALUE_TYPE_LOWER)
                            && tte->depth() >= depth - 3 * ONE_PLY;
     if (SpNode)
@@ -913,6 +1309,13 @@ split_point_start: // At split points actual search starts from here
           continue;
       else
           moveCount++;
+#ifdef MOVE_STACK_REJECTIONS
+      if(!Root && move_stack_rejections_probe(move,pos,ss,alpha)) {
+	if (SpNode)
+	  lock_grab(&(sp->lock));
+	continue;
+      }
+#endif      
 
       if (Root)
       {
@@ -931,13 +1334,23 @@ split_point_start: // At split points actual search starts from here
           }
 
           if (current_search_time() > 2000)
+#ifdef GPSFISH
+//	    cout << "info currmove " << move_to_uci(move)
+//                   << " currmovenumber " << moveCount << endl;
+	  {}
+#else 
               cout << "info currmove " << move
                    << " currmovenumber " << moveCount << endl;
+#endif
       }
 
       // At Root and at first iteration do a PV search on all the moves to score root moves
       isPvMove = (PvNode && moveCount <= (Root ? depth <= ONE_PLY ? 1000 : MultiPV : 1));
+#ifdef GPSFISH
+      givesCheck = pos.move_gives_check(move);
+#else
       givesCheck = pos.move_gives_check(move, ci);
+#endif
       captureOrPromotion = pos.move_is_capture_or_promotion(move);
 
       // Step 11. Decide the new search depth
@@ -949,7 +1362,11 @@ split_point_start: // At split points actual search starts from here
       // on all the other moves but the ttMove, if result is lower than ttValue minus
       // a margin then we extend ttMove.
       if (   singularExtensionNode
+#ifdef GPSFISH
+	     && move == fromMove16(tte->move16Val(),pos)
+#else
           && move == tte->move()
+#endif
           && ext < ONE_PLY)
       {
           Value ttValue = value_from_tt(tte->value(), ss->ply);
@@ -982,7 +1399,11 @@ split_point_start: // At split points actual search starts from here
       {
           // Move count based pruning
           if (   moveCount >= futility_move_count(depth)
+#ifdef GPSFISH
+              && (threatMove==MOVE_NONE || !connected_threat(pos, move, threatMove))
+#else
               && (!threatMove || !connected_threat(pos, move, threatMove))
+#endif
               && bestValue > VALUE_MATED_IN_PLY_MAX) // FIXME bestValue is racy
           {
               if (SpNode)
@@ -995,8 +1416,13 @@ split_point_start: // At split points actual search starts from here
           // We illogically ignore reduction condition depth >= 3*ONE_PLY for predicted depth,
           // but fixing this made program slightly weaker.
           Depth predictedDepth = newDepth - reduction<NonPV>(depth, moveCount);
+#ifdef GPSFISH
+          futilityValueScaled =  futilityBase + futility_margin(predictedDepth, moveCount)
+	    + H.gain(move.ptypeO(), move_to(move));
+#else
           futilityValueScaled =  futilityBase + futility_margin(predictedDepth, moveCount)
                                + H.gain(pos.piece_on(move_from(move)), move_to(move));
+#endif
 
           if (futilityValueScaled < beta)
           {
@@ -1030,12 +1456,25 @@ split_point_start: // At split points actual search starts from here
                 && captureOrPromotion
                 && move != ttMove
                 && !dangerous
+#ifndef GPSFISH
                 && !move_is_promotion(move)
+#endif
                 &&  abs(alpha) < VALUE_MATE_IN_PLY_MAX
                 &&  pos.see_sign(move) < 0;
 
+#ifdef GPSFISH
+      assert(pos.eval->value()==eval_t(pos.osl_state,false).value());
+      (ss+1)->checkmateTested = false;
+      pos.do_undo_move(move,st,
+              [&](osl::Square){
+              *(pos.eval+1)= *(pos.eval);
+              pos.eval++;
+              pos.eval->update(pos.osl_state,move);
+              assert(pos.eval->value()==eval_t(pos.osl_state,false).value());
+#else
       // Step 13. Make the move
       pos.do_move(move, st, ci, givesCheck);
+#endif
 
       if (!SpNode && !captureOrPromotion)
           movesSearched[playedMoveCount++] = move;
@@ -1101,9 +1540,14 @@ split_point_start: // At split points actual search starts from here
                   value = -search<PV>(pos, ss+1, -beta, -alpha, newDepth);
           }
       }
-
+#ifdef GPSFISH
+      --pos.eval;
+	}
+	);
+#else
       // Step 16. Undo move
       pos.undo_move(move);
+#endif
 
       assert(value > -VALUE_INFINITE && value < VALUE_INFINITE);
 
@@ -1172,6 +1616,14 @@ split_point_start: // At split points actual search starts from here
                   Rml.bestMoveChanges++;
 
               Rml.sort_multipv(moveCount);
+#ifdef GPSFISH
+              if (depth >= 5*ONE_PLY
+		  && (!isPvMove || current_search_time() >= 5000))
+		  cout << Rml[0].pv_info_to_uci(pos, depth/ONE_PLY,
+						Threads[threadID].maxPly,
+						alpha, beta, 0)
+		       << endl;
+#endif
 
               // Update alpha. In multi-pv we don't use aspiration window, so
               // set alpha equal to minimum score among the PV lines.
@@ -1202,7 +1654,11 @@ split_point_start: // At split points actual search starts from here
     // no legal moves, it must be mate or stalemate.
     // If one move was excluded return fail low score.
     if (!SpNode && !moveCount)
+#ifdef GPSFISH
+      return excludedMove!=MOVE_NONE ? oldAlpha : (inCheck ? (move_is_pawn_drop((ss-1)->currentMove) ? value_mate_in(ss->ply) : value_mated_in(ss->ply) ): VALUE_DRAW);
+#else
         return excludedMove ? oldAlpha : inCheck ? value_mated_in(ss->ply) : VALUE_DRAW;
+#endif
 
     // Step 20. Update tables
     // If the search is not aborted, update the transposition table,
@@ -1257,7 +1713,11 @@ split_point_start: // At split points actual search starts from here
     StateInfo st;
     Move ttMove, move;
     Value bestValue, value, evalMargin, futilityValue, futilityBase;
+#ifdef GPSFISH
+    bool inCheck, givesCheck, evasionPrunable;
+#else
     bool inCheck, enoughMaterial, givesCheck, evasionPrunable;
+#endif
     const TTEntry* tte;
     Depth ttDepth;
     Value oldAlpha = alpha;
@@ -1265,9 +1725,40 @@ split_point_start: // At split points actual search starts from here
     ss->bestMove = ss->currentMove = MOVE_NONE;
     ss->ply = (ss-1)->ply + 1;
 
+#ifdef GPSFISH
+    if(can_capture_king(pos)){
+        return value_mate_in(0);
+    }
+    if(!pos.osl_state.inCheck()
+            && ImmediateCheckmate::hasCheckmateMove
+            (pos.side_to_move(),pos.osl_state,ss->bestMove)) {
+        return value_mate_in(ss->ply); 
+    }
+#endif
+
     // Check for an instant draw or maximum ply reached
+#ifdef GPSFISH
+    int threadID = pos.thread();
+    if (threadID == 0 && ++NodesSincePoll > NodesBetweenPolls)
+    {
+        NodesSincePoll = 0;
+        poll(pos);
+    }
+    int repeat_check=0;
+    if (StopRequest || ss->ply > PLY_MAX || pos.is_draw(repeat_check))
+#ifdef GPSFISH
+        return value_draw(pos);
+#else
+    return VALUE_DRAW;
+#endif
+    if(repeat_check<0) 
+        return value_mated_in(ss->ply+1);
+    else if(repeat_check>0) 
+        return value_mate_in(ss->ply);
+#else
     if (ss->ply > PLY_MAX || pos.is_draw())
         return VALUE_DRAW;
+#endif
 
     // Decide whether or not to include checks, this fixes also the type of
     // TT entry depth that we are going to use. Note that in qsearch we use
@@ -1278,7 +1769,11 @@ split_point_start: // At split points actual search starts from here
     // Transposition table lookup. At PV nodes, we don't use the TT for
     // pruning, but only for move ordering.
     tte = TT.probe(pos.get_key());
+#ifdef GPSFISH
+    ttMove = tte ? fromMove16(tte->move16Val(),pos) : MOVE_NONE;
+#else
     ttMove = (tte ? tte->move() : MOVE_NONE);
+#endif
 
     if (!PvNode && tte && ok_to_use_TT(tte, ttDepth, beta, ss->ply))
     {
@@ -1291,7 +1786,9 @@ split_point_start: // At split points actual search starts from here
     {
         bestValue = futilityBase = -VALUE_INFINITE;
         ss->eval = evalMargin = VALUE_NONE;
+#ifndef GPSFISH
         enoughMaterial = false;
+#endif
     }
     else
     {
@@ -1321,7 +1818,9 @@ split_point_start: // At split points actual search starts from here
 
         // Futility pruning parameters, not needed when in check
         futilityBase = ss->eval + evalMargin + FutilityMarginQS;
+#ifndef GPSFISH
         enoughMaterial = pos.non_pawn_material(pos.side_to_move()) > RookValueMidgame;
+#endif
     }
 
     // Initialize a MovePicker object for the current position, and prepare
@@ -1329,7 +1828,9 @@ split_point_start: // At split points actual search starts from here
     // queen promotions and checks (only if depth >= DEPTH_QS_CHECKS) will
     // be generated.
     MovePicker mp(pos, ttMove, depth, H);
+#ifndef GPSFISH
     CheckInfo ci(pos);
+#endif
 
     // Loop through the moves until no moves remain or a beta cutoff occurs
     while (   alpha < beta
@@ -1337,20 +1838,37 @@ split_point_start: // At split points actual search starts from here
     {
       assert(move_is_ok(move));
 
+#ifdef MOVE_STACK_REJECTIONS
+      if(move_stack_rejections_probe(move,pos,ss,alpha)) continue;
+#endif      
+
+#ifdef GPSFISH
+      givesCheck = pos.move_gives_check(move);
+#else
       givesCheck = pos.move_gives_check(move, ci);
+#endif
 
       // Futility pruning
       if (   !PvNode
           && !inCheck
           && !givesCheck
           &&  move != ttMove
+#ifndef GPSFISH
           &&  enoughMaterial
           && !move_is_promotion(move)
-          && !pos.move_is_passed_pawn_push(move))
+          && !pos.move_is_passed_pawn_push(move)
+#endif
+         )
       {
+#ifdef GPSFISH
+          futilityValue =  futilityBase
+                         + pos.endgame_value_of_piece_on(move_to(move))
+                         + (move_is_promotion(move) ? pos.promote_value_of_piece_on(move_from(move)) : VALUE_ZERO);
+#else
           futilityValue =  futilityBase
                          + pos.endgame_value_of_piece_on(move_to(move))
                          + (move_is_ep(move) ? PawnValueEndgame : VALUE_ZERO);
+#endif
 
           if (futilityValue < alpha)
           {
@@ -1370,15 +1888,33 @@ split_point_start: // At split points actual search starts from here
       evasionPrunable =   inCheck
                        && bestValue > VALUE_MATED_IN_PLY_MAX
                        && !pos.move_is_capture(move)
-                       && !pos.can_castle(pos.side_to_move());
+#ifndef GPSFISH
+                       && !pos.can_castle(pos.side_to_move())
+#endif
+                       ;
 
       // Don't search moves with negative SEE values
       if (   !PvNode
           && (!inCheck || evasionPrunable)
           &&  move != ttMove
+#ifndef GPSFISH
           && !move_is_promotion(move)
+#endif
           &&  pos.see_sign(move) < 0)
           continue;
+
+#if 0
+      if ( move != ttMove
+              && !inCheck
+              && depth < -1
+              && !pos.move_is_capture(move) 
+              && ( !pos.move_is_capture_or_promotion(move)
+                  || ( !pos.osl_state.longEffectAt(move_from(move),pos.side_to_move()).any()
+                      && pos.osl_state.countEffect(pos.side_to_move(),move_to(move))
+                      <= pos.osl_state.countEffect(osl::alt(pos.side_to_move()),move_to(move))))){
+          continue;
+      }
+#endif
 
       // Don't search useless checks
       if (   !PvNode
@@ -1399,9 +1935,25 @@ split_point_start: // At split points actual search starts from here
       ss->currentMove = move;
 
       // Make and search the move
+#ifdef GPSFISH
+      pos.do_undo_move(move,st,
+              [&](osl::Square){
+              assert(pos.is_ok());
+              *(pos.eval+1)= *(pos.eval);
+              pos.eval++;
+              pos.eval->update(pos.osl_state,move);
+              assert(pos.eval_is_ok());
+#else
       pos.do_move(move, st, ci, givesCheck);
+#endif
       value = -qsearch<PvNode>(pos, ss+1, -beta, -alpha, depth-ONE_PLY);
+#ifdef GPSFISH
+              --pos.eval;
+              }
+              );
+#else
       pos.undo_move(move);
+#endif
 
       assert(value > -VALUE_INFINITE && value < VALUE_INFINITE);
 
@@ -1417,10 +1969,30 @@ split_point_start: // At split points actual search starts from here
        }
     }
 
+#ifdef GPSFISH_CHECKMATE3_QUIESCE
+    if (bestValue < beta && depth >= DEPTH_QS_CHECKS
+            && (!(ss-1)->currentMove.isNormal()
+                || (ss-1)->currentMove.ptype() == osl::KING)) {
+        osl::checkmate::King8Info king8=pos.osl_state.king8Info(alt(pos.side_to_move()));
+        assert(king8.uint64Value() == osl::checkmate::King8Info::make(pos.side_to_move(), pos.osl_state).uint64Value());
+        bool in_danger = king8.dropCandidate() | king8.moveCandidate2();
+        if (in_danger) {
+            osl::checkmate::FixedDepthSearcher solver(pos.osl_state);
+            if (solver.hasCheckmateMoveOfTurn(2,(ss)->bestMove).isCheckmateSuccess()) {
+                return value_mate_in(ss->ply+2);;
+            }
+        }
+    }
+#endif
+
     // All legal moves have been searched. A special case: If we're in check
     // and no legal moves were found, it is checkmate.
     if (inCheck && bestValue == -VALUE_INFINITE)
+#ifdef GPSFISH
+        return (move_is_pawn_drop((ss-1)->currentMove) ? value_mate_in(ss->ply) : value_mated_in(ss->ply));
+#else
         return value_mated_in(ss->ply);
+#endif
 
     // Update transposition table
     ValueType vt = (bestValue <= oldAlpha ? VALUE_TYPE_UPPER : bestValue >= beta ? VALUE_TYPE_LOWER : VALUE_TYPE_EXACT);
@@ -1438,6 +2010,9 @@ split_point_start: // At split points actual search starts from here
 
   bool check_is_dangerous(Position &pos, Move move, Value futilityBase, Value beta, Value *bestValue)
   {
+#ifdef GPSFISH
+    return false;
+#else
     Bitboard b, occ, oldAtt, newAtt, kingAtt;
     Square from, to, ksq, victimSq;
     Piece pc;
@@ -1486,6 +2061,7 @@ split_point_start: // At split points actual search starts from here
     // Update bestValue only if check is not dangerous (because we will prune the move)
     *bestValue = bv;
     return false;
+#endif
   }
 
 
@@ -1500,8 +2076,13 @@ split_point_start: // At split points actual search starts from here
     Square f1, t1, f2, t2;
     Piece p;
 
+#ifdef GPSFISH
+    assert(m1 != MOVE_NONE && move_is_ok(m1));
+    assert(m2 != MOVE_NONE && move_is_ok(m2));
+#else
     assert(m1 && move_is_ok(m1));
     assert(m2 && move_is_ok(m2));
+#endif
 
     // Case 1: The moving piece is the same in both moves
     f2 = move_from(m2);
@@ -1516,16 +2097,37 @@ split_point_start: // At split points actual search starts from here
         return true;
 
     // Case 3: Moving through the vacated square
+#ifdef GPSFISH
+    if(!f2.isPieceStand() && !f1.isPieceStand() &&
+       Board_Table.getShortOffset(Offset32(f2,t2)) ==
+       Board_Table.getShortOffset(Offset32(f2,f1)) &&
+       abs((f2-t2).intValue())>abs((f2-f1).intValue())) return true;
+#else
     if (   piece_is_slider(pos.piece_on(f2))
         && bit_is_set(squares_between(f2, t2), f1))
       return true;
+#endif
 
     // Case 4: The destination square for m2 is defended by the moving piece in m1
     p = pos.piece_on(t1);
+#ifdef GPSFISH
+    osl::Piece pc=pos.osl_state.pieceAt(t1);
+    if(pos.osl_state.hasEffectByPiece(pc,t2)) return true;
+#else
     if (bit_is_set(pos.attacks_from(p, t1), t2))
         return true;
+#endif
 
     // Case 5: Discovered check, checking piece is the piece moved in m1
+#ifdef GPSFISH
+    pc=pos.osl_state.pieceAt(t2);
+    if(pc.isPiece() && pos.osl_state.hasEffectByPiece(pc,f2) &&
+       Ptype_Table.getEffect(p,t1,pos.king_square(pos.side_to_move())).hasBlockableEffect() &&
+       Board_Table.isBetweenSafe(f2,t1,pos.king_square(pos.side_to_move())) &&
+       !Board_Table.isBetweenSafe(t2,t1,pos.king_square(pos.side_to_move())) &&
+       pos.osl_state.pinOrOpen(pos.side_to_move()).test(pos.osl_state.pieceAt(t1).number()))
+        return true;
+#else
     if (    piece_is_slider(p)
         &&  bit_is_set(squares_between(t1, pos.king_square(pos.side_to_move())), f2)
         && !bit_is_set(squares_between(t1, pos.king_square(pos.side_to_move())), t2))
@@ -1538,6 +2140,7 @@ split_point_start: // At split points actual search starts from here
         if (bit_is_set(dcCandidates, f2))
             return true;
     }
+#endif
     return false;
   }
 
@@ -1591,6 +2194,7 @@ split_point_start: // At split points actual search starts from here
     if (moveIsCheck && pos.see_sign(m) >= 0)
         result += CheckExtension[PvNode];
 
+#ifndef GPSFISH
     if (pos.type_of_piece_on(move_from(m)) == PAWN)
     {
         Color c = pos.side_to_move();
@@ -1615,6 +2219,7 @@ split_point_start: // At split points actual search starts from here
         result += PawnEndgameExtension[PvNode];
         *dangerous = true;
     }
+#endif
 
     return Min(result, ONE_PLY);
   }
@@ -1626,10 +2231,16 @@ split_point_start: // At split points actual search starts from here
   bool connected_threat(const Position& pos, Move m, Move threat) {
 
     assert(move_is_ok(m));
+#ifdef GPSFISH
+    assert(threat!=MOVE_NONE && move_is_ok(threat));
+#else
     assert(threat && move_is_ok(threat));
+#endif
     assert(!pos.move_gives_check(m));
     assert(!pos.move_is_capture_or_promotion(m));
+#ifndef GPSFISH
     assert(!pos.move_is_passed_pawn_push(m));
+#endif
 
     Square mfrom, mto, tfrom, tto;
 
@@ -1646,16 +2257,28 @@ split_point_start: // At split points actual search starts from here
     // value of the threatening piece, don't prune moves which defend it.
     if (   pos.move_is_capture(threat)
         && (   pos.midgame_value_of_piece_on(tfrom) >= pos.midgame_value_of_piece_on(tto)
+#ifdef GPSFISH
+            || pos.type_of_piece_on(tfrom) == osl::KING)
+        && pos.osl_state.hasEffectIf(m.ptypeO(), m.to(), tto))
+#else
             || pos.type_of_piece_on(tfrom) == KING)
         && pos.move_attacks_square(m, tto))
+#endif
         return true;
 
     // Case 3: If the moving piece in the threatened move is a slider, don't
     // prune safe moves which block its ray.
+#ifdef GPSFISH
+    if (   !tfrom.isPieceStand()
+        && Board_Table.isBetweenSafe(mto,tfrom,tto)
+        && pos.see_sign(m) >= 0)
+        return true;
+#else
     if (   piece_is_slider(pos.piece_on(tfrom))
         && bit_is_set(squares_between(tfrom, tto), mto)
         && pos.see_sign(m) >= 0)
         return true;
+#endif
 
     return false;
   }
@@ -1702,7 +2325,11 @@ split_point_start: // At split points actual search starts from here
     Move m;
     Value bonus = Value(int(depth) * int(depth));
 
+#ifdef GPSFISH
+    H.update(move.ptypeO(), move_to(move), bonus);
+#else
     H.update(pos.piece_on(move_from(move)), move_to(move), bonus);
+#endif
 
     for (int i = 0; i < moveCount - 1; i++)
     {
@@ -1710,7 +2337,11 @@ split_point_start: // At split points actual search starts from here
 
         assert(m != move);
 
+#ifdef GPSFISH
+        H.update(m.ptypeO(), move_to(m), -bonus);
+#else
         H.update(pos.piece_on(move_from(m)), move_to(m), -bonus);
+#endif
     }
   }
 
@@ -1720,12 +2351,20 @@ split_point_start: // At split points actual search starts from here
 
   void update_gains(const Position& pos, Move m, Value before, Value after) {
 
+#ifdef GPSFISH
+    if (   !m.isPass()
+#else
     if (   m != MOVE_NULL
+#endif
         && before != VALUE_NONE
         && after != VALUE_NONE
         && pos.captured_piece_type() == PIECE_TYPE_NONE
         && !move_is_special(m))
+#ifdef GPSFISH
+        H.update_gain(m.ptypeO(), move_to(m), -(before + after));
+#else
         H.update_gain(pos.piece_on(move_to(m)), move_to(m), -(before + after));
+#endif
   }
 
 
@@ -1754,10 +2393,17 @@ split_point_start: // At split points actual search starts from here
 
     std::stringstream s;
 
+#ifdef GPSFISH
+    if (abs(v) < VALUE_MATE - PLY_MAX * ONE_PLY)
+        s << "cp " << int(v) * 100 / 200;
+    else
+        s << "cp " << int(v);
+#else
     if (abs(v) < VALUE_MATE - PLY_MAX * ONE_PLY)
         s << "cp " << int(v) * 100 / int(PawnValueMidgame); // Scale to centipawns
     else
         s << "mate " << (v > 0 ? VALUE_MATE - v + 1 : -VALUE_MATE - v) / 2;
+#endif
 
     return s.str();
   }
@@ -1773,7 +2419,11 @@ split_point_start: // At split points actual search starts from here
 
     s << " nodes " << nodes
       << " nps "   << (t > 0 ? int(nodes * 1000 / t) : 0)
+#ifdef GPSFISH
+      << " time "  << (t > 0 ? t : 1);
+#else
       << " time "  << t;
+#endif
 
     return s.str();
   }
@@ -1801,7 +2451,14 @@ split_point_start: // At split points actual search starts from here
             QuitRequest = StopRequest = true;
             return;
         }
+#ifdef GPSFISH
+        else if (command.size() >= 5 && string(command,0,5) == "echo "){
+            cout << string(command,5) << endl;
+        }
+        else if (command == "stop" || command.find("gameover")==0)
+#else
         else if (command == "stop")
+#endif
         {
             // Stop calculating as soon as possible, but still send the "bestmove"
             // and possibly the "ponder" token when finishing the search.
@@ -1871,9 +2528,18 @@ split_point_start: // At split points actual search starts from here
 
     // Wait for a command from stdin
     while (   std::getline(std::cin, command)
-           && command != "ponderhit" && command != "stop" && command != "quit") {};
+	      && command.find("gameover") != 0
+	      && command != "ponderhit" && command != "stop" && command != "quit")
+#ifdef GPSFISH
+    {
+        if (command.size() >= 5 && string(command,0,5) == "echo ")
+            cout << string(command,5) << endl;
+    }
+#else
+    {};
+#endif
 
-    if (command != "ponderhit" && command != "stop")
+    if (command != "ponderhit" && command != "stop" && command.find("gameover")!=0)
         QuitRequest = true; // Must be "quit" or getline() returned false
   }
 
@@ -1959,10 +2625,19 @@ split_point_start: // At split points actual search starts from here
     {
         // If we have a searchMoves[] list then verify cur->move
         // is in the list before to add it.
+#ifdef GPSFISH
+        for (sm = searchMoves; *sm!=MOVE_NONE && *sm != cur->move; sm++) {}
+#else
         for (sm = searchMoves; *sm && *sm != cur->move; sm++) {}
+#endif
 
+#ifdef GPSFISH
+        if (searchMoves[0]!=MOVE_NONE && *sm != cur->move)
+            continue;
+#else
         if (searchMoves[0] && *sm != cur->move)
             continue;
+#endif
 
         RootMove rm;
         rm.pv[0] = cur->move;
@@ -1972,6 +2647,35 @@ split_point_start: // At split points actual search starts from here
     }
   }
 
+#ifdef GPSFISH
+  void RootMove::extract_pv_from_tt_rec(Position& pos,int ply) {
+    TTEntry* tte;
+#ifdef GPSFISH
+    int dummy=0;
+#endif
+    if (   (tte = TT.probe(pos.get_key())) != NULL
+           && tte->move(pos) != MOVE_NONE
+           && pos.move_is_legal(tte->move(pos))
+           && ply < PLY_MAX
+#ifdef GPSFISH
+           && (!pos.is_draw(dummy) || ply < 2))
+#else
+           && (!pos.is_draw() || ply < 2))
+#endif
+    {
+        pv[ply] = tte->move(pos);
+        StateInfo st;
+        pos.do_undo_move(pv[ply],st,
+                [&](osl::Square){
+                assert(pos.is_ok());
+                extract_pv_from_tt_rec(pos,ply+1);
+                }
+                );
+    }
+    else
+      pv[ply] = MOVE_NONE;
+  }
+#endif
   // extract_pv_from_tt() builds a PV by adding moves from the transposition table.
   // We consider also failing high nodes and not only VALUE_TYPE_EXACT nodes. This
   // allow to always have a ponder move even when we fail high at root and also a
@@ -1979,19 +2683,37 @@ split_point_start: // At split points actual search starts from here
 
   void RootMove::extract_pv_from_tt(Position& pos) {
 
+#ifndef GPSFISH
     StateInfo state[PLY_MAX_PLUS_2], *st = state;
     TTEntry* tte;
     int ply = 1;
+#endif
 
     assert(pv[0] != MOVE_NONE && pos.move_is_legal(pv[0]));
 
+#ifdef GPSFISH
+    StateInfo st;
+    pos.do_undo_move(pv[0],st,
+		     [&](osl::Square){
+         assert(pos.is_ok());
+         extract_pv_from_tt_rec(pos,1);
+         }
+         );
+#else
     pos.do_move(pv[0], *st++);
 
+#ifdef GPSFISH
+    int dummy=0;
+#endif
     while (   (tte = TT.probe(pos.get_key())) != NULL
            && tte->move() != MOVE_NONE
            && pos.move_is_legal(tte->move())
            && ply < PLY_MAX
+#ifdef GPSFISH
+           && (!pos.is_draw(dummy) || ply < 2))
+#else
            && (!pos.is_draw() || ply < 2))
+#endif
     {
         pv[ply] = tte->move();
         pos.do_move(pv[ply++], *st++);
@@ -1999,22 +2721,57 @@ split_point_start: // At split points actual search starts from here
     pv[ply] = MOVE_NONE;
 
     do pos.undo_move(pv[--ply]); while (ply);
+#endif
   }
 
+#ifdef GPSFISH
+  void RootMove::insert_pv_in_tt_rec(Position& pos,int ply) {
+    TTEntry* tte;
+    Key k;
+    Value v, m = VALUE_NONE;
+    k = pos.get_key();
+    tte = TT.probe(k);
+
+    // Don't overwrite existing correct entries
+    if (!tte || tte->move(pos) != pv[ply])
+    {
+      v = (pos.in_check() ? VALUE_NONE : evaluate(pos, m));
+      TT.store(k, VALUE_NONE, VALUE_TYPE_NONE, DEPTH_NONE, pv[ply], v, m);
+    }
+    if(pv[ply+1]!=MOVE_NONE){
+        StateInfo st;
+        pos.do_undo_move(pv[ply],st,
+		       [&](osl::Square){
+           assert(pos.is_ok());
+           *(pos.eval+1)= *(pos.eval);
+           pos.eval++;
+           pos.eval->update(pos.osl_state,pv[ply]);
+           insert_pv_in_tt_rec(pos,ply+1);
+           --pos.eval;
+           }
+           );
+    }
+  }
+#endif
   // insert_pv_in_tt() is called at the end of a search iteration, and inserts
   // the PV back into the TT. This makes sure the old PV moves are searched
   // first, even if the old TT entries have been overwritten.
 
   void RootMove::insert_pv_in_tt(Position& pos) {
 
+#ifndef GPSFISH
     StateInfo state[PLY_MAX_PLUS_2], *st = state;
     TTEntry* tte;
     Key k;
     Value v, m = VALUE_NONE;
     int ply = 0;
+#endif
 
     assert(pv[0] != MOVE_NONE && pos.move_is_legal(pv[0]));
 
+#ifdef GPSFISH
+    insert_pv_in_tt_rec(pos,0);
+#else
     do {
         k = pos.get_key();
         tte = TT.probe(k);
@@ -2030,6 +2787,7 @@ split_point_start: // At split points actual search starts from here
     } while (pv[++ply] != MOVE_NONE);
 
     do pos.undo_move(pv[--ply]); while (ply);
+#endif
   }
 
   // pv_info_to_uci() returns a string with information on the current PV line
@@ -2041,14 +2799,22 @@ split_point_start: // At split points actual search starts from here
 
     s << "info depth " << depth
       << " seldepth " << selDepth
+#ifndef GPSFISH
       << " multipv " << pvIdx + 1
+#endif
       << " score " << value_to_uci(pv_score)
+#ifndef GPSFISH
       << (pv_score >= beta ? " lowerbound" : pv_score <= alpha ? " upperbound" : "")
+#endif
       << speed_to_uci(pos.nodes_searched())
       << " pv ";
 
     for (Move* m = pv; *m != MOVE_NONE; m++)
+#ifdef GPSFISH
+      s << move_to_uci(*m,false) << " ";
+#else
         s << *m << " ";
+#endif
 
     return s.str();
   }
@@ -2152,12 +2918,30 @@ void ThreadsManager::idle_loop(int threadID, SplitPoint* sp) {
 
           // Copy split point position and search stack and call search()
           // with SplitPoint template parameter set to true.
+#ifdef MOVE_STACK_REJECTIONS
+          SearchStack ss_base[PLY_MAX_PLUS_2];
+	  SplitPoint* tsp = threads[threadID].splitPoint;
+          Position pos(*tsp->pos, threadID);
+	  int ply=tsp->ss->ply;
+	  assert(0< ply && ply+3<PLY_MAX_PLUS_2);
+	  for(int i=0;i<ply-1;i++)
+	    ss_base[i].currentMove=(tsp->ss-ply+i)->currentMove;
+	  SearchStack *ss= &ss_base[ply-1];
+          memcpy(ss, tsp->ss - 1, 4 * sizeof(SearchStack));
+          (ss+1)->sp = tsp;
+#else
           SearchStack ss[PLY_MAX_PLUS_2];
           SplitPoint* tsp = threads[threadID].splitPoint;
           Position pos(*tsp->pos, threadID);
 
           memcpy(ss, tsp->ss - 1, 4 * sizeof(SearchStack));
           (ss+1)->sp = tsp;
+#endif
+	  uint64_t es_base[(PLY_MAX_PLUS_2*sizeof(eval_t)+sizeof(uint64_t)-1)/sizeof(uint64_t)];
+	  eval_t *es=(eval_t *)&es_base[0];
+	  assert(tsp->pos->eval);
+	  es[0]= *(tsp->pos->eval);
+	  pos.eval= &es[0];
 
           if (tsp->pvNode)
               search<PV, true, false>(pos, ss+1, tsp->alpha, tsp->beta, tsp->depth);
@@ -2196,4 +2980,67 @@ void ThreadsManager::idle_loop(int threadID, SplitPoint* sp) {
           return;
       }
   }
+}
+
+#ifdef GPSFISHONE
+void do_checkmate(Position& pos, int mateTime){
+  cout << "checkmate notimplemented";
+  return;
+}
+#else
+void do_checkmate(Position& pos, int mateTime){
+  QuitRequest=false;
+  osl::state::NumEffectState state(pos.osl_state);
+#if (! defined ALLOW_KING_ABSENCE)
+  if (state.kingSquare(state.turn()).isPieceStand()) {
+    cout << "checkmate notimplemented";
+    return;
+  }
+#endif
+  osl::checkmate::DfpnTable table(state.turn());
+  const osl::PathEncoding path(state.turn());
+  osl::Move checkmate_move;
+  osl::stl::vector<osl::Move> pv;
+  osl::checkmate::ProofDisproof result;
+  osl::checkmate::Dfpn dfpn;
+  dfpn.setTable(&table);
+  double seconds=(double)mateTime/1000.0;
+  osl::misc::MilliSeconds start = osl::misc::MilliSeconds::now();
+  size_t step = 100000, total = 0;
+  double scale = 1.0; 
+  for (size_t limit = step; true; limit = static_cast<size_t>(step*scale)) {
+    result = dfpn.
+      hasCheckmateMove(state, osl::hash::HashKey(state), path, limit, checkmate_move, Move(), &pv);
+    double elapsed = start.elapsedSeconds();
+    double memory = osl::OslConfig::memoryUseRatio();
+    uint64_t node_count = dfpn.nodeCount();
+    cout << "info time " << static_cast<int>(elapsed*1000)
+       << " nodes " << total+node_count << " nps " << static_cast<int>(node_count/elapsed)
+       << " hashfull " << static_cast<int>(memory*1000) << "\n";
+    poll(pos);
+    if (result.isFinal() || elapsed >= seconds || memory > 0.9 || QuitRequest || StopRequest)
+      break;
+    total += limit;
+    // estimate: total * std::min(seconds/elapsed, 1.0/memory)
+    // next: (estimate - total) / 2 + total
+    scale = (total * std::min(seconds/elapsed, 1.0/memory) - total) / 2.0 / step;
+    scale = std::max(std::min(16.0, scale), 0.1);
+  }
+  if (! result.isFinal()) {
+    cout << "checkmate timeout\n";
+    return;
+  }
+  if (! result.isCheckmateSuccess()) {
+    cout << "checkmate nomate\n";
+    return;
+  }
+  std::string msg = "checkmate";
+  for (size_t i=0; i<pv.size(); ++i)
+    msg += " " + move_to_uci(pv[i],false);
+  cout << msg << "\n" << std::flush;
+}
+#endif
+
+void show_tree(Position &pos){
+  show_tree_rec(pos);
 }

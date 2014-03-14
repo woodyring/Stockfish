@@ -23,6 +23,14 @@
 #include <cstring>
 #include "types.h"
 
+#ifdef GPSFISH
+#define VALUE_HISTORY(p,to) (history[ptypeOIndex(p)][to.index()])
+#define VALUE_MAXGAIN(p,to) (maxGains[ptypeOIndex(p)][to.index()])
+#else
+#define VALUE_HISTORY(p,to) (history[p][to])
+#define VALUE_MAXGAIN(p,to) (maxGains[p][to])
+#endif
+
 /// The History class stores statistics about how often different moves
 /// have been successful or unsuccessful during the current search. These
 /// statistics are used for reduction and move ordering decisions. History
@@ -42,29 +50,39 @@ public:
   static const Value MaxValue = Value(2000);
 
 private:
+#ifdef GPSFISH
+  Value history[PTYPEO_SIZE][Square::SIZE];  // [piece][to_square]
+  Value maxGains[PTYPEO_SIZE][Square::SIZE]; // [piece][to_square]
+#else
   Value history[16][64];  // [piece][to_square]
   Value maxGains[16][64]; // [piece][to_square]
+#endif
 };
 
 inline void History::clear() {
+#ifdef GPSFISH
+  memset(history,  0, PTYPEO_SIZE * Square::SIZE * sizeof(Value));
+  memset(maxGains, 0, PTYPEO_SIZE * Square::SIZE * sizeof(Value));
+#else
   memset(history,  0, 16 * 64 * sizeof(Value));
   memset(maxGains, 0, 16 * 64 * sizeof(Value));
+#endif
 }
 
 inline Value History::value(Piece p, Square to) const {
-  return history[p][to];
+  return VALUE_HISTORY(p,to);
 }
 
 inline void History::update(Piece p, Square to, Value bonus) {
-  if (abs(history[p][to] + bonus) < MaxValue) history[p][to] += bonus;
+  if (abs(VALUE_HISTORY(p,to) + bonus) < MaxValue) VALUE_HISTORY(p,to) += bonus;
 }
 
 inline Value History::gain(Piece p, Square to) const {
-  return maxGains[p][to];
+  return VALUE_MAXGAIN(p,to);
 }
 
 inline void History::update_gain(Piece p, Square to, Value g) {
-  maxGains[p][to] = Max(g, maxGains[p][to] - 1);
+  VALUE_MAXGAIN(p,to) = Max(g, VALUE_MAXGAIN(p,to) - 1);
 }
 
 #endif // !defined(HISTORY_H_INCLUDED)

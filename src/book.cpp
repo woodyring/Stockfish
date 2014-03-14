@@ -28,6 +28,9 @@
 #include <iostream>
 
 #include "book.h"
+#ifdef GPSFISH
+#include "book_gps.h"
+#else
 #include "movegen.h"
 
 using namespace std;
@@ -523,3 +526,4 @@ BookEntry Book::read_entry(int idx) {
   }
   return e;
 }
+#endif

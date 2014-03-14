@@ -28,13 +28,26 @@
 #include "position.h"
 #include "search.h"
 #include "ucioption.h"
+#ifdef GPSFISH
+#include "movegen.h"
+#include "osl/misc/carray.h"
+#include "osl/eval/ml/openMidEndingEval.h"
+#include "osl/rating/featureSet.h"
+#include "osl/progress/ml/newProgress.h"
+#include "osl/enter_king/enterKing.h"
+#include <vector>
+#endif
 
 using namespace std;
 
 namespace {
 
   // FEN string for the initial position
+#ifdef GPSFISH
+  const string StartPositionFEN = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
+#else
   const string StartPositionFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+#endif
 
   // UCIParser is a class for parsing UCI input. The class
   // is actually a string stream built on a given input string.
@@ -45,7 +58,17 @@ namespace {
   bool go(Position& pos, UCIParser& up);
   void perft(Position& pos, UCIParser& up);
 }
+#ifdef GPSFISH
+std::vector<Move> ignore_moves;
+#endif
 
+#ifdef GPSFISH
+#define NEWGAME_TOKEN 	"usinewgame"
+#define FEN_TOKEN 	"sfen"
+#else
+#define NEWGAME_TOKEN 	"ucinewgame"
+#define FEN_TOKEN 	"fen"
+#endif
 
 /// execute_uci_command() takes a string as input, uses a UCIParser
 /// object to parse this text string as a UCI command, and calls
@@ -67,11 +90,20 @@ bool execute_uci_command(const string& cmd) {
   if (token == "go")
       return go(pos, up);
 
-  if (token == "ucinewgame")
+  if (token == NEWGAME_TOKEN)
       pos.from_fen(StartPositionFEN, false);
 
-  else if (token == "isready")
+  else if (token == "isready") {
+#ifdef GPSFISH
+      bool ok = osl::eval::ml::OpenMidEndingEval::setUp();
+      ok &= osl::progress::ml::NewProgress::setUp();
+      if (! ok) {
+          std::cerr << "set up failed\n";
+          return false;
+      }
+#endif
       cout << "readyok" << endl;
+  }
 
   else if (token == "position")
       set_position(pos, up);
@@ -85,25 +117,58 @@ bool execute_uci_command(const string& cmd) {
   else if (token == "d")
       pos.print();
 
+#ifndef GPSFISH
   else if (token == "flip")
       pos.flip();
+#endif
 
+#ifndef GPSFISH
   else if (token == "eval")
   {
       read_evaluation_uci_options(pos.side_to_move());
       cout << trace_evaluate(pos) << endl;
   }
-
+#endif
   else if (token == "key")
+#ifdef GPSFISH
+      cout << "key: " << hex     << pos.get_key() << endl;
+#else
       cout << "key: " << hex     << pos.get_key()
            << "\nmaterial key: " << pos.get_material_key()
            << "\npawn key: "     << pos.get_pawn_key() << endl;
+#endif
 
+#ifdef GPSFISH
+  else if ( token == "ignore_moves"){
+      ignore_moves.clear();
+      while(up >> token) ignore_moves.push_back(move_from_uci(pos, token));
+  }
+#endif    
+#ifdef GPSFISH
+  else if (token == "usi")
+#else
   else if (token == "uci")
+#endif
       cout << "id name "     << engine_name()
            << "\nid author " << engine_authors()
+#ifdef GPSFISH
+           << Options.print_all()
+           << "\nusiok"      << endl;
+#else
            << "\n"           << Options.print_all()
            << "\nuciok"      << endl;
+#endif
+#ifdef GPSFISH
+  else if (token == "stop"){
+  }
+  else if (token == "echo"){
+      up >> token;
+      cout << token << endl;
+  }
+  else if (token == "show_tree"){
+      show_tree(pos);
+  }
+#endif
   else
       cout << "Unknown command: " << cmd << endl;
 
@@ -122,6 +187,9 @@ namespace {
 
     string token, fen;
 
+#ifdef GPSFISH
+    ignore_moves.clear();
+#endif
     up >> token; // operator>>() skips any whitespace
 
     if (token == "startpos")
@@ -129,18 +197,25 @@ namespace {
         pos.from_fen(StartPositionFEN, false);
         up >> token; // Consume "moves" token if any
     }
-    else if (token == "fen")
+    else if (token == FEN_TOKEN)
     {
         while (up >> token && token != "moves")
             fen += token + " ";
 
+#ifdef GPSFISH
+        pos.from_fen(fen, false);
+#else
         pos.from_fen(fen, Options["UCI_Chess960"].value<bool>());
+#endif
     }
     else return;
 
     // Parse move list (if any)
     while (up >> token)
         pos.do_setup_move(move_from_uci(pos, token));
+#ifdef GPSFISH
+    assert(pos.eval_is_ok());
+#endif
   }
 
 
@@ -183,7 +258,11 @@ namespace {
     string token;
     SearchLimits limits;
     Move searchMoves[MAX_MOVES], *cur = searchMoves;
+#ifdef GPSFISH
+    osl::CArray<int,2> time={{0,0}},inc={{0,0}};
+#else
     int time[] = { 0, 0 }, inc[] = { 0, 0 };
+#endif
 
     while (up >> token)
     {
@@ -205,8 +284,19 @@ namespace {
             up >> limits.maxDepth;
         else if (token == "nodes")
             up >> limits.maxNodes;
+#ifdef GPSFISH
+        else if (token == "movetime" || token=="byoyomi")
+            up >> limits.maxTime;
+        else if (token == "mate"){
+            int mateTime;
+            up >> mateTime;
+            do_checkmate(pos, mateTime);
+            return true;
+        }
+#else
         else if (token == "movetime")
             up >> limits.maxTime;
+#endif
         else if (token == "searchmoves")
             while (up >> token)
                 *cur++ = move_from_uci(pos, token);
@@ -217,6 +307,25 @@ namespace {
     limits.increment = inc[pos.side_to_move()];
 
     assert(pos.is_ok());
+
+#ifdef GPSFISH
+    if(searchMoves == cur && !ignore_moves.empty()){
+        MoveStack mlist[MAX_MOVES];
+        MoveStack* last = generate<MV_PSEUDO_LEGAL>(pos, mlist);
+        for(MoveStack* mp=mlist;mp<last;mp++){
+            if(find(ignore_moves.begin(),ignore_moves.end(),mp->move)==ignore_moves.end()){
+                *cur++= mp->move;
+            }
+        }
+        *cur = MOVE_NONE;
+    }
+    ignore_moves.clear();
+    if(!using_tcp_connection
+            && osl::EnterKing::canDeclareWin(pos.osl_state)){
+        cout << "bestmove win" << endl;
+        return true;
+    }
+#endif
 
     return think(pos, limits, searchMoves);
   }

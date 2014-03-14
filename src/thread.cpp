@@ -31,7 +31,7 @@ namespace { extern "C" {
  // There are two versions of this function; one for POSIX threads and
  // one for Windows threads.
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) || defined(_WIN32)
 
   DWORD WINAPI start_routine(LPVOID threadID) {
 
@@ -150,11 +150,22 @@ void ThreadsManager::init() {
       threads[i].state = Thread::INITIALIZING;
       threadID[i] = i;
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) || defined(_WIN32) 
+#if defined(GPSFISH)
+      bool ok = (CreateThread(NULL, 1024*1024*4, start_routine, (LPVOID)&threadID[i], 0, NULL) != NULL);
+#else
       bool ok = (CreateThread(NULL, 0, start_routine, (LPVOID)&threadID[i], 0, NULL) != NULL);
+#endif
 #else
       pthread_t pthreadID;
+#if defined(GPSFISH)
+      pthread_attr_t attr  ;
+      pthread_attr_init(&attr);
+      pthread_attr_setstacksize(&attr,1024*1024*4);
+      bool ok = (pthread_create(&pthreadID, &attr, start_routine, (void*)&threadID[i]) == 0);
+#else
       bool ok = (pthread_create(&pthreadID, NULL, start_routine, (void*)&threadID[i]) == 0);
+#endif
       pthread_detach(pthreadID);
 #endif
       if (!ok)
@@ -207,8 +218,10 @@ void ThreadsManager::init_hash_tables() {
 
   for (int i = 0; i < activeThreads; i++)
   {
+#ifndef GPSFISH
       threads[i].pawnTable.init();
       threads[i].materialTable.init();
+#endif
   }
 }
 

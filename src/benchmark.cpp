@@ -28,6 +28,28 @@
 using namespace std;
 
 static const string Defaults[] = {
+#ifdef GPSFISH
+"kng4nl/lsg2r3/pppppsbpp/5pp2/7P1/2P1P1PS1/PP1PSP2P/1BK1G2R1/LN1G3NL w - 1",
+"l6nl/1r3sgk1/2np1gspp/2pbppp2/pp1P4P/2P1P1PP1/PPSG1P2L/1KGB1S2R/LN5N1 w - 1",
+"kng1g2nl/ls7/pppps1bpp/4p1p2/7P1/2PS1rP1P/PPBP5/L1G2G1R1/KNS4NL w 2Pp 1",
+"ln2gk2l/3s2gs1/2ppppn1p/pr7/9/P1P3R2/3PPPP1P/1SG1KSG2/LN5NL b B3Pb2p 1",
+
+"lns2g1n1/1r3ks2/p1pp1p1pp/3gp1p2/9/2P1L3P/P1+BP1PPP1/1S2RK3/LN1G1GSNL b Pb2p 1",
+"ln3gsnl/1r1s3k1/p2pp1bpp/5pp2/4R4/PB1P5/1P2PPPPP/5KS2/LN1G1G1NL w G3Ps 1",
+"ln4p2/2gkgs1+R1/ppsppp3/8p/9/1P7/P1PPb1PPP/1SG1R4/LN5KL w B2NLPgs3p 1",
+"l4k1nl/3b2g2/p5spp/2pp2p2/4P4/2rP2P2/PP2RP1PP/2GS5/LNBK3NL b 2S2P2gn2p 1",
+
+"ln1g1B2l/1sk1g2s1/ppp1ppnpp/3p2r2/3N5/2RKBP3/PP1PPGgPP/1S7/L6sL w NP2p 1",
+"ln4R1l/2k2g3/pppp2n1p/9/P3Spp2/2P6/1P1PP1P1P/1KG1+s1+p2/LN5NL w 2B2Pr2g2sp 1",
+"4r4/1kg2+L2l/1s1g5/ppp4pp/4ppp2/LPPS4P/P3PP3/g1K6/1N4R1L w B2S3Nbg4p 1",
+"7nk/6ssl/7pp/p1p2p3/1p6P/P1P3pL1/1P3PNP1/6P1L/3+RP1N1K w RB2GNLb2g2s3p 1",
+
+"1n1g4l/1ks1g4/ppppps1p1/5p3/4P3P/2PB1G2L/1P1P1P1P1/6+r2/1N2K4 b BGSN2L3Prsnp 1",
+"4k4/1sG1g4/lpPpp1+L2/2p1s3N/3P4r/1R5pp/3bPGPP1/6K2/6SNL b B2NL4Pgs3p 1",
+"ln6+B/1Sk5l/2ps5/pg2g2pp/1NNp3N1/PK2PP+b1P/4S4/7R1/L7L w RGS7Pg2p 1",
+"3g3+B1/1Rs2+P3/3kp2p1/Nppp2p1p/pn2L2N1/2P5P/LP1PP4/PG1+r5/KG7 b SLPbg2snl2p 1",
+""
+#else
   "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
   "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -",
   "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -",
@@ -45,6 +67,7 @@ static const string Defaults[] = {
   "4k2r/1pb2ppp/1p2p3/1R1p4/3P4/2r1PN2/P4PPP/1R4K1 b - - 3 22",
   "3q2k1/pb3p1p/4pbp1/2r5/PpN2N2/1P2P2P/5PP1/Q2R2K1 b - - 4 26",
   ""
+#endif
 };
 
 
@@ -58,6 +81,14 @@ static const string Defaults[] = {
 /// The analysis is written to a file named bench.txt.
 
 void benchmark(int argc, char* argv[]) {
+#ifdef GPSFISH
+  bool ok = osl::eval::ml::OpenMidEndingEval::setUp();
+  ok &= osl::progress::ml::NewProgress::setUp();
+  if (! ok) {
+    std::cerr << "set up failed\n";
+    return;
+  }
+#endif
 
   vector<string> fenList;
   SearchLimits limits;

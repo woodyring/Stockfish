@@ -20,7 +20,7 @@
 #if !defined(LOCK_H_INCLUDED)
 #define LOCK_H_INCLUDED
 
-#if !defined(_MSC_VER)
+#if !defined(_MSC_VER) && !defined(_WIN32)
 
 #  include <pthread.h>
 

@@ -23,7 +23,7 @@
 #include <climits>
 #include <cstdlib>
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) || defined(_WIN32)
 
 // Disable some silly and noisy warning from MSVC compiler
 #pragma warning(disable: 4800) // Forcing value to bool 'true' or 'false'
@@ -88,7 +88,7 @@ typedef unsigned __int64 uint64_t;
 #endif
 
 // Cache line alignment specification
-#if defined(_MSC_VER) || defined(__INTEL_COMPILER)
+#if defined(_MSC_VER) || defined(_WIN32) || defined(__INTEL_COMPILER)
 #define CACHE_LINE_ALIGNMENT __declspec(align(64))
 #else
 #define CACHE_LINE_ALIGNMENT  __attribute__ ((aligned(64)))
@@ -96,7 +96,7 @@ typedef unsigned __int64 uint64_t;
 
 // Define a __cpuid() function for gcc compilers, for Intel and MSVC
 // is already available as an intrinsic.
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) || defined(_WIN32)
 #include <intrin.h>
 #elif defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
 inline void __cpuid(int CPUInfo[4], int InfoType)
@@ -119,7 +119,7 @@ inline void __cpuid(int CPUInfo[4], int)
 #endif
 
 // Define FORCE_INLINE macro to force inlining overriding compiler choice
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) || defined(_WIN32)
 #define FORCE_INLINE  __forceinline
 #elif defined(__GNUC__)
 #define FORCE_INLINE  inline __attribute__((always_inline))
@@ -183,11 +183,25 @@ enum Value {
   VALUE_ENSURE_INTEGER_SIZE_N = INT_MIN
 };
 
+#ifdef GPSFISH
+#include "osl/ptype.h"
+#include "osl/player.h"
+typedef osl::Ptype PieceType;
+typedef osl::PtypeO Piece;
+typedef osl::Player Color;
+using osl::Ptype;
+using osl::PtypeO;
+using osl::Player;
+using osl::BLACK;
+using osl::WHITE;
+using osl::PTYPEO_SIZE;
+using osl::PTYPE_SIZE;
+const PieceType PIECE_TYPE_NONE=osl::PTYPE_EMPTY;
+#else
 enum PieceType {
   PIECE_TYPE_NONE = 0,
   PAWN = 1, KNIGHT = 2, BISHOP = 3, ROOK = 4, QUEEN = 5, KING = 6
 };
-
 enum Piece {
   PIECE_NONE_DARK_SQ = 0, WP = 1, WN = 2, WB = 3, WR = 4, WQ = 5, WK = 6,
   BP = 9, BN = 10, BB = 11, BR = 12, BQ = 13, BK = 14, PIECE_NONE = 16
@@ -196,6 +210,8 @@ enum Piece {
 enum Color {
   WHITE, BLACK, COLOR_NONE
 };
+#endif
+
 
 enum Depth {
 
@@ -208,6 +224,10 @@ enum Depth {
   DEPTH_NONE = -127 * ONE_PLY
 };
 
+#ifdef GPSFISH
+#include "osl/square.h"
+typedef osl::Square Square;
+#else
 enum Square {
   SQ_A1, SQ_B1, SQ_C1, SQ_D1, SQ_E1, SQ_F1, SQ_G1, SQ_H1,
   SQ_A2, SQ_B2, SQ_C2, SQ_D2, SQ_E2, SQ_F2, SQ_G2, SQ_H2,
@@ -231,13 +251,22 @@ enum Square {
   DELTA_SW = DELTA_S + DELTA_W,
   DELTA_NW = DELTA_N + DELTA_W
 };
+#endif
 
 enum File {
+#ifdef GPSFISH
+  FILE_0, FILE_1, FILE_2, FILE_3, FILE_4, FILE_5, FILE_6, FILE_7, FILE_8, FILE_9
+#else
   FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H
+#endif
 };
 
 enum Rank {
+#ifdef GPSFISH
+  RANK_0, RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9
+#else
   RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8
+#endif
 };
 
 enum SquareColor {
@@ -282,7 +311,10 @@ ENABLE_OPERATORS_ON(PieceType)
 ENABLE_OPERATORS_ON(Piece)
 ENABLE_OPERATORS_ON(Color)
 ENABLE_OPERATORS_ON(Depth)
+#ifdef GPSFISH
+#else
 ENABLE_OPERATORS_ON(Square)
+#endif
 ENABLE_OPERATORS_ON(File)
 ENABLE_OPERATORS_ON(Rank)
 
@@ -325,6 +357,11 @@ inline void operator-= (Score& d1, const Score d2) { d1 = d1 - d2; }
 inline void operator*= (Score& d, int i) { d = Score(int(d) * i); }
 inline void operator/= (Score& d, int i) { d = Score(int(d) / i); }
 
+#ifdef GPSFISH
+#include "osl/eval/ptypeEvalTraits.h"
+using osl::PAWN;
+const Value PawnValueMidgame   = (Value)osl::eval::PtypeEvalTraits<osl::PAWN>::val;
+#else
 const Value PawnValueMidgame   = Value(0x0C6);
 const Value PawnValueEndgame   = Value(0x102);
 const Value KnightValueMidgame = Value(0x331);
@@ -335,6 +372,7 @@ const Value RookValueMidgame   = Value(0x4F6);
 const Value RookValueEndgame   = Value(0x4FE);
 const Value QueenValueMidgame  = Value(0x9D9);
 const Value QueenValueEndgame  = Value(0x9FE);
+#endif
 
 inline Value value_mate_in(int ply) {
   return VALUE_MATE - ply;
@@ -345,27 +383,51 @@ inline Value value_mated_in(int ply) {
 }
 
 inline Piece make_piece(Color c, PieceType pt) {
+#ifdef GPSFISH
+  return newPtypeO(c,pt);
+#else
   return Piece((int(c) << 3) | int(pt));
+#endif
 }
 
 inline PieceType type_of_piece(Piece p)  {
+#ifdef GPSFISH
+  return getPtype(p);
+#else
   return PieceType(int(p) & 7);
+#endif
 }
 
 inline Color color_of_piece(Piece p) {
+#ifdef GPSFISH
+  return getOwner(p);
+#else
   return Color(int(p) >> 3);
+#endif
 }
 
 inline Color opposite_color(Color c) {
+#ifdef GPSFISH
+  return alt(c);
+#else
   return Color(int(c) ^ 1);
+#endif
 }
 
 inline bool color_is_ok(Color c) {
+#ifdef GPSFISH
+  return isValid(c);
+#else
   return c == WHITE || c == BLACK;
+#endif
 }
 
 inline bool piece_type_is_ok(PieceType pt) {
+#ifdef GPSFISH
+  return isPiece(pt);
+#else
   return pt >= PAWN && pt <= KING;
+#endif
 }
 
 inline bool piece_is_ok(Piece p) {
@@ -373,50 +435,88 @@ inline bool piece_is_ok(Piece p) {
 }
 
 inline char piece_type_to_char(PieceType pt) {
+#ifdef GPSFISH
+  static const char ch[] = "  plnsbrGKPLNSBR";
+#else
   static const char ch[] = " PNBRQK";
+#endif
   return ch[pt];
 }
 
 inline Square make_square(File f, Rank r) {
+#ifdef GPSFISH
+  return Square(f,r);
+#else
   return Square((int(r) << 3) | int(f));
+#endif
 }
 
 inline File square_file(Square s) {
+#ifdef GPSFISH
+  return File(s.x());
+#else
   return File(int(s) & 7);
+#endif
 }
 
 inline Rank square_rank(Square s) {
+#ifdef GPSFISH
+  return Rank(s.y());
+#else
   return Rank(int(s) >> 3);
+#endif
 }
 
 inline Square flip_square(Square s) {
+#ifdef GPSFISH
+  // For shogi, do rotate180 instead of flipping
+  return s.rotate180();
+#else
   return Square(int(s) ^ 56);
+#endif
 }
 
 inline Square flop_square(Square s) {
+#ifdef GPSFISH
+  // flipHorizontal is expensive because it checks if s is pieceStand
+  return s.flipHorizontal();
+#else
   return Square(int(s) ^ 7);
+#endif
 }
 
 inline Square relative_square(Color c, Square s) {
+#ifdef GPSFISH
+  return s.squareForBlack(c);
+#else
   return Square(int(s) ^ (int(c) * 56));
+#endif
 }
 
 inline Rank relative_rank(Color c, Rank r) {
+#ifdef GPSFISH
+  return (c==BLACK ? r : Rank(10-int(r)) );
+#else
   return Rank(int(r) ^ (int(c) * 7));
+#endif
 }
 
 inline Rank relative_rank(Color c, Square s) {
   return relative_rank(c, square_rank(s));
 }
 
+#ifndef GPSFISH
 inline SquareColor square_color(Square s) {
   return SquareColor(int(square_rank(s) + s) & 1);
 }
+#endif
 
+#ifndef GPSFISH
 inline bool opposite_color_squares(Square s1, Square s2) {
   int s = int(s1) ^ int(s2);
   return ((s >> 3) ^ s) & 1;
 }
+#endif
 
 inline int file_distance(Square s1, Square s2) {
   return abs(square_file(s1) - square_file(s2));
@@ -431,11 +531,19 @@ inline int square_distance(Square s1, Square s2) {
 }
 
 inline File file_from_char(char c) {
+#ifdef GPSFISH
+  return FILE_9-File(c - 'a');
+#else
   return File(c - 'a') + FILE_A;
+#endif
 }
 
 inline char file_to_char(File f) {
+#ifdef GPSFISH
+  return char(int('a')+FILE_9-f);
+#else
   return char(f - FILE_A + int('a'));
+#endif
 }
 
 inline Rank rank_from_char(char c) {
@@ -452,19 +560,33 @@ inline const std::string square_to_string(Square s) {
 }
 
 inline bool file_is_ok(File f) {
+#ifdef GPSFISH
+  return f >= FILE_1 && f <= FILE_9;
+#else
   return f >= FILE_A && f <= FILE_H;
+#endif
 }
 
 inline bool rank_is_ok(Rank r) {
+#ifdef GPSFISH
+  return r >= RANK_1 && r <= RANK_9;
+#else
   return r >= RANK_1 && r <= RANK_8;
+#endif
 }
 
 inline bool square_is_ok(Square s) {
+#ifdef GPSFISH
+  return s.isOnBoard();
+#else
   return s >= SQ_A1 && s <= SQ_H8;
+#endif
 }
 
+#ifndef GPSFISH
 inline Square pawn_push(Color c) {
   return c == WHITE ? DELTA_N : DELTA_S;
 }
+#endif
 
 #endif // !defined(TYPES_H_INCLUDED)

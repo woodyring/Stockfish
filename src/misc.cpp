@@ -17,7 +17,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#if !defined(_MSC_VER)
+#if !defined(_MSC_VER) && !defined(_WIN32)
 
 #  include <sys/time.h>
 #  include <sys/types.h>
@@ -44,7 +44,11 @@
 #include <iostream>
 #include <sstream>
 
+#ifndef GPSFISH
 #include "bitcount.h"
+#else
+# include "gpsshogi/revision.h"
+#endif
 #include "misc.h"
 #include "thread.h"
 
@@ -53,7 +57,11 @@ using namespace std;
 /// Version number. If EngineVersion is left empty, then AppTag plus
 /// current date (in the format YYMMDD) is used as a version number.
 
+#ifdef GPSFISH
+static const string AppName = "GPSfish " + gpsshogi::gpsshogi_revision + " Stockfish";
+#else
 static const string AppName = "Stockfish";
+#endif
 static const string EngineVersion = "2.1";
 static const string AppTag  = "";
 
@@ -89,7 +97,11 @@ const string engine_name() {
 
 const string engine_authors() {
 
+#ifdef GPSFISH
+  return "Team GPS (GPSshogi) / Tord Romstad, Marco Costalba and Joona Kiiski (Stockfish)";
+#else
   return "Tord Romstad, Marco Costalba and Joona Kiiski";
+#endif
 }
 
 
@@ -136,7 +148,7 @@ void dbg_after()  { dbg_hit_on(true); dbg_hit_cnt0--; }
 
 int get_system_time() {
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) || defined(_WIN32)
   struct _timeb t;
   _ftime(&t);
   return int(t.time * 1000 + t.millitm);
@@ -152,7 +164,7 @@ int get_system_time() {
 
 int cpu_count() {
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) || defined(_WIN32)
   SYSTEM_INFO s;
   GetSystemInfo(&s);
   return Min(s.dwNumberOfProcessors, MAX_THREADS);

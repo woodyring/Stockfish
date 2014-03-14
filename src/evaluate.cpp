@@ -22,13 +22,19 @@
 #include <iomanip>
 #include <sstream>
 
+#ifndef GPSFISH
 #include "bitcount.h"
+#endif
 #include "evaluate.h"
+#ifndef GPSFISH
 #include "material.h"
 #include "pawns.h"
+#endif
 #include "thread.h"
 #include "ucioption.h"
-
+#ifdef GPSFISH
+#include "evaluate_gps.h"
+#else
 namespace {
 
   // Struct EvalInfo contains various information computed and collected
@@ -1219,3 +1225,4 @@ std::string trace_evaluate(const Position& pos) {
 
     return TraceStream.str();
 }
+#endif

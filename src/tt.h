@@ -23,6 +23,11 @@
 #include <iostream>
 
 #include "move.h"
+#ifdef GPSFISH
+#include "osl/squareCompressor.h"
+using osl::SquareCompressor;
+#include "position.h"
+#endif
 #include "types.h"
 
 
@@ -44,10 +49,47 @@
 /// bit 21-22: value type
 /// bit 23-31: generation
 
+#ifdef GPSFISH
+enum Move16 {MOVE16_NONE = 0};
+static inline Move16 toMove16(Move m){
+  Move16 move16;
+  if(m==MOVE_NONE) return MOVE16_NONE;
+  if(m.isDrop())
+    move16=Move16(0x80+(uint16_t)m.ptype()+((SquareCompressor::compress(m.to()))<<8));
+  else if(m.isPromotion()){
+    move16=Move16(SquareCompressor::compress(m.from())+(SquareCompressor::compress(m.to())<<8)+0x8000);
+  }
+  else{
+    move16=Move16(SquareCompressor::compress(m.from())+(SquareCompressor::compress(m.to())<<8));
+  }
+  return move16;
+}
+static inline Move fromMove16(Move16 move16,Position const& p) {
+  if(move16==MOVE16_NONE) return MOVE_NONE;
+  Color turn=p.side_to_move();
+  Square to=SquareCompressor::melt((move16>>8)&0x7f);
+  if((move16&0x80)!=0){
+    Ptype ptype=(Ptype)(move16-0x80);
+    return osl::Move(to,ptype,turn);
+  }
+  Square from=SquareCompressor::melt(move16&0x7f);
+  Ptype ptype=p.type_of_piece_on(from);
+  Ptype capture_ptype=p.type_of_piece_on(to);
+  bool is_promote=(move16&0x8000)!=0;
+  if(is_promote)
+    return osl::Move(from,to,promote(ptype),capture_ptype,true,turn);
+  else
+    return osl::Move(from,to,ptype,capture_ptype,false,turn);
+}
+#endif
 class TTEntry {
 
 public:
+#ifdef GPSFISH
+  void save(uint32_t k, Value v, ValueType t, Depth d, Move16 m, int g, Value statV, Value statM) {
+#else
   void save(uint32_t k, Value v, ValueType t, Depth d, Move m, int g, Value statV, Value statM) {
+#endif
 
     key32        = (uint32_t)k;
     move16       = (uint16_t)m;
@@ -58,11 +100,24 @@ public:
     staticValue  = (int16_t)statV;
     staticMargin = (int16_t)statM;
   }
+#ifdef GPSFISH
+  void save(uint32_t k, Value v, ValueType t, Depth d, Move m, int g, Value statV, Value statM) {
+    return save(k,v,t,d,toMove16(m),g,statV,statM);
+  }
+#endif
   void set_generation(int g) { generation8 = (uint8_t)g; }
 
   uint32_t key() const              { return key32; }
   Depth depth() const               { return (Depth)depth16; }
+#ifdef GPSFISH
+  Move16 move16Val() const { 
+    return (Move16)move16; 
+  }
+  Move move(Position const& pos) const
+  { return fromMove16((Move16)move16,pos); }
+#else
   Move move() const                 { return (Move)move16; }
+#endif
   Value value() const               { return (Value)value16; }
   ValueType type() const            { return (ValueType)valueType; }
   int generation() const            { return (int)generation8; }
@@ -103,7 +158,12 @@ public:
   ~TranspositionTable();
   void set_size(size_t mbSize);
   void clear();
+#ifdef GPSFISH
+  void store(const Key posKey, Value v, ValueType type, Depth d, Move16 m, Value statV, Value kingD);
   void store(const Key posKey, Value v, ValueType type, Depth d, Move m, Value statV, Value kingD);
+#else
+  void store(const Key posKey, Value v, ValueType type, Depth d, Move m, Value statV, Value kingD);
+#endif
   TTEntry* probe(const Key posKey) const;
   void new_search();
   TTEntry* first_entry(const Key posKey) const;
