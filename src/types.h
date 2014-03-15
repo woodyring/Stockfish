@@ -327,7 +327,7 @@ inline Value operator- (Value v, int i) { return Value(int(v) - i); }
 // Extracting the _signed_ lower and upper 16 bits it not so trivial
 // because according to the standard a simple cast to short is
 // implementation defined and so is a right shift of a signed integer.
-inline Value mg_value(Score s) { return Value(((int(s) + 32768) & ~0xffff) / 0x10000); }
+inline Value mg_value(Score s) { return Value(((s + 32768) & ~0xffff) / 0x10000); }
 
 // Unfortunatly on Intel 64 bit we have a small speed regression, so use a faster code in
 // this case, although not 100% standard compliant it seems to work for Intel and MSVC.
@@ -386,7 +386,7 @@ inline Piece make_piece(Color c, PieceType pt) {
 #ifdef GPSFISH
   return newPtypeO(c,pt);
 #else
-  return Piece((int(c) << 3) | int(pt));
+  return Piece((c << 3) | pt);
 #endif
 }
 
@@ -394,7 +394,7 @@ inline PieceType type_of_piece(Piece p)  {
 #ifdef GPSFISH
   return getPtype(p);
 #else
-  return PieceType(int(p) & 7);
+  return PieceType(p & 7);
 #endif
 }
 
@@ -402,7 +402,7 @@ inline Color color_of_piece(Piece p) {
 #ifdef GPSFISH
   return getOwner(p);
 #else
-  return Color(int(p) >> 3);
+  return Color(p >> 3);
 #endif
 }
 
@@ -410,9 +410,10 @@ inline Color opposite_color(Color c) {
 #ifdef GPSFISH
   return alt(c);
 #else
-  return Color(int(c) ^ 1);
+  return Color(c ^ 1);
 #endif
 }
+
 
 inline bool color_is_ok(Color c) {
 #ifdef GPSFISH
@@ -447,7 +448,7 @@ inline Square make_square(File f, Rank r) {
 #ifdef GPSFISH
   return Square(f,r);
 #else
-  return Square((int(r) << 3) | int(f));
+  return Square((r << 3) | f);
 #endif
 }
 
@@ -455,7 +456,7 @@ inline File square_file(Square s) {
 #ifdef GPSFISH
   return File(s.x());
 #else
-  return File(int(s) & 7);
+  return File(s & 7);
 #endif
 }
 
@@ -463,7 +464,7 @@ inline Rank square_rank(Square s) {
 #ifdef GPSFISH
   return Rank(s.y());
 #else
-  return Rank(int(s) >> 3);
+  return Rank(s >> 3);
 #endif
 }
 
@@ -472,7 +473,7 @@ inline Square flip_square(Square s) {
   // For shogi, do rotate180 instead of flipping
   return s.rotate180();
 #else
-  return Square(int(s) ^ 56);
+  return Square(s ^ 56);
 #endif
 }
 
@@ -481,7 +482,7 @@ inline Square flop_square(Square s) {
   // flipHorizontal is expensive because it checks if s is pieceStand
   return s.flipHorizontal();
 #else
-  return Square(int(s) ^ 7);
+  return Square(s ^ 7);
 #endif
 }
 
@@ -489,7 +490,7 @@ inline Square relative_square(Color c, Square s) {
 #ifdef GPSFISH
   return s.squareForBlack(c);
 #else
-  return Square(int(s) ^ (int(c) * 56));
+  return Square(s ^ (c * 56));
 #endif
 }
 
@@ -497,7 +498,7 @@ inline Rank relative_rank(Color c, Rank r) {
 #ifdef GPSFISH
   return (c==BLACK ? r : Rank(10-int(r)) );
 #else
-  return Rank(int(r) ^ (int(c) * 7));
+  return Rank(r ^ (c * 7));
 #endif
 }
 
@@ -513,7 +514,7 @@ inline SquareColor square_color(Square s) {
 
 #ifndef GPSFISH
 inline bool opposite_color_squares(Square s1, Square s2) {
-  int s = int(s1) ^ int(s2);
+  int s = s1 ^ s2;
   return ((s >> 3) ^ s) & 1;
 }
 #endif
