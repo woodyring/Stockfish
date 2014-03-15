@@ -641,6 +641,7 @@ Bitboard Position::hidden_checkers(Color c) const {
   return result;
 }
 
+#endif
 
 /// Position:pinned_pieces() returns a bitboard of all pinned (against the
 /// king) pieces for the given color. Note that checkersBB bitboard must
@@ -648,9 +649,14 @@ Bitboard Position::hidden_checkers(Color c) const {
 
 Bitboard Position::pinned_pieces(Color c) const {
 
+#ifdef GPSFISH
+  return 0; // XXX, for compile
+#else
   return hidden_checkers<true>(c);
+#endif
 }
 
+#ifndef GPSFISH
 
 /// Position:discovered_check_candidates() returns a bitboard containing all
 /// pieces for the given side which are candidates for giving a discovered

@@ -194,8 +194,10 @@ public:
 #ifndef GPSFISH
   // Bitboards for pinned pieces and discovered check candidates
   Bitboard discovered_check_candidates(Color c) const;
+#endif
   Bitboard pinned_pieces(Color c) const;
 
+#ifndef GPSFISH
   // Checking pieces and under check information
   Bitboard checkers() const;
 #endif

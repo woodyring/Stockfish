@@ -1276,6 +1276,8 @@ split_point_start: // At split points actual search starts from here
 #ifndef GPSFISH
     CheckInfo ci(pos);
 #endif
+    Bitboard pinned = pos.pinned_pieces(pos.side_to_move());
+
     ss->bestMove = MOVE_NONE;
     futilityBase = ss->eval + ss->evalMargin;
     singularExtensionNode =   !Root
@@ -1308,7 +1310,7 @@ split_point_start: // At split points actual search starts from here
           moveCount = ++sp->moveCount;
           lock_release(&(sp->lock));
       }
-      else if (move == excludedMove)
+      else if (move == excludedMove || !pos.pl_move_is_legal(move, pinned))
           continue;
       else
           moveCount++;
@@ -1826,12 +1828,16 @@ split_point_start: // At split points actual search starts from here
 #ifndef GPSFISH
     CheckInfo ci(pos);
 #endif
+    Bitboard pinned = pos.pinned_pieces(pos.side_to_move());
 
     // Loop through the moves until no moves remain or a beta cutoff occurs
     while (   alpha < beta
            && (move = mp.get_next_move()) != MOVE_NONE)
     {
       assert(move_is_ok(move));
+
+      if (!pos.pl_move_is_legal(move, pinned))
+          continue;
 
 #ifdef MOVE_STACK_REJECTIONS
       if(move_stack_rejections_probe(move,pos,ss,alpha)) continue;
