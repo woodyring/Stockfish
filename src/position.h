@@ -29,6 +29,8 @@ typedef osl::eval::ml::OpenMidEndingEval eval_t;
 #else
 #include "bitboard.h"
 #endif
+
+#include <cassert>
 #include "move.h"
 #include "types.h"
 
@@ -696,7 +698,8 @@ inline bool Position::move_is_capture(Move m) const {
 #ifdef GPSFISH
   return m.isCapture();
 #else
-  // Move must not be MOVE_NONE !
+
+  assert (m != MOVE_NONE && m != MOVE_NULL);
   return (m & (3 << 15)) ? !move_is_castle(m) : !square_is_empty(move_to(m));
 #endif
 }
@@ -706,7 +709,7 @@ inline bool Position::move_is_capture_or_promotion(Move m) const {
   return m.isCaptureOrPromotion();
 #else
 
-  // Move must not be MOVE_NONE !
+  assert (m != MOVE_NONE && m != MOVE_NULL);
   return (m & (0x1F << 12)) ? !move_is_castle(m) : !square_is_empty(move_to(m));
 #endif
 }
