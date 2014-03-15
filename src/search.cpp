@@ -345,7 +345,7 @@ namespace {
       Move m=tte->move(pos);
       int dummy;
       if(m != MOVE_NONE
-	 && pos.move_is_legal(m)
+	 && pos.move_is_pl_full(m)
 	 && !pos.is_draw(dummy)){
 	std::cerr << "move=" << m << std::endl;
 	pos.do_undo_move(m,st,
@@ -709,7 +709,7 @@ struct TestCheckmate
             next.first++;
             next.nodes /= 2;
             next.result = &move;
-            if (next.first < last && pos->move_is_legal(moves[next.first])
+            if (next.first < last && pos->move_is_pl_full(moves[next.first])
                     && next.nodes >= 1024) {
                 StateInfo st;
                 pos->do_undo_move(moves[next.first], st, next);
@@ -2638,7 +2638,7 @@ split_point_start: // At split points actual search starts from here
 #endif
     if (   (tte = TT.probe(pos.get_key())) != NULL
            && tte->move(pos) != MOVE_NONE
-           && pos.move_is_legal(tte->move(pos))
+           && pos.move_is_pl_full(tte->move(pos))
            && ply < PLY_MAX
 #ifdef GPSFISH
            && (!pos.is_draw(dummy) || ply < 2))
@@ -2672,7 +2672,7 @@ split_point_start: // At split points actual search starts from here
     int ply = 1;
 #endif
 
-    assert(pv[0] != MOVE_NONE && pos.move_is_legal(pv[0]));
+    assert(pv[0] != MOVE_NONE && pos.move_is_pl(pv[0]));
 
 #ifdef GPSFISH
     StateInfo st;
@@ -2688,9 +2688,12 @@ split_point_start: // At split points actual search starts from here
 #ifdef GPSFISH
     int dummy=0;
 #endif
+    Bitboard pinned = pos.pinned_pieces(pos.side_to_move());
+
     while (   (tte = TT.probe(pos.get_key())) != NULL
            && tte->move() != MOVE_NONE
-           && pos.move_is_legal(tte->move())
+           && pos.move_is_pl(tte->move())
+           && pos.pl_move_is_pl_full(tte->move(), pinned)
            && ply < PLY_MAX
 #ifdef GPSFISH
            && (!pos.is_draw(dummy) || ply < 2))
@@ -2750,7 +2753,7 @@ split_point_start: // At split points actual search starts from here
     int ply = 0;
 #endif
 
-    assert(pv[0] != MOVE_NONE && pos.move_is_legal(pv[0]));
+    assert(pv[0] != MOVE_NONE && pos.move_is_pl(pv[0]));
 
 #ifdef GPSFISH
     insert_pv_in_tt_rec(pos,0);
