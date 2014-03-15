@@ -1354,7 +1354,7 @@ split_point_start: // At split points actual search starts from here
 #else
       givesCheck = pos.move_gives_check(move, ci);
 #endif
-      captureOrPromotion = pos.move_is_capture_or_promotion(move);
+      captureOrPromotion = pos.move_is_capture(move) || move_is_promotion(move);
 
       // Step 11. Decide the new search depth
       ext = extension<PvNode>(pos, move, captureOrPromotion, givesCheck, &dangerous);
@@ -1671,7 +1671,8 @@ split_point_start: // At split points actual search starts from here
 
         // Update killers and history only for non capture moves that fails high
         if (    bestValue >= beta
-            && !pos.move_is_capture_or_promotion(move))
+            && !pos.move_is_capture(move)
+            && !move_is_promotion(move))
         {
             if (move != ss->killers[0])
             {
@@ -1901,25 +1902,13 @@ split_point_start: // At split points actual search starts from here
           &&  pos.see_sign(move) < 0)
           continue;
 
-#if 0
-      if ( move != ttMove
-              && !inCheck
-              && depth < -1
-              && !pos.move_is_capture(move) 
-              && ( !pos.move_is_capture_or_promotion(move)
-                  || ( !pos.osl_state.longEffectAt(move_from(move),pos.side_to_move()).any()
-                      && pos.osl_state.countEffect(pos.side_to_move(),move_to(move))
-                      <= pos.osl_state.countEffect(osl::alt(pos.side_to_move()),move_to(move))))){
-          continue;
-      }
-#endif
-
       // Don't search useless checks
       if (   !PvNode
           && !inCheck
           &&  givesCheck
           &&  move != ttMove
-          && !pos.move_is_capture_or_promotion(move)
+          && !pos.move_is_capture(move)
+          && !move_is_promotion(move)
           &&  ss->eval + PawnValueMidgame / 4 < beta
           && !check_is_dangerous(pos, move, futilityBase, beta, &bestValue))
       {
@@ -2235,7 +2224,7 @@ split_point_start: // At split points actual search starts from here
     assert(threat && move_is_ok(threat));
 #endif
     assert(!pos.move_gives_check(m));
-    assert(!pos.move_is_capture_or_promotion(m));
+    assert(!pos.move_is_capture(m) && !move_is_promotion(m));
 #ifndef GPSFISH
     assert(!pos.move_is_passed_pawn_push(m));
 #endif

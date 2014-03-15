@@ -228,7 +228,6 @@ public:
   bool move_gives_check(Move m, const CheckInfo& ci) const;
 #endif
   bool move_is_capture(Move m) const;
-  bool move_is_capture_or_promotion(Move m) const;
   bool move_is_passed_pawn_push(Move m) const;
   bool move_attacks_square(Move m, Square s) const;
 
@@ -700,16 +699,6 @@ inline bool Position::move_is_capture(Move m) const {
 
   assert (m != MOVE_NONE && m != MOVE_NULL);
   return !square_is_empty(move_to(m)) || move_is_ep(m);
-#endif
-}
-
-inline bool Position::move_is_capture_or_promotion(Move m) const {
-#ifdef GPSFISH
-  return m.isCaptureOrPromotion();
-#else
-
-  assert (m != MOVE_NONE && m != MOVE_NULL);
-  return move_is_capture(m) || move_is_promotion(m);
 #endif
 }
 
