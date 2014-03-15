@@ -37,6 +37,7 @@
 #include "thread.h"
 #include "tt.h"
 #include "ucioption.h"
+
 #ifdef GPSFISH
 #include "position.tcc"
 #include "osl/boardTable.h"
@@ -1095,7 +1096,7 @@ namespace {
 
     tte = TT.probe(posKey);
 #ifdef GPSFISH
-    ttMove = tte ? fromMove16(tte->move16Val(),pos) : MOVE_NONE;
+    ttMove = tte ? tte->move(pos) : MOVE_NONE;
 #else
     ttMove = tte ? tte->move() : MOVE_NONE;
 #endif
@@ -1260,8 +1261,12 @@ namespace {
         search<PvNode>(pos, ss, alpha, beta, d);
         ss->skipNullMove = false;
 
-        ttMove = ss->bestMove;
         tte = TT.probe(posKey);
+#ifdef GPSFISH
+        ttMove = tte ? tte->move(pos) : MOVE_NONE;
+#else
+        ttMove = tte ? tte->move() : MOVE_NONE;
+#endif
     }
 
 split_point_start: // At split points actual search starts from here
@@ -1276,12 +1281,10 @@ split_point_start: // At split points actual search starts from here
     singularExtensionNode =   !Root
                            && !SpNode
                            && depth >= SingularExtensionDepth[PvNode]
-                           && tte
+                           && ttMove != MOVE_NONE
 #ifdef GPSFISH
-                           && tte->move16Val()!=MOVE16_NONE
                            && excludedMove==MOVE_NONE // Do not allow recursive singular extension search
 #else
-                           && tte->move()
                            && !excludedMove // Do not allow recursive singular extension search
 #endif
                            && (tte->type() & VALUE_TYPE_LOWER)
@@ -1362,11 +1365,7 @@ split_point_start: // At split points actual search starts from here
       // on all the other moves but the ttMove, if result is lower than ttValue minus
       // a margin then we extend ttMove.
       if (   singularExtensionNode
-#ifdef GPSFISH
-	     && move == fromMove16(tte->move16Val(),pos)
-#else
-          && move == tte->move()
-#endif
+          && move == ttMove
           && ext < ONE_PLY)
       {
           Value ttValue = value_from_tt(tte->value(), ss->ply);
@@ -1769,7 +1768,7 @@ split_point_start: // At split points actual search starts from here
     // pruning, but only for move ordering.
     tte = TT.probe(pos.get_key());
 #ifdef GPSFISH
-    ttMove = tte ? fromMove16(tte->move16Val(),pos) : MOVE_NONE;
+    ttMove = (tte ? tte->move(pos) : MOVE_NONE);
 #else
     ttMove = (tte ? tte->move() : MOVE_NONE);
 #endif
