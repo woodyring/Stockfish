@@ -51,7 +51,7 @@ public:
   const std::string name() const { return bookName; }
 
 private:
-  template<typename T> void get_number(T& n);
+  template<typename T> Book& operator>>(T& n);
 
   BookEntry read_entry(int idx);
   int find_entry(uint64_t key);
