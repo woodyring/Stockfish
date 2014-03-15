@@ -986,7 +986,7 @@ namespace {
     ValueType vt;
     Value bestValue, value, oldAlpha;
     Value refinedValue, nullValue, futilityBase, futilityValueScaled; // Non-PV specific
-    bool isPvMove, inCheck, singularExtensionNode, givesCheck, captureOrPromotion, dangerous, isBadCap;
+    bool isPvMove, inCheck, singularExtensionNode, givesCheck, captureOrPromotion, dangerous;
     int moveCount = 0, playedMoveCount = 0;
     int threadID = pos.thread();
     SplitPoint* sp = NULL;
@@ -1449,18 +1449,6 @@ split_point_start: // At split points actual search starts from here
           }
       }
 
-      // Bad capture detection. Will be used by prob-cut search
-      isBadCap =   depth >= 3 * ONE_PLY
-                && depth < 8 * ONE_PLY
-                && captureOrPromotion
-                && move != ttMove
-                && !dangerous
-#ifndef GPSFISH
-                && !move_is_promotion(move)
-#endif
-                &&  abs(alpha) < VALUE_MATE_IN_PLY_MAX
-                &&  pos.see_sign(move) < 0;
-
 #ifdef GPSFISH
       assert(pos.eval->value()==eval_t(pos.osl_state,false).value());
       (ss+1)->checkmateTested = false;
@@ -1515,7 +1503,15 @@ split_point_start: // At split points actual search starts from here
 
           // Probcut search for bad captures. If a reduced search returns a value
           // very below beta then we can (almost) safely prune the bad capture.
-          if (isBadCap)
+          if (   depth >= 3 * ONE_PLY
+              && depth < 8 * ONE_PLY
+              && mp.isBadCapture()
+              && move != ttMove
+              && !dangerous
+#ifndef GPSFISH
+              && !move_is_promotion(move)
+#endif
+              &&  abs(alpha) < VALUE_MATE_IN_PLY_MAX)
           {
               ss->reduction = 3 * ONE_PLY;
               Value rAlpha = alpha - 300;
