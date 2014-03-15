@@ -257,7 +257,6 @@ public:
 #endif
 
   // Static exchange evaluation
-  int see(Square from, Square to) const;
   int see(Move m) const;
   int see_sign(Move m) const;
 

@@ -1776,17 +1776,6 @@ void Position::undo_null_move() {
 /// move, and one which takes a 'from' and a 'to' square. The function does
 /// not yet understand promotions captures.
 
-int Position::see(Move m) const {
-
-  assert(move_is_ok(m));
-#ifdef GPSFISH
-  Player p=osl_state.turn();
-  return osl::See::see(osl_state,m,osl_state.pin(p),osl_state.pin(alt(p)));
-#else
-  return see(move_from(m), move_to(m));
-#endif
-}
-
 int Position::see_sign(Move m) const {
 
   assert(move_is_ok(m));
@@ -1800,25 +1789,27 @@ int Position::see_sign(Move m) const {
   if (midgame_value_of_piece_on(to) >= midgame_value_of_piece_on(from))
       return 1;
 
+  return see(m);
+}
+
+int Position::see(Move m) const {
+
+  assert(move_is_ok(m));
 #ifdef GPSFISH
   Player p=osl_state.turn();
   return osl::See::see(osl_state,m,osl_state.pin(p),osl_state.pin(alt(p)));
 #else
-  return see(from, to);
-#endif
-}
 
-#ifndef GPSFISH
-int Position::see(Square from, Square to) const {
-
+  Square from, to;
   Bitboard occupied, attackers, stmAttackers, b;
   int swapList[32], slIndex = 1;
   PieceType capturedType, pt;
   Color stm;
 
-  assert(square_is_ok(from));
-  assert(square_is_ok(to));
+  assert(move_is_ok(m));
 
+  from = move_from(m);
+  to = move_to(m);
   capturedType = type_of_piece_on(to);
 
   // King cannot be recaptured
@@ -1907,8 +1898,8 @@ int Position::see(Square from, Square to) const {
       swapList[slIndex-1] = Min(-swapList[slIndex], swapList[slIndex-1]);
 
   return swapList[0];
-}
 #endif
+}
 
 
 /// Position::clear() erases the position object to a pristine state, with an
