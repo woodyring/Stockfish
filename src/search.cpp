@@ -1310,7 +1310,7 @@ split_point_start: // At split points actual search starts from here
           moveCount = ++sp->moveCount;
           lock_release(&(sp->lock));
       }
-      else if (move == excludedMove || !pos.pl_move_is_legal(move, pinned))
+      else if (move == excludedMove)
           continue;
       else
           moveCount++;
@@ -1368,6 +1368,7 @@ split_point_start: // At split points actual search starts from here
       // a margin then we extend ttMove.
       if (   singularExtensionNode
           && move == ttMove
+          && pos.pl_move_is_legal(move, pinned)
           && ext < ONE_PLY)
       {
           Value ttValue = value_from_tt(tte->value(), ss->ply);
@@ -1387,7 +1388,6 @@ split_point_start: // At split points actual search starts from here
       }
 
       // Update current move (this must be done after singular extension search)
-      ss->currentMove = move;
       newDepth = depth - ONE_PLY + ext;
 
       // Step 12. Futility pruning (is omitted in PV nodes)
@@ -1450,6 +1450,12 @@ split_point_start: // At split points actual search starts from here
               continue;
           }
       }
+
+      // Check for legality only before to do the move
+      if (!pos.pl_move_is_legal(move, pinned))
+          continue;
+
+      ss->currentMove = move;
 
 #ifdef GPSFISH
       assert(pos.eval->value()==eval_t(pos.osl_state,false).value());
@@ -1836,9 +1842,6 @@ split_point_start: // At split points actual search starts from here
     {
       assert(move_is_ok(move));
 
-      if (!pos.pl_move_is_legal(move, pinned))
-          continue;
-
 #ifdef MOVE_STACK_REJECTIONS
       if(move_stack_rejections_probe(move,pos,ss,alpha)) continue;
 #endif      
@@ -1919,6 +1922,10 @@ split_point_start: // At split points actual search starts from here
 
           continue;
       }
+
+      // Check for legality only before to do the move
+      if (!pos.pl_move_is_legal(move, pinned))
+          continue;
 
       // Update current move
       ss->currentMove = move;
