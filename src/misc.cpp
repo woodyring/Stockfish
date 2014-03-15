@@ -62,7 +62,7 @@ static const string AppName = "GPSfish " + gpsshogi::gpsshogi_revision + " Stock
 #else
 static const string AppName = "Stockfish";
 #endif
-static const string EngineVersion = "2.1.1";
+static const string EngineVersion = "";
 static const string AppTag  = "";
 
 

@@ -94,7 +94,8 @@ OptionsMap::OptionsMap() {
   o["Minimum Split Depth"] = UCIOption(4, 4, 7);
   o["Maximum Number of Threads per Split Point"] = UCIOption(5, 4, 8);
   o["Threads"] = UCIOption(1, 1, MAX_THREADS);
-  o["Use Sleeping Threads"] = UCIOption(false);
+  o["Use Sleeping Threads"] = UCIOption(true);
+
 #ifdef GPSFISH
   size_t memory = 32;
 #  ifdef __APPLE__
@@ -127,6 +128,7 @@ OptionsMap::OptionsMap() {
       memory = std::min((size_t)2048, std::max(memory, value/1024/4));
   }
 #  endif
+
   o["Hash"] = UCIOption(memory, 4, 8192);
 #else
   o["Hash"] = UCIOption(32, 4, 8192);
