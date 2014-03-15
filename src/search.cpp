@@ -1305,13 +1305,18 @@ split_point_start: // At split points actual search starts from here
     {
       assert(move_is_ok(move));
 
+      if (move == excludedMove)
+          continue;
+
+      // At PV and SpNode nodes we want the moves to be legal
+      if ((PvNode || SpNode) && !pos.pl_move_is_legal(move, pinned))
+          continue;
+
       if (SpNode)
       {
           moveCount = ++sp->moveCount;
           lock_release(&(sp->lock));
       }
-      else if (move == excludedMove)
-          continue;
       else
           moveCount++;
 #ifdef MOVE_STACK_REJECTIONS
@@ -1453,7 +1458,10 @@ split_point_start: // At split points actual search starts from here
 
       // Check for legality only before to do the move
       if (!pos.pl_move_is_legal(move, pinned))
+      {
+          moveCount--;
           continue;
+      }
 
       ss->currentMove = move;
 
@@ -1889,7 +1897,8 @@ split_point_start: // At split points actual search starts from here
       }
 
       // Detect non-capture evasions that are candidate to be pruned
-      evasionPrunable =   inCheck
+      evasionPrunable =   !PvNode
+                       && inCheck
                        && bestValue > VALUE_MATED_IN_PLY_MAX
                        && !pos.move_is_capture(move)
 #ifndef GPSFISH
@@ -2701,12 +2710,11 @@ split_point_start: // At split points actual search starts from here
 #ifdef GPSFISH
     int dummy=0;
 #endif
-    Bitboard pinned = pos.pinned_pieces(pos.side_to_move());
 
     while (   (tte = TT.probe(pos.get_key())) != NULL
            && tte->move() != MOVE_NONE
            && pos.move_is_pl(tte->move())
-           && pos.pl_move_is_pl_full(tte->move(), pinned)
+           && pos.pl_move_is_legal(tte->move(), pos.pinned_pieces(pos.side_to_move()))
            && ply < PLY_MAX
 #ifdef GPSFISH
            && (!pos.is_draw(dummy) || ply < 2))
