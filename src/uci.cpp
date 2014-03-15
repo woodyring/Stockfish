@@ -311,7 +311,9 @@ namespace {
 #ifdef GPSFISH
     if(searchMoves == cur && !ignore_moves.empty()){
         MoveStack mlist[MAX_MOVES];
-        MoveStack* last = generate<MV_PSEUDO_LEGAL>(pos, mlist);
+        MoveStack* last = pos.in_check() ? generate<MV_EVASION>(pos, mlist)
+                                         : generate<MV_NON_EVASION>(pos, mlist);
+
         for(MoveStack* mp=mlist;mp<last;mp++){
             if(find(ignore_moves.begin(),ignore_moves.end(),mp->move)==ignore_moves.end()){
                 *cur++= mp->move;

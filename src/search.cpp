@@ -345,12 +345,12 @@ namespace {
       Move m=tte->move(pos);
       int dummy;
       if(m != MOVE_NONE
-	 && pos.move_is_pl_full(m)
-	 && !pos.is_draw(dummy)){
-	std::cerr << "move=" << m << std::endl;
-	pos.do_undo_move(m,st,
-			 [&](osl::Square){ show_tree_rec(pos); }
-	  );
+              && pos.move_is_pl(m)
+              && !pos.is_draw(dummy)) {
+          std::cerr << "move=" << m << std::endl;
+          pos.do_undo_move(m,st,
+                  [&](osl::Square){ show_tree_rec(pos); }
+                  );
       }
     }
   }
@@ -709,7 +709,7 @@ struct TestCheckmate
             next.first++;
             next.nodes /= 2;
             next.result = &move;
-            if (next.first < last && pos->move_is_pl_full(moves[next.first])
+            if (next.first < last && pos->move_is_pl(moves[next.first])
                     && next.nodes >= 1024) {
                 StateInfo st;
                 pos->do_undo_move(moves[next.first], st, next);
@@ -2651,7 +2651,7 @@ split_point_start: // At split points actual search starts from here
 #endif
     if (   (tte = TT.probe(pos.get_key())) != NULL
            && tte->move(pos) != MOVE_NONE
-           && pos.move_is_pl_full(tte->move(pos))
+           && pos.move_is_pl(tte->move(pos))
            && ply < PLY_MAX
 #ifdef GPSFISH
            && (!pos.is_draw(dummy) || ply < 2))

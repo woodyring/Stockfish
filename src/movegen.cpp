@@ -337,39 +337,31 @@ MoveStack* generate<MV_EVASION>(const Position& pos, MoveStack* mlist) {
 #endif
 
 
-/// generate<MV_LEGAL / MV_PSEUDO_LEGAL> computes a complete list of legal
-/// or pseudo-legal moves in the current position.
-template<>
-MoveStack* generate<MV_PSEUDO_LEGAL>(const Position& pos, MoveStack* mlist) {
-
-  assert(pos.is_ok());
-
-  return pos.in_check() ? generate<MV_EVASION>(pos, mlist)
-                        : generate<MV_NON_EVASION>(pos, mlist);
-}
+/// generate<MV_LEGAL> computes a complete list of legal moves in the current position
 
 template<>
 MoveStack* generate<MV_LEGAL>(const Position& pos, MoveStack* mlist) {
 
-#ifdef GPSFISH
-  return generate<MV_PSEUDO_LEGAL>(pos, mlist);
-#else
   assert(pos.is_ok());
 
   MoveStack *last, *cur = mlist;
+#ifndef GPSFISH
   Bitboard pinned = pos.pinned_pieces(pos.side_to_move());
+#endif
 
-  last = generate<MV_PSEUDO_LEGAL>(pos, mlist);
+  last = pos.in_check() ? generate<MV_EVASION>(pos, mlist)
+                        : generate<MV_NON_EVASION>(pos, mlist);
 
+#ifndef GPSFISH
   // Remove illegal moves from the list
   while (cur != last)
       if (!pos.pl_move_is_legal(cur->move, pinned))
           cur->move = (--last)->move;
       else
           cur++;
+#endif
 
   return last;
-#endif
 }
 
 
