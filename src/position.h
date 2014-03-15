@@ -698,7 +698,7 @@ inline bool Position::move_is_capture(Move m) const {
 #else
 
   assert (m != MOVE_NONE && m != MOVE_NULL);
-  return !square_is_empty(move_to(m)) || move_is_ep(m);
+  return !move_is_special(m) ? !square_is_empty(move_to(m)) : move_is_ep(m);
 #endif
 }
 
