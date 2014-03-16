@@ -982,6 +982,7 @@ namespace {
     StateInfo st;
     const TTEntry *tte;
     Key posKey;
+    Bitboard pinned;
     Move ttMove, move, excludedMove, threatMove;
     Depth ext, newDepth;
     ValueType vt;
@@ -1252,7 +1253,51 @@ namespace {
         }
     }
 
-    // Step 9. Internal iterative deepening
+    // Step 9. ProbCut (is omitted in PV nodes)
+    // If we have a very good capture (i.e. SEE > seeValues[captured_piece_type])
+    // and a reduced search returns a value much above beta, we can (almost) safely
+    // prune the previous move.
+    if (   !PvNode
+        &&  depth >= RazorDepth + ONE_PLY
+        && !inCheck
+        && !ss->skipNullMove
+        &&  excludedMove == MOVE_NONE
+        &&  abs(beta) < VALUE_MATE_IN_PLY_MAX)
+    {
+        Value rbeta = beta + 200;
+        Depth rdepth = depth - ONE_PLY - 3 * ONE_PLY;
+
+        assert(rdepth >= ONE_PLY);
+
+        MovePicker mp(pos, ttMove, H, Position::see_value(pos.captured_piece_type()));
+        pinned = pos.pinned_pieces(pos.side_to_move());
+
+        while ((move = mp.get_next_move()) != MOVE_NONE)
+            if (pos.pl_move_is_legal(move, pinned))
+            {
+#ifdef GPSFISH
+                pos.do_undo_move(move,st,
+                        [&](osl::Square){
+                        assert(pos.is_ok());
+                        *(pos.eval+1)= *(pos.eval);
+                        pos.eval++;
+                        pos.eval->update(pos.osl_state,move);
+#else
+                pos.do_move(move, st);
+#endif
+                value = -search<NonPV>(pos, ss+1, -rbeta, -rbeta+1, rdepth);
+#ifdef GPSFISH
+                --pos.eval;
+                });
+#else
+                pos.undo_move(move);
+#endif
+                if (value >= rbeta)
+                    return value;
+            }
+    }
+
+    // Step 10. Internal iterative deepening
     if (   depth >= IIDDepth[PvNode]
         && ttMove == MOVE_NONE
         && (PvNode || (!inCheck && ss->eval + IIDMargin >= beta)))
@@ -1278,7 +1323,7 @@ split_point_start: // At split points actual search starts from here
 #ifndef GPSFISH
     CheckInfo ci(pos);
 #endif
-    Bitboard pinned = pos.pinned_pieces(pos.side_to_move());
+    pinned = pos.pinned_pieces(pos.side_to_move());
 
     ss->bestMove = MOVE_NONE;
     futilityBase = ss->eval + ss->evalMargin;
@@ -1299,7 +1344,7 @@ split_point_start: // At split points actual search starts from here
         bestValue = sp->bestValue;
     }
 
-    // Step 10. Loop through moves
+    // Step 11. Loop through moves
     // Loop through all pseudo-legal moves until no moves remain or a beta cutoff occurs
     while (   bestValue < beta
            && (move = mp.get_next_move()) != MOVE_NONE
@@ -1365,7 +1410,7 @@ split_point_start: // At split points actual search starts from here
 #endif
       captureOrPromotion = pos.move_is_capture(move) || move_is_promotion(move);
 
-      // Step 11. Decide the new search depth
+      // Step 12. Decide the new search depth
       ext = extension<PvNode>(pos, move, captureOrPromotion, givesCheck, &dangerous);
 
       // Singular extension search. If all moves but one fail low on a search of
@@ -1397,7 +1442,7 @@ split_point_start: // At split points actual search starts from here
       // Update current move (this must be done after singular extension search)
       newDepth = depth - ONE_PLY + ext;
 
-      // Step 12. Futility pruning (is omitted in PV nodes)
+      // Step 13. Futility pruning (is omitted in PV nodes)
       if (   !PvNode
           && !captureOrPromotion
           && !inCheck
@@ -1482,7 +1527,7 @@ split_point_start: // At split points actual search starts from here
     const bool RootNode = (NT == Root);
 
 #else
-      // Step 13. Make the move
+      // Step 14. Make the move
       pos.do_move(move, st, ci, givesCheck);
 #endif
 
@@ -1502,7 +1547,7 @@ split_point_start: // At split points actual search starts from here
       }
       else
       {
-          // Step 14. Reduced depth search
+          // Step 15. Reduced depth search
           // If the move fails high will be re-searched at full depth.
           bool doFullDepthSearch = true;
           alpha = SpNode ? sp->alpha : alpha;
@@ -1525,28 +1570,7 @@ split_point_start: // At split points actual search starts from here
               ss->reduction = DEPTH_ZERO; // Restore original reduction
           }
 
-          // Probcut search for bad captures. If a reduced search returns a value
-          // very below beta then we can (almost) safely prune the bad capture.
-          if (   depth >= 3 * ONE_PLY
-              && depth < 8 * ONE_PLY
-              && mp.isBadCapture()
-              && move != ttMove
-              && !dangerous
-#ifndef GPSFISH
-              && !move_is_promotion(move)
-#endif
-              &&  abs(alpha) < VALUE_MATE_IN_PLY_MAX)
-          {
-              ss->reduction = 3 * ONE_PLY;
-              Value rAlpha = alpha - 300;
-              Depth d = newDepth - ss->reduction;
-              value = d < ONE_PLY ? -qsearch<NonPV>(pos, ss+1, -(rAlpha+1), -rAlpha, DEPTH_ZERO)
-                                  : - search<NonPV>(pos, ss+1, -(rAlpha+1), -rAlpha, d);
-              doFullDepthSearch = (value > rAlpha);
-              ss->reduction = DEPTH_ZERO; // Restore original reduction
-          }
-
-          // Step 15. Full depth search
+          // Step 16. Full depth search
           if (doFullDepthSearch)
           {
               alpha = SpNode ? sp->alpha : alpha;
@@ -1566,13 +1590,13 @@ split_point_start: // At split points actual search starts from here
 	}
 	);
 #else
-      // Step 16. Undo move
+      // Step 17. Undo move
       pos.undo_move(move);
 #endif
 
       assert(value > -VALUE_INFINITE && value < VALUE_INFINITE);
 
-      // Step 17. Check for new best move
+      // Step 18. Check for new best move
       if (SpNode)
       {
           lock_grab(&(sp->lock));
@@ -1655,7 +1679,7 @@ split_point_start: // At split points actual search starts from here
 
       } // RootNode
 
-      // Step 18. Check for split
+      // Step 19. Check for split
       if (   !RootNode
           && !SpNode
           && depth >= Threads.min_split_depth()
@@ -1667,7 +1691,7 @@ split_point_start: // At split points actual search starts from here
                                    threatMove, moveCount, &mp, PvNode);
     }
 
-    // Step 19. Check for mate and stalemate
+    // Step 20. Check for mate and stalemate
     // All legal moves have been searched and if there are
     // no legal moves, it must be mate or stalemate.
     // If one move was excluded return fail low score.
@@ -1678,7 +1702,7 @@ split_point_start: // At split points actual search starts from here
         return excludedMove ? oldAlpha : inCheck ? value_mated_in(ss->ply) : VALUE_DRAW;
 #endif
 
-    // Step 20. Update tables
+    // Step 21. Update tables
     // If the search is not aborted, update the transposition table,
     // history counters, and killer moves.
     if (!SpNode && !StopRequest && !Threads[threadID].cutoff_occurred())
