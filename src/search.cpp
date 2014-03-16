@@ -2249,7 +2249,6 @@ split_point_start: // At split points actual search starts from here
 #else
     assert(threat && move_is_ok(threat));
 #endif
-    assert(!pos.move_gives_check(m));
     assert(!pos.move_is_capture(m) && !move_is_promotion(m));
 #ifndef GPSFISH
     assert(!pos.move_is_passed_pawn_push(m));
