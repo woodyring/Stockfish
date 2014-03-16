@@ -2110,6 +2110,7 @@ bool Position::is_draw(int& ret) const {
   return false;
 }
 #else
+template<bool SkipRepetition>
 bool Position::is_draw() const {
 
   // Draw by material?
@@ -2122,13 +2123,20 @@ bool Position::is_draw() const {
       return true;
 
   // Draw by repetition?
-  for (int i = 4, e = Min(Min(st->gamePly, st->rule50), st->pliesFromNull); i <= e; i += 2)
-      if (history[st->gamePly - i] == st->key)
-          return true;
+  if (!SkipRepetition)
+      for (int i = 4, e = Min(Min(st->gamePly, st->rule50), st->pliesFromNull); i <= e; i += 2)
+          if (history[st->gamePly - i] == st->key)
+              return true;
 
   return false;
 }
+
+// Explicit template instantiations
+template bool Position::is_draw<false>() const;
+template bool Position::is_draw<true>() const;
+
 #endif
+
 
 
 /// Position::is_mate() returns true or false depending on whether the

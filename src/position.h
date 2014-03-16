@@ -283,7 +283,7 @@ public:
   // if is_draw return false, and ret==1  -> continous check by opposit_color
   bool is_draw(int& ret) const; 
 #else
-  bool is_draw() const;
+  template<bool SkipRepetition> bool is_draw() const;
 #endif
 
   // Number of plies from starting position

@@ -1081,7 +1081,7 @@ namespace {
 #ifdef GPSFISH
          || pos.is_draw(repeat_check)
 #else
-         || pos.is_draw()
+         || pos.is_draw<false>()
 #endif
          || ss->ply > PLY_MAX) && !RootNode)
 #ifdef GPSFISH
@@ -1831,19 +1831,17 @@ split_point_start: // At split points actual search starts from here
         NodesSincePoll = 0;
         poll(pos);
     }
+
     int repeat_check=0;
     if (StopRequest || ss->ply > PLY_MAX || pos.is_draw(repeat_check))
-#ifdef GPSFISH
         return value_draw(pos);
-#else
-    return VALUE_DRAW;
-#endif
+
     if(repeat_check<0) 
         return value_mated_in(ss->ply+1);
     else if(repeat_check>0) 
         return value_mate_in(ss->ply);
 #else
-    if (ss->ply > PLY_MAX || pos.is_draw())
+    if (pos.is_draw<true>() || ss->ply > PLY_MAX)
         return VALUE_DRAW;
 #endif
 
@@ -2746,7 +2744,7 @@ split_point_start: // At split points actual search starts from here
 #ifdef GPSFISH
            && (!pos.is_draw(dummy) || ply < 2))
 #else
-           && (!pos.is_draw() || ply < 2))
+           && (!pos.is_draw<false>() || ply < 2))
 #endif
     {
         pv[ply] = tte->move();
