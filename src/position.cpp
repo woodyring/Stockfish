@@ -332,7 +332,7 @@ void Position::from_fen(const string& fen, bool isChess960) {
   if (   ((ss >> col) && (col >= 'a' && col <= 'h'))
       && ((ss >> row) && (row == '3' || row == '6')))
   {
-      st->epSquare = make_square(file_from_char(col), rank_from_char(row));
+      st->epSquare = make_square(File(col - 'a') + FILE_A, Rank(row - '1') + RANK_1);
 
       // Ignore if no capture is possible
       Color them = opposite_color(sideToMove);
@@ -2242,7 +2242,7 @@ bool Position::is_ok(int* failedStep) const {
   if (failedStep) *failedStep = 1;
 
   // Side to move OK?
-  if (!color_is_ok(side_to_move()))
+  if (side_to_move() != WHITE && side_to_move() != BLACK)
       return false;
 
 #ifndef GPSFISH
@@ -2257,10 +2257,10 @@ bool Position::is_ok(int* failedStep) const {
 
   // Castle files OK?
   if (failedStep) (*failedStep)++;
-  if (!file_is_ok(initialKRFile))
+  if (!square_is_ok(make_square(initialKRFile, RANK_1)))
       return false;
 
-  if (!file_is_ok(initialQRFile))
+  if (!square_is_ok(make_square(initialQRFile, RANK_1)))
       return false;
 #endif
 

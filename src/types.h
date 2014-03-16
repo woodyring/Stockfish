@@ -414,27 +414,6 @@ inline Color opposite_color(Color c) {
 #endif
 }
 
-
-inline bool color_is_ok(Color c) {
-#ifdef GPSFISH
-  return isValid(c);
-#else
-  return c == WHITE || c == BLACK;
-#endif
-}
-
-inline bool piece_type_is_ok(PieceType pt) {
-#ifdef GPSFISH
-  return isPiece(pt);
-#else
-  return pt >= PAWN && pt <= KING;
-#endif
-}
-
-inline bool piece_is_ok(Piece p) {
-  return piece_type_is_ok(type_of_piece(p)) && color_is_ok(color_of_piece(p));
-}
-
 inline char piece_type_to_char(PieceType pt) {
 #ifdef GPSFISH
   static const char ch[] = "  plnsbrGKPLNSBR";
@@ -531,24 +510,12 @@ inline int square_distance(Square s1, Square s2) {
   return Max(file_distance(s1, s2), rank_distance(s1, s2));
 }
 
-inline File file_from_char(char c) {
-#ifdef GPSFISH
-  return FILE_9-File(c - 'a');
-#else
-  return File(c - 'a') + FILE_A;
-#endif
-}
-
 inline char file_to_char(File f) {
 #ifdef GPSFISH
   return char(int('a')+FILE_9-f);
 #else
   return char(f - FILE_A + int('a'));
 #endif
-}
-
-inline Rank rank_from_char(char c) {
-  return Rank(c - '1') + RANK_1;
 }
 
 inline char rank_to_char(Rank r) {
@@ -558,30 +525,6 @@ inline char rank_to_char(Rank r) {
 inline const std::string square_to_string(Square s) {
   char ch[] = { file_to_char(square_file(s)), rank_to_char(square_rank(s)), 0 };
   return std::string(ch);
-}
-
-inline bool file_is_ok(File f) {
-#ifdef GPSFISH
-  return f >= FILE_1 && f <= FILE_9;
-#else
-  return f >= FILE_A && f <= FILE_H;
-#endif
-}
-
-inline bool rank_is_ok(Rank r) {
-#ifdef GPSFISH
-  return r >= RANK_1 && r <= RANK_9;
-#else
-  return r >= RANK_1 && r <= RANK_8;
-#endif
-}
-
-inline bool square_is_ok(Square s) {
-#ifdef GPSFISH
-  return s.isOnBoard();
-#else
-  return s >= SQ_A1 && s <= SQ_H8;
-#endif
 }
 
 #ifndef GPSFISH
