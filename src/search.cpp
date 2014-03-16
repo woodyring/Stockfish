@@ -76,7 +76,7 @@ namespace {
   const bool FakeSplit = false;
 
   // Different node types, used as template parameter
-  enum NodeType { NonPV, PV };
+  enum NodeType { Root, PV, NonPV, SplitPointPV, SplitPointNonPV };
 
   // RootMove struct is used for moves at the root of the tree. For each root
   // move, we store two scores, a node count, and a PV (really a refutation
@@ -228,9 +228,9 @@ namespace {
   // Reduction lookup tables (initialized at startup) and their access function
   int8_t Reductions[2][64][64]; // [pv][depth][moveNumber]
 
-  template <NodeType PV> inline Depth reduction(Depth d, int mn) {
+  template <bool PvNode> inline Depth reduction(Depth d, int mn) {
 
-    return (Depth) Reductions[PV][Min(d / ONE_PLY, 63)][Min(mn, 63)];
+    return (Depth) Reductions[PvNode][Min(d / ONE_PLY, 63)][Min(mn, 63)];
   }
 
   // Easy move margin. An easy move candidate must be at least this much
@@ -275,20 +275,13 @@ namespace {
 
   Move id_loop(Position& pos, Move searchMoves[], Move* ponderMove);
 
-  template <NodeType PvNode, bool SpNode, bool Root>
+  template <NodeType NT>
   Value search(Position& pos, SearchStack* ss, Value alpha, Value beta, Depth depth);
 
-  template <NodeType PvNode>
+  template <NodeType NT>
   Value qsearch(Position& pos, SearchStack* ss, Value alpha, Value beta, Depth depth);
 
-  template <NodeType PvNode>
-  inline Value search(Position& pos, SearchStack* ss, Value alpha, Value beta, Depth depth) {
-
-    return depth < ONE_PLY ? qsearch<PvNode>(pos, ss, alpha, beta, DEPTH_ZERO)
-                           : search<PvNode, false, false>(pos, ss, alpha, beta, depth);
-  }
-
-  template <NodeType PvNode>
+  template <bool PvNode>
   Depth extension(const Position& pos, Move m, bool captureOrPromotion, bool moveIsCheck, bool* dangerous);
 
   bool check_is_dangerous(Position &pos, Move move, Value futilityBase, Value beta, Value *bValue);
@@ -407,8 +400,8 @@ void init_search() {
   {
       double    pvRed = log(double(hd)) * log(double(mc)) / 3.0;
       double nonPVRed = 0.33 + log(double(hd)) * log(double(mc)) / 2.25;
-      Reductions[PV][hd][mc]    = (int8_t) (   pvRed >= 1.0 ? floor(   pvRed * int(ONE_PLY)) : 0);
-      Reductions[NonPV][hd][mc] = (int8_t) (nonPVRed >= 1.0 ? floor(nonPVRed * int(ONE_PLY)) : 0);
+      Reductions[1][hd][mc] = (int8_t) (   pvRed >= 1.0 ? floor(   pvRed * int(ONE_PLY)) : 0);
+      Reductions[0][hd][mc] = (int8_t) (nonPVRed >= 1.0 ? floor(nonPVRed * int(ONE_PLY)) : 0);
   }
 
   // Init futility margins array
@@ -836,7 +829,7 @@ namespace {
         // research with bigger window until not failing high/low anymore.
         do {
             // Search starting from ss+1 to allow calling update_gains()
-            value = search<PV, false, true>(pos, ss+1, alpha, beta, depth * ONE_PLY);
+            value = search<Root>(pos, ss+1, alpha, beta, depth * ONE_PLY);
 
             // Write PV back to transposition table in case the relevant entries
             // have been overwritten during the search.
@@ -968,8 +961,12 @@ namespace {
   // all this work again. We also don't need to store anything to the hash table
   // here: This is taken care of after we return from the split point.
 
-  template <NodeType PvNode, bool SpNode, bool Root>
+  template <NodeType NT>
   Value search(Position& pos, SearchStack* ss, Value alpha, Value beta, Depth depth) {
+
+    const bool PvNode   = (NT == PV || NT == Root || NT == SplitPointPV);
+    const bool SpNode   = (NT == SplitPointPV || NT == SplitPointNonPV);
+    const bool RootNode = (NT == Root);
 
     assert(alpha >= -VALUE_INFINITE && alpha <= VALUE_INFINITE);
     assert(beta > alpha && beta <= VALUE_INFINITE);
@@ -1016,7 +1013,7 @@ namespace {
         threatMove = sp->threatMove;
         goto split_point_start;
     }
-    else if (Root)
+    else if (RootNode)
         bestValue = alpha;
 
     // Step 1. Initialize node and poll. Polling can abort search
@@ -1038,7 +1035,7 @@ namespace {
 #else
          || pos.is_draw()
 #endif
-         || ss->ply > PLY_MAX) && !Root)
+         || ss->ply > PLY_MAX) && !RootNode)
 #ifdef GPSFISH
         return value_draw(pos);
 #else
@@ -1104,7 +1101,7 @@ namespace {
     // At PV nodes we check for exact scores, while at non-PV nodes we check for
     // a fail high/low. Biggest advantage at probing at PV nodes is to have a
     // smooth experience in analysis mode.
-    if (   !Root
+    if (   !RootNode
         && tte
         && (PvNode ? tte->depth() >= depth && tte->type() == VALUE_TYPE_EXACT
                    : ok_to_use_TT(tte, depth, beta, ss->ply)))
@@ -1205,7 +1202,8 @@ namespace {
         pos.do_null_move(st);
 #endif
         (ss+1)->skipNullMove = true;
-        nullValue = -search<NonPV>(pos, ss+1, -beta, -alpha, depth-R*ONE_PLY);
+        nullValue = depth-R*ONE_PLY < ONE_PLY ? -qsearch<NonPV>(pos, ss+1, -beta, -alpha, DEPTH_ZERO)
+                                              : - search<NonPV>(pos, ss+1, -beta, -alpha, depth-R*ONE_PLY);
         (ss+1)->skipNullMove = false;
 #ifdef GPSFISH
 	    --pos.eval;
@@ -1258,7 +1256,7 @@ namespace {
         Depth d = (PvNode ? depth - 2 * ONE_PLY : depth / 2);
 
         ss->skipNullMove = true;
-        search<PvNode>(pos, ss, alpha, beta, d);
+        search<PvNode ? PV : NonPV>(pos, ss, alpha, beta, d);
         ss->skipNullMove = false;
 
         tte = TT.probe(posKey);
@@ -1272,7 +1270,7 @@ namespace {
 split_point_start: // At split points actual search starts from here
 
     // Initialize a MovePicker object for the current position
-    MovePickerExt<SpNode, Root> mp(pos, ttMove, depth, H, ss, (PvNode ? -VALUE_INFINITE : beta));
+    MovePickerExt<SpNode, RootNode> mp(pos, ttMove, depth, H, ss, (PvNode ? -VALUE_INFINITE : beta));
 #ifndef GPSFISH
     CheckInfo ci(pos);
 #endif
@@ -1280,7 +1278,7 @@ split_point_start: // At split points actual search starts from here
 
     ss->bestMove = MOVE_NONE;
     futilityBase = ss->eval + ss->evalMargin;
-    singularExtensionNode =   !Root
+    singularExtensionNode =   !RootNode
                            && !SpNode
                            && depth >= SingularExtensionDepth[PvNode]
                            && ttMove != MOVE_NONE
@@ -1327,7 +1325,7 @@ split_point_start: // At split points actual search starts from here
       }
 #endif      
 
-      if (Root)
+      if (RootNode)
       {
           // This is used by time management
           FirstRootMove = (moveCount == 1);
@@ -1355,7 +1353,7 @@ split_point_start: // At split points actual search starts from here
       }
 
       // At Root and at first iteration do a PV search on all the moves to score root moves
-      isPvMove = (PvNode && moveCount <= (Root ? depth <= ONE_PLY ? 1000 : MultiPV : 1));
+      isPvMove = (PvNode && moveCount <= (RootNode ? depth <= ONE_PLY ? 1000 : MultiPV : 1));
 #ifdef GPSFISH
       givesCheck = pos.move_gives_check(move);
 #else
@@ -1421,10 +1419,10 @@ split_point_start: // At split points actual search starts from here
           // Value based pruning
           // We illogically ignore reduction condition depth >= 3*ONE_PLY for predicted depth,
           // but fixing this made program slightly weaker.
-          Depth predictedDepth = newDepth - reduction<NonPV>(depth, moveCount);
+          Depth predictedDepth = newDepth - reduction<PvNode>(depth, moveCount);
 #ifdef GPSFISH
           futilityValueScaled =  futilityBase + futility_margin(predictedDepth, moveCount)
-	    + H.gain(move.ptypeO(), move_to(move));
+                               + H.gain(move.ptypeO(), move_to(move));
 #else
           futilityValueScaled =  futilityBase + futility_margin(predictedDepth, moveCount)
                                + H.gain(pos.piece_on(move_from(move)), move_to(move));
@@ -1474,6 +1472,11 @@ split_point_start: // At split points actual search starts from here
               pos.eval++;
               pos.eval->update(pos.osl_state,move);
               assert(pos.eval->value()==eval_t(pos.osl_state,false).value());
+
+    const bool PvNode   = (NT == PV || NT == Root || NT == SplitPointPV);
+    const bool SpNode   = (NT == SplitPointPV || NT == SplitPointNonPV);
+    const bool RootNode = (NT == Root);
+
 #else
       // Step 13. Make the move
       pos.do_move(move, st, ci, givesCheck);
@@ -1487,10 +1490,11 @@ split_point_start: // At split points actual search starts from here
       if (isPvMove)
       {
           // Aspiration window is disabled in multi-pv case
-          if (Root && MultiPV > 1)
+          if (RootNode && MultiPV > 1)
               alpha = -VALUE_INFINITE;
 
-          value = -search<PV>(pos, ss+1, -beta, -alpha, newDepth);
+          value = newDepth < ONE_PLY ? -qsearch<PV>(pos, ss+1, -beta, -alpha, DEPTH_ZERO)
+                                     : - search<PV>(pos, ss+1, -beta, -alpha, newDepth);
       }
       else
       {
@@ -1510,8 +1514,8 @@ split_point_start: // At split points actual search starts from here
               if (ss->reduction)
               {
                   Depth d = newDepth - ss->reduction;
-                  value = -search<NonPV>(pos, ss+1, -(alpha+1), -alpha, d);
-
+                  value = d < ONE_PLY ? -qsearch<NonPV>(pos, ss+1, -(alpha+1), -alpha, DEPTH_ZERO)
+                                      : - search<NonPV>(pos, ss+1, -(alpha+1), -alpha, d);
                   doFullDepthSearch = (value > alpha);
               }
               ss->reduction = DEPTH_ZERO; // Restore original reduction
@@ -1532,7 +1536,8 @@ split_point_start: // At split points actual search starts from here
               ss->reduction = 3 * ONE_PLY;
               Value rAlpha = alpha - 300;
               Depth d = newDepth - ss->reduction;
-              value = -search<NonPV>(pos, ss+1, -(rAlpha+1), -rAlpha, d);
+              value = d < ONE_PLY ? -qsearch<NonPV>(pos, ss+1, -(rAlpha+1), -rAlpha, DEPTH_ZERO)
+                                  : - search<NonPV>(pos, ss+1, -(rAlpha+1), -rAlpha, d);
               doFullDepthSearch = (value > rAlpha);
               ss->reduction = DEPTH_ZERO; // Restore original reduction
           }
@@ -1541,13 +1546,15 @@ split_point_start: // At split points actual search starts from here
           if (doFullDepthSearch)
           {
               alpha = SpNode ? sp->alpha : alpha;
-              value = -search<NonPV>(pos, ss+1, -(alpha+1), -alpha, newDepth);
+              value = newDepth < ONE_PLY ? -qsearch<NonPV>(pos, ss+1, -(alpha+1), -alpha, DEPTH_ZERO)
+                                         : - search<NonPV>(pos, ss+1, -(alpha+1), -alpha, newDepth);
 
               // Step extra. pv search (only in PV nodes)
               // Search only for possible new PV nodes, if instead value >= beta then
               // parent node fails low with value <= alpha and tries another move.
-              if (PvNode && value > alpha && (Root || value < beta))
-                  value = -search<PV>(pos, ss+1, -beta, -alpha, newDepth);
+              if (PvNode && value > alpha && (RootNode || value < beta))
+                  value = newDepth < ONE_PLY ? -qsearch<PV>(pos, ss+1, -beta, -alpha, DEPTH_ZERO)
+                                             : - search<PV>(pos, ss+1, -beta, -alpha, newDepth);
           }
       }
 #ifdef GPSFISH
@@ -1576,7 +1583,7 @@ split_point_start: // At split points actual search starts from here
           if (SpNode)
               sp->bestValue = value;
 
-          if (!Root && value > alpha)
+          if (!RootNode && value > alpha)
           {
               if (PvNode && value < beta) // We want always alpha < beta
               {
@@ -1598,7 +1605,7 @@ split_point_start: // At split points actual search starts from here
           }
       }
 
-      if (Root)
+      if (RootNode)
       {
           // Finished searching the move. If StopRequest is true, the search
           // was aborted because the user interrupted the search or because we
@@ -1645,10 +1652,10 @@ split_point_start: // At split points actual search starts from here
           else
               mp.rm->pv_score = -VALUE_INFINITE;
 
-      } // Root
+      } // RootNode
 
       // Step 18. Check for split
-      if (   !Root
+      if (   !RootNode
           && !SpNode
           && depth >= Threads.min_split_depth()
           && bestValue < beta
@@ -1712,9 +1719,12 @@ split_point_start: // At split points actual search starts from here
   // search function when the remaining depth is zero (or, to be more precise,
   // less than ONE_PLY).
 
-  template <NodeType PvNode>
+  template <NodeType NT>
   Value qsearch(Position& pos, SearchStack* ss, Value alpha, Value beta, Depth depth) {
 
+    const bool PvNode = (NT == PV);
+
+    assert(NT == PV || NT == NonPV);
     assert(alpha >= -VALUE_INFINITE && alpha <= VALUE_INFINITE);
     assert(beta >= -VALUE_INFINITE && beta <= VALUE_INFINITE);
     assert(PvNode || alpha == beta - 1);
@@ -1951,7 +1961,7 @@ split_point_start: // At split points actual search starts from here
 #else
       pos.do_move(move, st, ci, givesCheck);
 #endif
-      value = -qsearch<PvNode>(pos, ss+1, -beta, -alpha, depth-ONE_PLY);
+      value = -qsearch<NT>(pos, ss+1, -beta, -alpha, depth-ONE_PLY);
 #ifdef GPSFISH
               --pos.eval;
               }
@@ -2187,7 +2197,7 @@ split_point_start: // At split points actual search starts from here
   // any case are marked as 'dangerous'. Note that also if a move is not
   // extended, as example because the corresponding UCI option is set to zero,
   // the move is marked as 'dangerous' so, at least, we avoid to prune it.
-  template <NodeType PvNode>
+  template <bool PvNode>
   Depth extension(const Position& pos, Move m, bool captureOrPromotion,
                   bool moveIsCheck, bool* dangerous) {
 
@@ -2951,9 +2961,9 @@ void ThreadsManager::idle_loop(int threadID, SplitPoint* sp) {
 	  pos.eval= &es[0];
 
           if (tsp->pvNode)
-              search<PV, true, false>(pos, ss+1, tsp->alpha, tsp->beta, tsp->depth);
+              search<SplitPointPV>(pos, ss+1, tsp->alpha, tsp->beta, tsp->depth);
           else
-              search<NonPV, true, false>(pos, ss+1, tsp->alpha, tsp->beta, tsp->depth);
+              search<SplitPointNonPV>(pos, ss+1, tsp->alpha, tsp->beta, tsp->depth);
 
           assert(threads[threadID].state == Thread::SEARCHING);
 
