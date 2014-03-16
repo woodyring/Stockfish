@@ -327,8 +327,8 @@ private:
   void detach();
   void put_piece(Piece p, Square s);
 #ifndef GPSFISH
-  void do_allow_oo(Color c);
-  void do_allow_ooo(Color c);
+  void set_castle_kingside(Color c);
+  void set_castle_queenside(Color c);
   bool set_castling_rights(char token);
 #endif
   bool move_is_pl_slow(const Move m) const;
@@ -558,16 +558,24 @@ inline Square Position::king_square(Color c) const {
 }
 
 #ifndef GPSFISH
-inline bool Position::can_castle_kingside(Color side) const {
-  return st->castleRights & (1+int(side));
+inline bool Position::can_castle_kingside(Color c) const {
+  return st->castleRights & (WHITE_OO << c);
 }
 
-inline bool Position::can_castle_queenside(Color side) const {
-  return st->castleRights & (4+4*int(side));
+inline bool Position::can_castle_queenside(Color c) const {
+  return st->castleRights & (WHITE_OOO << c);
 }
 
-inline bool Position::can_castle(Color side) const {
-  return can_castle_kingside(side) || can_castle_queenside(side);
+inline bool Position::can_castle(Color c) const {
+  return st->castleRights & ((WHITE_OO | WHITE_OOO) << c);
+}
+
+inline void Position::set_castle_kingside(Color c) {
+  st->castleRights |= (WHITE_OO << c);
+}
+
+inline void Position::set_castle_queenside(Color c) {
+  st->castleRights |= (WHITE_OOO << c);
 }
 
 inline Square Position::initial_kr_square(Color c) const {
@@ -720,16 +728,6 @@ inline int Position::thread() const {
 #ifdef GPSFISH
 inline int Position::pliesFromNull() const {
   return st->pliesFromNull;
-}
-#endif
-
-#ifndef GPSFISH
-inline void Position::do_allow_oo(Color c) {
-  st->castleRights |= (1 + int(c));
-}
-
-inline void Position::do_allow_ooo(Color c) {
-  st->castleRights |= (4 + 4*int(c));
 }
 #endif
 
