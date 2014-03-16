@@ -41,7 +41,6 @@ const int MaxGameLength = 220;
 
 class Position;
 
-#ifndef GPSFISH
 /// struct checkInfo is initialized at c'tor time and keeps
 /// info used to detect if a move gives check.
 
@@ -49,11 +48,17 @@ struct CheckInfo {
 
     explicit CheckInfo(const Position&);
 
+#ifndef GPSFISH
     Bitboard dcCandidates;
+#endif
+    Bitboard pinned;
+#ifndef GPSFISH
     Bitboard checkSq[8];
     Square ksq;
+#endif
 };
 
+#ifndef GPSFISH
 /// Castle rights, encoded as bit fields
 
 enum CastleRights {
@@ -224,10 +229,7 @@ public:
 #endif
   bool pl_move_is_legal(Move m, Bitboard pinned) const;
   bool move_is_pl(const Move m) const;
-  bool move_gives_check(Move m) const;
-#ifndef GPSFISH
   bool move_gives_check(Move m, const CheckInfo& ci) const;
-#endif
   bool move_is_capture(Move m) const;
   bool move_is_passed_pawn_push(Move m) const;
   bool move_attacks_square(Move m, Square s) const;

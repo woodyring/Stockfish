@@ -1024,7 +1024,6 @@ namespace {
     StateInfo st;
     const TTEntry *tte;
     Key posKey;
-    Bitboard pinned;
     Move ttMove, move, excludedMove, threatMove;
     Depth ext, newDepth;
     ValueType vt;
@@ -1310,10 +1309,10 @@ namespace {
         assert(rdepth >= ONE_PLY);
 
         MovePicker mp(pos, ttMove, H, Position::see_value(pos.captured_piece_type()));
-        pinned = pos.pinned_pieces(pos.side_to_move());
+        CheckInfo ci(pos);
 
         while ((move = mp.get_next_move()) != MOVE_NONE)
-            if (pos.pl_move_is_legal(move, pinned))
+            if (pos.pl_move_is_legal(move, ci.pinned))
             {
 #ifdef GPSFISH
                 pos.do_undo_move(move,st,
@@ -1323,7 +1322,7 @@ namespace {
                         pos.eval++;
                         pos.eval->update(pos.osl_state,move);
 #else
-                pos.do_move(move, st);
+                pos.do_move(move, st, ci, pos.move_gives_check(move, ci));
 #endif
                 value = -search<NonPV>(pos, ss+1, -rbeta, -rbeta+1, rdepth);
 #ifdef GPSFISH
@@ -1360,11 +1359,7 @@ split_point_start: // At split points actual search starts from here
 
     // Initialize a MovePicker object for the current position
     MovePickerExt<NT> mp(pos, ttMove, depth, H, ss, PvNode ? -VALUE_INFINITE : beta);
-#ifndef GPSFISH
     CheckInfo ci(pos);
-#endif
-    pinned = pos.pinned_pieces(pos.side_to_move());
-
     ss->bestMove = MOVE_NONE;
     futilityBase = ss->eval + ss->evalMargin;
     singularExtensionNode =   !RootNode
@@ -1396,7 +1391,7 @@ split_point_start: // At split points actual search starts from here
           continue;
 
       // At PV and SpNode nodes we want the moves to be legal
-      if ((PvNode || SpNode) && !pos.pl_move_is_legal(move, pinned))
+      if ((PvNode || SpNode) && !pos.pl_move_is_legal(move, ci.pinned))
           continue;
 
       if (SpNode)
@@ -1443,11 +1438,7 @@ split_point_start: // At split points actual search starts from here
 
       // At Root and at first iteration do a PV search on all the moves to score root moves
       isPvMove = (PvNode && moveCount <= (RootNode ? depth <= ONE_PLY ? MAX_MOVES : MultiPV : 1));
-#ifdef GPSFISH
-      givesCheck = pos.move_gives_check(move);
-#else
       givesCheck = pos.move_gives_check(move, ci);
-#endif
       captureOrPromotion = pos.move_is_capture(move) || move_is_promotion(move);
 
       // Step 12. Decide the new search depth
@@ -1460,7 +1451,7 @@ split_point_start: // At split points actual search starts from here
       // a margin then we extend ttMove.
       if (   singularExtensionNode
           && move == ttMove
-          && pos.pl_move_is_legal(move, pinned)
+          && pos.pl_move_is_legal(move, ci.pinned)
           && ext < ONE_PLY)
       {
           Value ttValue = value_from_tt(tte->value(), ss->ply);
@@ -1544,7 +1535,7 @@ split_point_start: // At split points actual search starts from here
       }
 
       // Check for legality only before to do the move
-      if (!pos.pl_move_is_legal(move, pinned))
+      if (!pos.pl_move_is_legal(move, ci.pinned))
       {
           moveCount--;
           continue;
@@ -1912,10 +1903,7 @@ split_point_start: // At split points actual search starts from here
     // queen promotions and checks (only if depth >= DEPTH_QS_CHECKS) will
     // be generated.
     MovePicker mp(pos, ttMove, depth, H, move_to((ss-1)->currentMove));
-#ifndef GPSFISH
     CheckInfo ci(pos);
-#endif
-    Bitboard pinned = pos.pinned_pieces(pos.side_to_move());
 
     // Loop through the moves until no moves remain or a beta cutoff occurs
     while (   alpha < beta
@@ -1927,11 +1915,7 @@ split_point_start: // At split points actual search starts from here
       if(move_stack_rejections_probe(move,pos,ss,alpha)) continue;
 #endif      
 
-#ifdef GPSFISH
-      givesCheck = pos.move_gives_check(move);
-#else
       givesCheck = pos.move_gives_check(move, ci);
-#endif
 
       // Futility pruning
       if (   !PvNode
@@ -2006,7 +1990,7 @@ split_point_start: // At split points actual search starts from here
       }
 
       // Check for legality only before to do the move
-      if (!pos.pl_move_is_legal(move, pinned))
+      if (!pos.pl_move_is_legal(move, ci.pinned))
           continue;
 
       // Update current move

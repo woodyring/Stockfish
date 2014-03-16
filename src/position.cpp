@@ -191,25 +191,28 @@ namespace {
 }
 
 
-#ifndef GPSFISH
 /// CheckInfo c'tor
 
 CheckInfo::CheckInfo(const Position& pos) {
 
+#ifdef GPSFISH
+  pinned = pos.pinned_pieces(pos.side_to_move());
+#else
   Color us = pos.side_to_move();
   Color them = opposite_color(us);
 
   ksq = pos.king_square(them);
   dcCandidates = pos.discovered_check_candidates(us);
+  pinned = pos.pinned_pieces(us);
 
-  checkSq[PAWN] = pos.attacks_from<PAWN>(ksq, them);
+  checkSq[PAWN]   = pos.attacks_from<PAWN>(ksq, them);
   checkSq[KNIGHT] = pos.attacks_from<KNIGHT>(ksq);
   checkSq[BISHOP] = pos.attacks_from<BISHOP>(ksq);
-  checkSq[ROOK] = pos.attacks_from<ROOK>(ksq);
-  checkSq[QUEEN] = checkSq[BISHOP] | checkSq[ROOK];
-  checkSq[KING] = EmptyBoardBB;
-}
+  checkSq[ROOK]   = pos.attacks_from<ROOK>(ksq);
+  checkSq[QUEEN]  = checkSq[BISHOP] | checkSq[ROOK];
+  checkSq[KING]   = EmptyBoardBB;
 #endif
+}
 
 
 /// Position c'tors. Here we always create a copy of the original position
@@ -939,20 +942,14 @@ bool Position::move_is_pl(const Move m) const {
 
 /// Position::move_gives_check() tests whether a pseudo-legal move is a check
 
-bool Position::move_gives_check(Move m) const {
+bool Position::move_gives_check(Move m, const CheckInfo& ci) const {
+
 #ifdef GPSFISH
   if(side_to_move()==BLACK)
     return osl::move_classifier::Check<BLACK>::isMember(osl_state,m.ptype(),m.from(),m.to());
   else 
     return osl::move_classifier::Check<WHITE>::isMember(osl_state,m.ptype(),m.from(),m.to());
 #else
-  return move_gives_check(m, CheckInfo(*this));
-#endif
-}
-
-#ifndef GPSFISH
-bool Position::move_gives_check(Move m, const CheckInfo& ci) const {
-
   assert(is_ok());
   assert(move_is_ok(m));
   assert(ci.dcCandidates == discovered_check_candidates(side_to_move()));
@@ -1040,8 +1037,8 @@ bool Position::move_gives_check(Move m, const CheckInfo& ci) const {
   }
 
   return false;
-}
 #endif
+}
 
 /// Position::do_setup_move() makes a permanent move on the board. It should
 /// be used when setting up a position on board. You can't undo the move.

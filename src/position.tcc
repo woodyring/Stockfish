@@ -52,7 +52,8 @@ void Position::do_undo_move(Move m, StateInfo& newSt,F const& f){
   st->key = key;
   prefetch((char*)TT.first_entry(key));
   int old_cont=continuous_check[us];
-  continuous_check[us]=(move_gives_check(m) ? old_cont+1 : 0);
+  CheckInfo ci(*this);
+  continuous_check[us]=(move_gives_check(m,ci) ? old_cont+1 : 0);
   osl_state.makeUnmakeMove(m,f);
   continuous_check[us]=old_cont;
   st = st->previous;
