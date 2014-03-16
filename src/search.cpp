@@ -1910,7 +1910,7 @@ split_point_start: // At split points actual search starts from here
     // to search the moves. Because the depth is <= 0 here, only captures,
     // queen promotions and checks (only if depth >= DEPTH_QS_CHECKS) will
     // be generated.
-    MovePicker mp(pos, ttMove, depth, H);
+    MovePicker mp(pos, ttMove, depth, H, move_to((ss-1)->currentMove));
 #ifndef GPSFISH
     CheckInfo ci(pos);
 #endif
