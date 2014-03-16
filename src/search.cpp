@@ -1440,7 +1440,7 @@ split_point_start: // At split points actual search starts from here
       // At Root and at first iteration do a PV search on all the moves to score root moves
       isPvMove = (PvNode && moveCount <= (RootNode ? depth <= ONE_PLY ? MAX_MOVES : MultiPV : 1));
       givesCheck = pos.move_gives_check(move, ci);
-      captureOrPromotion = pos.move_is_capture(move) || move_is_promotion(move);
+      captureOrPromotion = pos.move_is_capture_or_promotion(move);
 
       // Step 12. Decide the new search depth
       ext = extension<PvNode>(pos, move, captureOrPromotion, givesCheck, &dangerous);
@@ -1756,8 +1756,7 @@ split_point_start: // At split points actual search starts from here
 
         // Update killers and history only for non capture moves that fails high
         if (    bestValue >= beta
-            && !pos.move_is_capture(move)
-            && !move_is_promotion(move))
+            && !pos.move_is_capture_or_promotion(move))
         {
             if (move != ss->killers[0])
             {
@@ -1986,8 +1985,7 @@ split_point_start: // At split points actual search starts from here
           && !inCheck
           &&  givesCheck
           &&  move != ttMove
-          && !pos.move_is_capture(move)
-          && !move_is_promotion(move)
+          && !pos.move_is_capture_or_promotion(move)
           &&  ss->eval + PawnValueMidgame / 4 < beta
           && !check_is_dangerous(pos, move, futilityBase, beta, &bestValue))
       {
@@ -2257,7 +2255,7 @@ split_point_start: // At split points actual search starts from here
 #else
     assert(threat && move_is_ok(threat));
 #endif
-    assert(!pos.move_is_capture(m) && !move_is_promotion(m));
+    assert(!pos.move_is_capture_or_promotion(m));
 #ifndef GPSFISH
     assert(!pos.move_is_passed_pawn_push(m));
 #endif
