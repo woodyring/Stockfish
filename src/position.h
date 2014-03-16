@@ -259,6 +259,7 @@ public:
   // Static exchange evaluation
   int see(Move m) const;
   int see_sign(Move m) const;
+  static int see_value(PieceType pt);
 
   // Accessing hash keys
   Key get_key() const;
@@ -624,6 +625,10 @@ inline bool Position::square_is_weak(Square s, Color c) const {
   return !(pieces(PAWN, opposite_color(c)) & attack_span_mask(c, s));
 }
 #endif
+
+inline int Position::see_value(PieceType pt) {
+  return seeValues[pt];
+}
 
 inline Key Position::get_key() const {
   return st->key;
