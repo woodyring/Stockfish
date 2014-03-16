@@ -224,16 +224,13 @@ void MovePicker::score_captures() {
   for (MoveStack* cur = moves; cur != lastMove; cur++)
   {
       m = cur->move;
+      cur->score =  pos.midgame_value_of_piece_on(move_to(m))
+                  - pos.type_of_piece_on(move_from(m));
+      if (move_is_promotion(m))
 #ifdef GPSFISH
-      cur->score= pos.midgame_value_of_piece_on(move_to(m))-pos.type_value_of_piece_on(move_from(m));
-      if (move_is_promotion(m))
-	cur->score++;
+          cur->score ++;
 #else
-      if (move_is_promotion(m))
-          cur->score = QueenValueMidgame;
-      else
-          cur->score =  pos.midgame_value_of_piece_on(move_to(m))
-                      - pos.type_of_piece_on(move_from(m));
+          cur->score += QueenValueMidgame;
 #endif
   }
 }
