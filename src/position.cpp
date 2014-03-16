@@ -20,7 +20,6 @@
 #include <cassert>
 #include <cstring>
 #include <fstream>
-#include <map>
 #include <iostream>
 #include <sstream>
 
@@ -183,61 +182,12 @@ namespace {
   const Score TempoValue = make_score(48, 22);
 #endif
 
-  struct PieceLetters : public std::map<char, Piece> {
-
-    PieceLetters() {
+  // To convert a Piece to and from a FEN char
 #ifdef GPSFISH
-      operator[]('K') = NEW_PTYPEO(BLACK,osl::KING);
-      operator[]('k') = NEW_PTYPEO(WHITE,osl::KING);
-      operator[]('R') = NEW_PTYPEO(BLACK,osl::ROOK);
-      operator[]('r') = NEW_PTYPEO(WHITE,osl::ROOK);
-      operator[]('B') = NEW_PTYPEO(BLACK,osl::BISHOP);
-      operator[]('b') = NEW_PTYPEO(WHITE,osl::BISHOP);
-      operator[]('G') = NEW_PTYPEO(BLACK,osl::GOLD);
-      operator[]('g') = NEW_PTYPEO(WHITE,osl::GOLD);
-      operator[]('S') = NEW_PTYPEO(BLACK,osl::SILVER);
-      operator[]('s') = NEW_PTYPEO(WHITE,osl::SILVER);
-      operator[]('N') = NEW_PTYPEO(BLACK,osl::KNIGHT);
-      operator[]('n') = NEW_PTYPEO(WHITE,osl::KNIGHT);
-      operator[]('L') = NEW_PTYPEO(BLACK,osl::LANCE);
-      operator[]('l') = NEW_PTYPEO(WHITE,osl::LANCE);
-      operator[]('P') = NEW_PTYPEO(BLACK,osl::PAWN);
-      operator[]('p') = NEW_PTYPEO(WHITE,osl::PAWN);
-      operator[]('.') = osl::PTYPEO_EMPTY;
+  const string PieceToChar(".PLNSGBRK  plnsgbrk  ");
 #else
-      operator[]('K') = WK; operator[]('k') = BK;
-      operator[]('Q') = WQ; operator[]('q') = BQ;
-      operator[]('R') = WR; operator[]('r') = BR;
-      operator[]('B') = WB; operator[]('b') = BB;
-      operator[]('N') = WN; operator[]('n') = BN;
-      operator[]('P') = WP; operator[]('p') = BP;
-      operator[](' ') = PIECE_NONE;
-      operator[]('.') = PIECE_NONE_DARK_SQ;
+  const string PieceToChar(".PNBRQK  pnbrqk  ");
 #endif
-    }
-
-#ifdef GPSFISH
-    string from_piece(Piece p) const {
-#else
-    char from_piece(Piece p) const {
-#endif
-
-      std::map<char, Piece>::const_iterator it;
-      for (it = begin(); it != end(); ++it)
-#ifdef GPSFISH
-          if (it->second == unpromote(p))
-              return (isPromoted(p) ? string("+") : string(""))+string(1,it->first);
-#else
-          if (it->second == p)
-              return it->first;
-#endif
-
-      assert(false);
-      return 0;
-    }
-  };
-
-  PieceLetters pieceLetters;
 }
 
 
@@ -340,17 +290,19 @@ void Position::from_fen(const string& fen, bool isChess960) {
 #else
   char token;
   int hmc, fmn;
-  std::istringstream ss(fen);
+  size_t p;
   Square sq = SQ_A8;
+  std::istringstream ss(fen);
 
   clear();
+  ss >> std::noskipws;
 
   // 1. Piece placement field
-  while (ss.get(token) && token != ' ')
+  while ((ss >> token) && !isspace(token))
   {
-      if (pieceLetters.find(token) != pieceLetters.end())
+      if ((p = PieceToChar.find(token)) != string::npos)
       {
-          put_piece(pieceLetters[token], sq);
+          put_piece(Piece(p), sq);
           sq++;
       }
       else if (isdigit(token))
@@ -362,23 +314,23 @@ void Position::from_fen(const string& fen, bool isChess960) {
   }
 
   // 2. Active color
-  if (!ss.get(token) || (token != 'w' && token != 'b'))
+  if (!(ss >> token) || (token != 'w' && token != 'b'))
       goto incorrect_fen;
 
   sideToMove = (token == 'w' ? WHITE : BLACK);
 
-  if (!ss.get(token) || token != ' ')
+  if (!(ss >> token) || !isspace(token))
       goto incorrect_fen;
 
   // 3. Castling availability
-  while (ss.get(token) && token != ' ')
+  while ((ss >> token) && !isspace(token))
       if (!set_castling_rights(token))
           goto incorrect_fen;
 
   // 4. En passant square
   char col, row;
-  if (   (ss.get(col) && (col >= 'a' && col <= 'h'))
-      && (ss.get(row) && (row == '3' || row == '6')))
+  if (   ((ss >> col) && (col >= 'a' && col <= 'h'))
+      && ((ss >> row) && (row == '3' || row == '6')))
   {
       st->epSquare = make_square(file_from_char(col), rank_from_char(row));
 
@@ -389,7 +341,7 @@ void Position::from_fen(const string& fen, bool isChess960) {
   }
 
   // 5. Halfmove clock
-  if (ss >> hmc)
+  if (ss >> std::skipws >> hmc)
       st->rule50 = hmc;
 #endif
 
@@ -500,7 +452,7 @@ const string Position::to_fen() const {
 
   string fen;
   Square sq;
-  char emptyCnt = '0';
+  char emptyCnt;
 
 #ifdef GPSFISH
   for (Rank rank = RANK_1; rank <= RANK_9; rank++, fen += '/')
@@ -508,6 +460,8 @@ const string Position::to_fen() const {
   for (Rank rank = RANK_8; rank >= RANK_1; rank--, fen += '/')
 #endif
   {
+      emptyCnt = '0';
+
 #ifdef GPSFISH
       for (File file = FILE_9; file >= FILE_1; file--)
 #else
@@ -523,16 +477,13 @@ const string Position::to_fen() const {
                   fen += emptyCnt;
                   emptyCnt = '0';
               }
-              fen += pieceLetters.from_piece(piece_on(sq));
+              fen += PieceToChar[piece_on(sq)];
           } else
               emptyCnt++;
       }
 
       if (emptyCnt != '0')
-      {
           fen += emptyCnt;
-          emptyCnt = '0';
-      }
   }
 
 #ifdef GPSFISH
@@ -596,7 +547,7 @@ void Position::print(Move move) const {
               piece = PIECE_NONE_DARK_SQ;
 
           char c = (color_of_piece_on(sq) == BLACK ? '=' : ' ');
-          cout << c << pieceLetters.from_piece(piece) << c << '|';
+          cout << c << PieceToChar[piece] << c << '|';
       }
   }
 #endif
