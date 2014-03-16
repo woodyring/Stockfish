@@ -311,9 +311,8 @@ public:
   bool eval_is_ok() const;
 #endif
 
-  // Static member functions
-  static void init_zobrist();
-  static void init_piece_square_tables();
+  // Global initialization
+  static void init();
 
 #ifdef GPSFISH
   osl::state::NumEffectState osl_state;

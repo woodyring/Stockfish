@@ -113,9 +113,8 @@ int main(int argc, char* argv[]) {
 #ifndef GPSFISH
   init_bitboards();
 #endif
-  Position::init_zobrist();
+  Position::init();
 #ifndef GPSFISH
-  Position::init_piece_square_tables();
   init_kpk_bitbase();
 #endif
   init_search();
