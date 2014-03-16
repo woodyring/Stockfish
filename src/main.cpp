@@ -49,7 +49,7 @@ using namespace std;
 
 extern bool execute_uci_command(const string& cmd);
 extern void benchmark(int argc, char* argv[]);
-extern void init_kpk_bitbase();
+extern void kpk_bitbase_init();
 
 #if defined(GPSFISH) && !defined(_WIN32)
 int setup_network(int *pargc, char* argv[]) {
@@ -115,7 +115,7 @@ int main(int argc, char* argv[]) {
 #endif
   Position::init();
 #ifndef GPSFISH
-  init_kpk_bitbase();
+  kpk_bitbase_init();
 #endif
   init_search();
   Threads.init();
