@@ -151,7 +151,6 @@ public:
   // The piece on a given square
   Piece piece_on(Square s) const;
   bool square_is_empty(Square s) const;
-  bool square_is_occupied(Square s) const;
 
   // Side to move
   Color side_to_move() const;
@@ -415,14 +414,6 @@ inline bool Position::square_is_empty(Square s) const {
   return osl_state.pieceAt(s).isEmpty();
 #else
   return piece_on(s) == PIECE_NONE;
-#endif
-}
-
-inline bool Position::square_is_occupied(Square s) const {
-#ifdef GPSFISH
-  return !osl_state.pieceAt(s).isEmpty();
-#else
-  return !square_is_empty(s);
 #endif
 }
 
