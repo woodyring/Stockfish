@@ -228,9 +228,6 @@ public:
   // Information about pawns
   bool pawn_is_passed(Color c, Square s) const;
 
-  // Weak squares
-  bool square_is_weak(Square s, Color c) const;
-
   // Doing and undoing moves
   void do_setup_move(Move m);
   void do_move(Move m, StateInfo& st);
@@ -256,13 +253,11 @@ public:
 #ifndef GPSFISH
   Key get_pawn_key() const;
   Key get_material_key() const;
-#endif
 
-#ifndef GPSFISH
   // Incremental evaluation
   Score value() const;
   Value non_pawn_material(Color c) const;
-  static Score pst_delta(Piece piece, Square from, Square to);
+  Score pst_delta(Piece piece, Square from, Square to) const;
 #endif
 
   // Game termination checks
@@ -340,7 +335,7 @@ private:
   Key compute_material_key() const;
 
   // Computing incremental evaluation scores and material counts
-  static Score pst(Piece p, Square s);
+  Score pst(Piece p, Square s) const;
   Score compute_value() const;
   Value compute_non_pawn_material(Color c) const;
 #endif
@@ -529,10 +524,6 @@ inline bool Position::in_check() const {
 inline bool Position::pawn_is_passed(Color c, Square s) const {
   return !(pieces(PAWN, opposite_color(c)) & passed_pawn_mask(c, s));
 }
-
-inline bool Position::square_is_weak(Square s, Color c) const {
-  return !(pieces(PAWN, opposite_color(c)) & attack_span_mask(c, s));
-}
 #endif
 
 inline Key Position::get_key() const {
@@ -552,11 +543,11 @@ inline Key Position::get_material_key() const {
   return st->materialKey;
 }
 
-inline Score Position::pst(Piece p, Square s) {
+inline Score Position::pst(Piece p, Square s) const {
   return PieceSquareTable[p][s];
 }
 
-inline Score Position::pst_delta(Piece piece, Square from, Square to) {
+inline Score Position::pst_delta(Piece piece, Square from, Square to) const {
   return PieceSquareTable[piece][to] - PieceSquareTable[piece][from];
 }
 
@@ -583,7 +574,8 @@ inline int Position::full_moves() const {
 #ifndef GPSFISH
 inline bool Position::opposite_colored_bishops() const {
 
-  return   piece_count(WHITE, BISHOP) == 1 && piece_count(BLACK, BISHOP) == 1
+  return   piece_count(WHITE, BISHOP) == 1
+        && piece_count(BLACK, BISHOP) == 1
         && opposite_color_squares(piece_list(WHITE, BISHOP)[0], piece_list(BLACK, BISHOP)[0]);
 }
 
