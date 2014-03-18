@@ -320,10 +320,7 @@ private:
 #ifndef GPSFISH
   void do_castle_move(Move m);
   void undo_castle_move(Move m);
-#endif
-  void find_checkers();
 
-#ifndef GPSFISH
   template<bool FindPinned>
   Bitboard hidden_checkers(Color c) const;
 #endif

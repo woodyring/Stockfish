@@ -322,7 +322,7 @@ void Position::from_fen(const string& fen, bool isChess960) {
 #ifndef GPSFISH
   // Various initialisations
   chess960 = isChess960;
-  find_checkers();
+  st->checkersBB = attackers_to(king_square(sideToMove)) & pieces(opposite_color(sideToMove));
 #endif
 
   st->key = compute_key();
@@ -643,19 +643,6 @@ bool Position::move_attacks_square(Move m, Square s) const {
 #endif
 
 
-#ifndef GPSFISH
-/// Position::find_checkers() computes the checkersBB bitboard, which
-/// contains a nonzero bit for each checking piece (0, 1 or 2). It
-/// currently works by calling Position::attackers_to, which is probably
-/// inefficient. Consider rewriting this function to use the last move
-/// played, like in non-bitboard versions of Glaurung.
-
-void Position::find_checkers() {
-
-  Color us = side_to_move();
-  st->checkersBB = attackers_to(king_square(us)) & pieces(opposite_color(us));
-}
-#endif
 
 
 /// Position::pl_move_is_legal() tests whether a pseudo-legal move is legal
@@ -2116,7 +2103,7 @@ void Position::flip() {
       st->epSquare = flip_square(pos.st->epSquare);
 
   // Checkers
-  find_checkers();
+  st->checkersBB = attackers_to(king_square(sideToMove)) & pieces(opposite_color(sideToMove));
 
   // Hash keys
   st->key = compute_key();
