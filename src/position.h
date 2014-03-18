@@ -150,7 +150,6 @@ public:
 
   // The piece on a given square
   Piece piece_on(Square s) const;
-  Color color_of_piece_on(Square s) const;
   bool square_is_empty(Square s) const;
   bool square_is_occupied(Square s) const;
 
@@ -417,13 +416,6 @@ inline Piece Position::piece_on(Square s) const {
 #endif
 }
 
-inline Color Position::color_of_piece_on(Square s) const {
-#ifdef GPSFISH
-  return osl_state.pieceAt(s).owner();
-#else  
-  return color_of_piece(piece_on(s));
-#endif
-}
 
 inline bool Position::square_is_empty(Square s) const {
 #ifdef GPSFISH
