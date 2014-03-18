@@ -154,12 +154,6 @@ public:
   Color color_of_piece_on(Square s) const;
   bool square_is_empty(Square s) const;
   bool square_is_occupied(Square s) const;
-#ifdef GPSFISH
-  Value type_value_of_piece_on(Square s) const;
-  Value promote_value_of_piece_on(Square s) const;
-#endif
-  Value midgame_value_of_piece_on(Square s) const;
-  Value endgame_value_of_piece_on(Square s) const;
 
   // Side to move
   Color side_to_move() const;
@@ -261,7 +255,6 @@ public:
   // Static exchange evaluation
   int see(Move m) const;
   int see_sign(Move m) const;
-  static int see_value(PieceType pt);
 
   // Accessing hash keys
   Key get_key() const;
@@ -407,17 +400,6 @@ private:
   static Score PieceSquareTable[16][64];
 #endif
   static Key zobExclusion;
-#ifdef GPSFISH
-  static const Value seeValues[osl::PTYPE_SIZE];
-  static const Value PieceValueType[osl::PTYPE_SIZE];
-  static const Value PieceValueMidgame[osl::PTYPE_SIZE];
-  static const Value PieceValueEndgame[osl::PTYPE_SIZE];
-  static const Value PromoteValue[osl::PTYPE_SIZE];
-#else
-  static const Value seeValues[8];
-  static const Value PieceValueMidgame[17];
-  static const Value PieceValueEndgame[17];
-#endif
 };
 
 inline int64_t Position::nodes_searched() const {
@@ -467,34 +449,6 @@ inline bool Position::square_is_occupied(Square s) const {
   return !square_is_empty(s);
 #endif
 }
-
-inline Value Position::midgame_value_of_piece_on(Square s) const {
-#ifdef GPSFISH
-  return PieceValueMidgame[type_of_piece_on(s)];
-#else
-  return PieceValueMidgame[piece_on(s)];
-#endif
-}
-
-inline Value Position::endgame_value_of_piece_on(Square s) const {
-#ifdef GPSFISH
-  return PieceValueEndgame[type_of_piece_on(s)];
-#else
-  return PieceValueEndgame[piece_on(s)];
-#endif
-}
-
-#ifdef GPSFISH
-inline Value Position::promote_value_of_piece_on(Square s) const {
-  return PromoteValue[type_of_piece_on(s)];
-}
-#endif
-
-#ifdef GPSFISH
-inline Value Position::type_value_of_piece_on(Square s) const {
-  return PieceValueType[type_of_piece_on(s)];
-}
-#endif
 
 inline Color Position::side_to_move() const {
 #ifdef GPSFISH
@@ -634,10 +588,6 @@ inline bool Position::square_is_weak(Square s, Color c) const {
   return !(pieces(PAWN, opposite_color(c)) & attack_span_mask(c, s));
 }
 #endif
-
-inline int Position::see_value(PieceType pt) {
-  return seeValues[pt];
-}
 
 inline Key Position::get_key() const {
   return st->key;

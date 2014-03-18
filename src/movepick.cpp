@@ -118,13 +118,13 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h, S
   go_next_phase();
 }
 
-MovePicker::MovePicker(const Position& p, Move ttm, const History& h, int parentCapture)
+MovePicker::MovePicker(const Position& p, Move ttm, const History& h, PieceType parentCapture)
                        : pos(p), H(h) {
 
   assert (!pos.in_check());
 
   // In ProbCut we consider only captures better than parent's move
-  captureThreshold = parentCapture;
+  captureThreshold = piece_value_midgame(Piece(parentCapture));
   phasePtr = ProbCutTable;
 
   if (   ttm != MOVE_NONE
@@ -236,11 +236,11 @@ void MovePicker::score_captures() {
   for (MoveStack* cur = moves; cur != lastMove; cur++)
   {
       m = cur->move;
-      cur->score =  pos.midgame_value_of_piece_on(move_to(m))
+      cur->score =  piece_value_midgame(pos.piece_on(move_to(m)))
                   - pos.type_of_piece_on(move_from(m));
       if (move_is_promotion(m))
 #ifdef GPSFISH
-          cur->score ++;
+          cur->score ++; // XXX , calc correct value ?
 #else
           cur->score += QueenValueMidgame;
 #endif
@@ -283,15 +283,15 @@ void MovePicker::score_evasions() {
           cur->score = seeScore - History::MaxValue; // Be sure we are at the bottom
       else if (pos.move_is_capture(m))
 #ifdef GPSFISH
-          cur->score =  pos.midgame_value_of_piece_on(move_to(m))
-                      - pos.type_value_of_piece_on(move_from(m)) + History::MaxValue;
+          cur->score =  piece_value_midgame(pos.piece_on(move_to(m)))
+                      - type_value_of_piece_on(pos.piece_on(move_from(m))) + History::MaxValue;
 #else
-          cur->score =  pos.midgame_value_of_piece_on(move_to(m))
+          cur->score =  piece_value_midgame(pos.piece_on(move_to(m)))
                       - pos.type_of_piece_on(move_from(m)) + History::MaxValue;
 #endif
       else
 #ifdef GPSFISH
-	cur->score = H.value(m.ptypeO(), move_to(m));
+          cur->score = H.value(m.ptypeO(), move_to(m));
 #else
           cur->score = H.value(pos.piece_on(move_from(m)), move_to(m));
 #endif

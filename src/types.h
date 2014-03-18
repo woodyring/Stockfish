@@ -375,6 +375,36 @@ const Value QueenValueMidgame  = Value(0x9D9);
 const Value QueenValueEndgame  = Value(0x9FE);
 #endif
 
+#ifdef GPSFISH
+extern const Value PieceValueMidgame[osl::PTYPE_SIZE];
+extern const Value PieceValueEndgame[osl::PTYPE_SIZE];
+#else
+extern const Value PieceValueMidgame[17];
+extern const Value PieceValueEndgame[17];
+#endif
+
+inline Value piece_value_midgame(Piece p) {
+  return PieceValueMidgame[p];
+}
+
+inline Value piece_value_endgame(Piece p) {
+  return PieceValueEndgame[p];
+}
+
+#ifdef GPSFISH
+extern const Value PromoteValue[osl::PTYPE_SIZE];
+extern const Value PieceValueType[osl::PTYPE_SIZE];
+
+inline Value promote_value_of_piece_on(Piece p) {
+  return PromoteValue[p];
+}
+
+inline Value type_value_of_piece_on(Piece p) {
+  return PieceValueType[p];
+}
+#endif
+
+
 inline Value value_mate_in(int ply) {
   return VALUE_MATE - ply;
 }

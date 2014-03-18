@@ -363,7 +363,7 @@ namespace {
     if (   captureOrPromotion
         && pos.type_of_piece_on(move_to(m)) != PAWN
         && (  pos.non_pawn_material(WHITE) + pos.non_pawn_material(BLACK)
-            - pos.midgame_value_of_piece_on(move_to(m)) == VALUE_ZERO)
+            - piece_value_midgame(pos.piece_on(move_to(m))) == VALUE_ZERO)
         && !move_is_special(m))
     {
         result += PawnEndgameExtension[PvNode];
@@ -1312,7 +1312,7 @@ namespace {
 
         assert(rdepth >= ONE_PLY);
 
-        MovePicker mp(pos, ttMove, H, Position::see_value(pos.captured_piece_type()));
+        MovePicker mp(pos, ttMove, H, pos.captured_piece_type());
         CheckInfo ci(pos);
 
         while ((move = mp.get_next_move()) != MOVE_NONE)
@@ -1938,11 +1938,11 @@ split_point_start: // At split points actual search starts from here
       {
 #ifdef GPSFISH
           futilityValue =  futilityBase
-                         + pos.endgame_value_of_piece_on(move_to(move))
-                         + (move_is_promotion(move) ? pos.promote_value_of_piece_on(move_from(move)) : VALUE_ZERO);
+                         + piece_value_endgame(pos.piece_on(move_to(move)))
+                         + (move_is_promotion(move) ? promote_value_of_piece_on(pos.piece_on(move_from(move))) : VALUE_ZERO);
 #else
           futilityValue =  futilityBase
-                         + pos.endgame_value_of_piece_on(move_to(move))
+                         + piece_value_endgame(pos.piece_on(move_to(move)))
                          + (move_is_ep(move) ? PawnValueEndgame : VALUE_ZERO);
 #endif
 
@@ -2115,7 +2115,7 @@ split_point_start: // At split points actual search starts from here
     while (b)
     {
         victimSq = pop_1st_bit(&b);
-        futilityValue = futilityBase + pos.endgame_value_of_piece_on(victimSq);
+        futilityValue = futilityBase + piece_value_endgame(pos.piece_on(victimSq));
 
         // Note that here we generate illegal "double move"!
         if (   futilityValue >= beta
@@ -2274,7 +2274,7 @@ split_point_start: // At split points actual search starts from here
     // Case 2: If the threatened piece has value less than or equal to the
     // value of the threatening piece, don't prune moves which defend it.
     if (   pos.move_is_capture(threat)
-        && (   pos.midgame_value_of_piece_on(tfrom) >= pos.midgame_value_of_piece_on(tto)
+        && (   piece_value_midgame(pos.piece_on(tfrom)) >= piece_value_midgame(pos.piece_on(tto))
 #ifdef GPSFISH
             || pos.type_of_piece_on(tfrom) == osl::KING)
         && pos.osl_state.hasEffectIf(m.ptypeO(), m.to(), tto))
