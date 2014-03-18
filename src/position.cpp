@@ -61,7 +61,7 @@ Key Position::zobSideToMove;
 Key Position::zobExclusion;
 
 #ifndef GPSFISH
-Score Position::PieceSquareTable[16][64];
+Score Position::pieceSquareTable[16][64];
 #endif
 
 // Material values arrays, indexed by Piece
@@ -2057,11 +2057,11 @@ void Position::init() {
   zobExclusion  = rk.rand<Key>();
   for (Square s = SQ_A1; s <= SQ_H8; s++)
       for (Piece p = WP; p <= WK; p++)
-          PieceSquareTable[p][s] = make_score(MgPST[p][s], EgPST[p][s]);
+          pieceSquareTable[p][s] = make_score(MgPST[p][s], EgPST[p][s]);
 
   for (Square s = SQ_A1; s <= SQ_H8; s++)
       for (Piece p = BP; p <= BK; p++)
-          PieceSquareTable[p][s] = -PieceSquareTable[p-8][flip_square(s)];
+          pieceSquareTable[p][s] = -pieceSquareTable[p-8][flip_square(s)];
 #endif
 }
 
