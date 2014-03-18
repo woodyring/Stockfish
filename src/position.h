@@ -60,7 +60,7 @@ struct CheckInfo {
 #ifndef GPSFISH
 /// Castle rights, encoded as bit fields
 
-enum CastleRights {
+enum CastleRight {
   CASTLES_NONE = 0,
   WHITE_OO     = 1,
   BLACK_OO     = 2,
@@ -180,11 +180,9 @@ public:
 
 #ifndef GPSFISH
   // Castling rights
-  bool can_castle_kingside(Color c) const;
-  bool can_castle_queenside(Color c) const;
+  bool can_castle(CastleRight f) const;
   bool can_castle(Color c) const;
-  Square initial_kr_square(Color c) const;
-  Square initial_qr_square(Color c) const;
+  Square castle_rook_square(CastleRight f) const;
 #endif
 
 #ifndef GPSFISH
@@ -319,8 +317,7 @@ private:
   void detach();
   void put_piece(Piece p, Square s);
 #ifndef GPSFISH
-  void set_castle_kingside(Color c);
-  void set_castle_queenside(Color c);
+  void set_castle(int f, Square ksq, Square rsq);
   void set_castling_rights(char token);
 #endif
   bool move_is_pl_slow(const Move m) const;
@@ -375,9 +372,11 @@ private:
 #ifndef GPSFISH
   int castleRightsMask[64];
 #endif
+#ifndef GPSFISH
+  Square castleRookSquare[16]; // [CastleRights]
+#endif
   StateInfo startState;
 #ifndef GPSFISH
-  File initialKFile, initialKRFile, initialQRFile;
   bool chess960;
 #endif
   int fullMoves;
@@ -496,32 +495,16 @@ inline Square Position::king_square(Color c) const {
 }
 
 #ifndef GPSFISH
-inline bool Position::can_castle_kingside(Color c) const {
-  return st->castleRights & (WHITE_OO << c);
-}
-
-inline bool Position::can_castle_queenside(Color c) const {
-  return st->castleRights & (WHITE_OOO << c);
+inline bool Position::can_castle(CastleRight f) const {
+  return st->castleRights & f;
 }
 
 inline bool Position::can_castle(Color c) const {
   return st->castleRights & ((WHITE_OO | WHITE_OOO) << c);
 }
 
-inline void Position::set_castle_kingside(Color c) {
-  st->castleRights |= (WHITE_OO << c);
-}
-
-inline void Position::set_castle_queenside(Color c) {
-  st->castleRights |= (WHITE_OOO << c);
-}
-
-inline Square Position::initial_kr_square(Color c) const {
-  return relative_square(c, make_square(initialKRFile, RANK_1));
-}
-
-inline Square Position::initial_qr_square(Color c) const {
-  return relative_square(c, make_square(initialQRFile, RANK_1));
+inline Square Position::castle_rook_square(CastleRight f) const {
+  return castleRookSquare[f];
 }
 
 template<>
