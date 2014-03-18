@@ -280,7 +280,7 @@ public:
 #endif
 
   // Number of plies from starting position
-  int startpos_ply_counter() const;
+  int full_moves() const;
 
   // Other properties of the position
   bool opposite_colored_bishops() const;
@@ -321,7 +321,7 @@ private:
 #ifndef GPSFISH
   void set_castle_kingside(Color c);
   void set_castle_queenside(Color c);
-  bool set_castling_rights(char token);
+  void set_castling_rights(char token);
 #endif
   bool move_is_pl_slow(const Move m) const;
 
@@ -380,7 +380,7 @@ private:
   File initialKFile, initialKRFile, initialQRFile;
   bool chess960;
 #endif
-  int startPosPlyCounter;
+  int fullMoves;
   int threadID;
   int64_t nodes;
   StateInfo* st;
@@ -621,8 +621,8 @@ inline bool Position::move_is_passed_pawn_push(Move m) const {
 }
 #endif
 
-inline int Position::startpos_ply_counter() const {
-  return startPosPlyCounter;
+inline int Position::full_moves() const {
+  return fullMoves;
 }
 
 #ifndef GPSFISH

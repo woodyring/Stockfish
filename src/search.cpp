@@ -519,7 +519,7 @@ bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]) {
   NodesSincePoll = 0;
   current_search_time(get_system_time());
   Limits = limits;
-  TimeMgr.init(Limits, pos.startpos_ply_counter());
+  TimeMgr.init(Limits, pos.full_moves());
 
 #ifndef GPSFISH
   // Set output steram in normal or chess960 mode
