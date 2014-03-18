@@ -345,7 +345,7 @@ namespace {
         result += CheckExtension[PvNode];
 
 #ifndef GPSFISH
-    if (type_of_piece(pos.piece_on(move_from(m))) == PAWN)
+    if (piece_type(pos.piece_on(move_from(m))) == PAWN)
     {
         Color c = pos.side_to_move();
         if (relative_rank(c, move_to(m)) == RANK_7)
@@ -361,7 +361,7 @@ namespace {
     }
 
     if (   captureOrPromotion
-        && type_of_piece(pos.piece_on(move_to(m))) != PAWN
+        && piece_type(pos.piece_on(move_to(m))) != PAWN
         && (  pos.non_pawn_material(WHITE) + pos.non_pawn_material(BLACK)
             - piece_value_midgame(pos.piece_on(move_to(m))) == VALUE_ZERO)
         && !move_is_special(m))
@@ -2105,7 +2105,7 @@ split_point_start: // At split points actual search starts from here
         return true;
 
     // Rule 2. Queen contact check is very dangerous
-    if (   type_of_piece(pc) == QUEEN
+    if (   piece_type(pc) == QUEEN
         && bit_is_set(kingAtt, to))
         return true;
 
@@ -2276,10 +2276,10 @@ split_point_start: // At split points actual search starts from here
     if (   pos.move_is_capture(threat)
         && (   piece_value_midgame(pos.piece_on(tfrom)) >= piece_value_midgame(pos.piece_on(tto))
 #ifdef GPSFISH
-            || type_of_piece(pos.piece_on(tfrom)) == osl::KING)
+            || piece_type(pos.piece_on(tfrom)) == osl::KING)
         && pos.osl_state.hasEffectIf(m.ptypeO(), m.to(), tto))
 #else
-            || type_of_piece(pos.piece_on(tfrom)) == KING)
+            || piece_type(pos.piece_on(tfrom)) == KING)
         && pos.move_attacks_square(m, tto))
 #endif
         return true;

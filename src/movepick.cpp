@@ -237,7 +237,7 @@ void MovePicker::score_captures() {
   {
       m = cur->move;
       cur->score =  piece_value_midgame(pos.piece_on(move_to(m)))
-                  - type_of_piece(pos.piece_on(move_from(m)));
+                  - piece_type(pos.piece_on(move_from(m)));
 
       if (move_is_promotion(m))
 #ifdef GPSFISH
@@ -284,12 +284,11 @@ void MovePicker::score_evasions() {
           cur->score = seeScore - History::MaxValue; // Be sure we are at the bottom
       else if (pos.move_is_capture(m))
           cur->score =  piece_value_midgame(pos.piece_on(move_to(m)))
-#ifdef GPSFISH
-                      - type_value_of_piece_on(pos.piece_on(move_from(m))) + History::MaxValue;
+#if 0 //def GPSFISH
+                      - type_value_of_piece_on(pos.piece_on(move_from(m))) + History::MaxValue; // XXX : why
 #else
-                      - type_of_piece(pos.piece_on(move_from(m))) + History::MaxValue;
+                      - piece_type(pos.piece_on(move_from(m))) + History::MaxValue;
 #endif
-      else
 #ifdef GPSFISH
           cur->score = H.value(m.ptypeO(), move_to(m));
 #else

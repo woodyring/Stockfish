@@ -421,7 +421,7 @@ inline Piece make_piece(Color c, PieceType pt) {
 #endif
 }
 
-inline PieceType type_of_piece(Piece p)  {
+inline PieceType piece_type(Piece p)  {
 #ifdef GPSFISH
   return getPtype(p);
 #else
@@ -429,7 +429,7 @@ inline PieceType type_of_piece(Piece p)  {
 #endif
 }
 
-inline Color color_of_piece(Piece p) {
+inline Color piece_color(Piece p) {
 #ifdef GPSFISH
   return getOwner(p);
 #else
