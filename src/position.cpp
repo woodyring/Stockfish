@@ -507,7 +507,7 @@ template<bool FindPinned>
 Bitboard Position::hidden_checkers(Color c) const {
 
   Bitboard result = EmptyBoardBB;
-  Bitboard pinners = pieces_of_color(FindPinned ? opposite_color(c) : c);
+  Bitboard pinners = pieces(FindPinned ? opposite_color(c) : c);
 
   // Pinned pieces protect our king, dicovery checks attack
   // the enemy king.
@@ -527,7 +527,7 @@ Bitboard Position::hidden_checkers(Color c) const {
       assert(b);
 
       if (  !(b & (b - 1)) // Only one bit set?
-          && (b & pieces_of_color(c))) // Is an our piece?
+          && (b & pieces(c))) // Is an our piece?
           result |= b;
   }
   return result;
@@ -634,7 +634,7 @@ bool Position::move_attacks_square(Move m, Square s) const {
   do_move_bb(&occ, make_move_bb(f, t));
   xray = ( (rook_attacks_bb(s, occ)   & pieces(ROOK, QUEEN))
           |(bishop_attacks_bb(s, occ) & pieces(BISHOP, QUEEN)))
-         & pieces_of_color(piece_color(piece_on(f)));
+         & pieces(piece_color(piece_on(f)));
 
   // If we have attacks we need to verify that are caused by our move
   // and are not already existent ones.
@@ -653,7 +653,7 @@ bool Position::move_attacks_square(Move m, Square s) const {
 void Position::find_checkers() {
 
   Color us = side_to_move();
-  st->checkersBB = attackers_to(king_square(us)) & pieces_of_color(opposite_color(us));
+  st->checkersBB = attackers_to(king_square(us)) & pieces(opposite_color(us));
 }
 #endif
 
@@ -714,7 +714,7 @@ bool Position::pl_move_is_legal(Move m, Bitboard pinned) const {
   // square is attacked by the opponent. Castling moves are checked
   // for legality during move generation.
   if (piece_type(piece_on(from)) == KING)
-      return move_is_castle(m) || !(attackers_to(move_to(m)) & pieces_of_color(opposite_color(us)));
+      return move_is_castle(m) || !(attackers_to(move_to(m)) & pieces(opposite_color(us)));
 
   // A non-king move is legal if and only if it is not pinned or it
   // is moving along the ray towards or away from the king.
@@ -855,7 +855,7 @@ bool Position::move_is_pl(const Move m) const {
       {
           Bitboard b = occupied_squares();
           clear_bit(&b, from);
-          if (attackers_to(move_to(m), b) & pieces_of_color(opposite_color(us)))
+          if (attackers_to(move_to(m), b) & pieces(opposite_color(us)))
               return false;
       }
       else
@@ -1254,7 +1254,7 @@ void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveI
   if (moveIsCheck)
   {
       if (ep | pm)
-          st->checkersBB = attackers_to(king_square(them)) & pieces_of_color(us);
+          st->checkersBB = attackers_to(king_square(them)) & pieces(us);
       else
       {
           // Direct checks
@@ -1432,7 +1432,7 @@ void Position::do_castle_move(Move m) {
   st->rule50 = 0;
 
   // Update checkers BB
-  st->checkersBB = attackers_to(king_square(them)) & pieces_of_color(us);
+  st->checkersBB = attackers_to(king_square(them)) & pieces(us);
 
   // Finish
   sideToMove = opposite_color(sideToMove);
@@ -1741,7 +1741,7 @@ int Position::see(Move m) const {
 
   // If the opponent has no attackers we are finished
   stm = opposite_color(piece_color(piece_on(from)));
-  stmAttackers = attackers & pieces_of_color(stm);
+  stmAttackers = attackers & pieces(stm);
   if (!stmAttackers)
       return PieceValueMidgame[capturedType];
 
@@ -1779,7 +1779,7 @@ int Position::see(Move m) const {
       // move before beginning the next iteration.
       capturedType = pt;
       stm = opposite_color(stm);
-      stmAttackers = attackers & pieces_of_color(stm);
+      stmAttackers = attackers & pieces(stm);
 
       // Stop before processing a king capture
       if (capturedType == KING && stmAttackers)
@@ -2201,7 +2201,7 @@ bool Position::is_ok(int* failedStep) const {
       Color us = side_to_move();
       Color them = opposite_color(us);
       Square ksq = king_square(them);
-      if (attackers_to(ksq) & pieces_of_color(us))
+      if (attackers_to(ksq) & pieces(us))
           return false;
   }
 
@@ -2215,12 +2215,12 @@ bool Position::is_ok(int* failedStep) const {
   if (debugBitboards)
   {
       // The intersection of the white and black pieces must be empty
-      if ((pieces_of_color(WHITE) & pieces_of_color(BLACK)) != EmptyBoardBB)
+      if ((pieces(WHITE) & pieces(BLACK)) != EmptyBoardBB)
           return false;
 
       // The union of the white and black pieces must be equal to all
       // occupied squares
-      if ((pieces_of_color(WHITE) | pieces_of_color(BLACK)) != occupied_squares())
+      if ((pieces(WHITE) | pieces(BLACK)) != occupied_squares())
           return false;
 
       // Separate piece type bitboards must have empty intersections
