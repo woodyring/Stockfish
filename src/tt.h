@@ -64,17 +64,17 @@ static inline Move16 toMove16(Move m){
   }
   return move16;
 }
-static inline Move fromMove16(Move16 move16,Position const& p) {
+static inline Move fromMove16(Move16 move16,Position const& pos) {
   if(move16==MOVE16_NONE) return MOVE_NONE;
-  Color turn=p.side_to_move();
+  Color turn=pos.side_to_move();
   Square to=SquareCompressor::melt((move16>>8)&0x7f);
   if((move16&0x80)!=0){
     Ptype ptype=(Ptype)(move16-0x80);
     return osl::Move(to,ptype,turn);
   }
   Square from=SquareCompressor::melt(move16&0x7f);
-  Ptype ptype=p.type_of_piece_on(from);
-  Ptype capture_ptype=p.type_of_piece_on(to);
+  Ptype ptype=type_of_piece(pos.piece_on(from));
+  Ptype capture_ptype=type_of_piece(pos.piece_on(to));
   bool is_promote=(move16&0x8000)!=0;
   if(is_promote)
     return osl::Move(from,to,promote(ptype),capture_ptype,true,turn);
