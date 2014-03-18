@@ -342,9 +342,7 @@ private:
   Key compute_material_key() const;
 
   // Computing incremental evaluation scores and material counts
-  static Score pst(Color c, PieceType pt, Square s);
-#endif
-#ifndef GPSFISH
+  static Score pst(Piece p, Square s);
   Score compute_value() const;
   Value compute_non_pawn_material(Color c) const;
 #endif
@@ -363,16 +361,12 @@ private:
   Square pieceList[2][8][16]; // [color][pieceType][index]
   int index[64]; // [square]
 
-#endif
   // Other info
-#ifndef GPSFISH
   Color sideToMove;
 #endif
   Key history[MaxGameLength];
 #ifndef GPSFISH
   int castleRightsMask[64];
-#endif
-#ifndef GPSFISH
   Square castleRookSquare[16]; // [CastleRights]
 #endif
   StateInfo startState;
@@ -571,27 +565,19 @@ inline Key Position::get_pawn_key() const {
 inline Key Position::get_material_key() const {
   return st->materialKey;
 }
-#endif
 
-#ifndef GPSFISH
-inline Score Position::pst(Color c, PieceType pt, Square s) {
-  return PieceSquareTable[make_piece(c, pt)][s];
+inline Score Position::pst(Piece p, Square s) {
+  return PieceSquareTable[p][s];
 }
-#endif
 
-#ifndef GPSFISH
 inline Score Position::pst_delta(Piece piece, Square from, Square to) {
   return PieceSquareTable[piece][to] - PieceSquareTable[piece][from];
 }
-#endif
 
-#ifndef GPSFISH
 inline Score Position::value() const {
   return st->value;
 }
-#endif
 
-#ifndef GPSFISH
 inline Value Position::non_pawn_material(Color c) const {
   return st->npMaterial[c];
 }
