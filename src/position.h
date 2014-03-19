@@ -243,7 +243,7 @@ public:
 #endif
 
   // Number of plies from starting position
-  int full_moves() const;
+  int startpos_ply_counter() const;
 
   // Other properties of the position
   bool opposite_colored_bishops() const;
@@ -536,8 +536,8 @@ inline bool Position::move_is_passed_pawn_push(Move m) const {
 }
 #endif
 
-inline int Position::full_moves() const {
-  return fullMoves;
+inline int Position::startpos_ply_counter() const {
+  return Max(2 * (fullMoves - 1), 0) + int(sideToMove == BLACK);
 }
 
 #ifndef GPSFISH
