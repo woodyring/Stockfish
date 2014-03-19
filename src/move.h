@@ -188,27 +188,11 @@ inline int move_is_castle(Move m) {
 #endif
 }
 
-inline bool move_is_short_castle(Move m) {
-#ifdef GPSFISH
-  return false;
-#else
-  return move_is_castle(m) && (move_to(m) > move_from(m));
-#endif
-}
-
 #ifdef GPSFISH
 inline bool move_is_pawn_drop(Move m){
   return m.isDrop() && m.ptype()==osl::PAWN;
 }
 #endif
-
-inline bool move_is_long_castle(Move m) {
-#ifdef GPSFISH
-  return false;
-#else
-  return move_is_castle(m) && (move_to(m) < move_from(m));
-#endif
-}
 
 #ifndef GPSFISH
 inline PieceType promotion_piece_type(Move m) {
@@ -220,7 +204,7 @@ inline Move make_move(Square from, Square to) {
 }
 
 inline Move make_promotion_move(Square from, Square to, PieceType promotion) {
-  return Move(to | (from << 6) | ((promotion - 2) << 12) | (1 << 14));
+  return Move(to | (from << 6) | (1 << 14) | ((promotion - 2) << 12)) ;
 }
 
 inline Move make_ep_move(Square from, Square to) {
