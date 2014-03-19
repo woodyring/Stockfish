@@ -2021,8 +2021,7 @@ template bool Position::is_draw<true>() const;
 
 bool Position::is_mate() const {
 
-  MoveStack moves[MAX_MOVES];
-  return in_check() && generate<MV_LEGAL>(*this, moves) == moves;
+  return in_check() && !MoveList<MV_LEGAL>(*this).size();
 }
 
 

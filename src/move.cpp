@@ -85,12 +85,9 @@ Move move_from_uci(const Position& pos, const string& str) {
 #ifdef GPSFISH
   return osl::record::usi::strToMove(str,pos.osl_state);
 #else
-  MoveStack mlist[MAX_MOVES];
-  MoveStack* last = generate<MV_LEGAL>(pos, mlist);
-
-  for (MoveStack* cur = mlist; cur != last; cur++)
-      if (str == move_to_uci(cur->move, pos.is_chess960()))
-          return cur->move;
+  for (MoveList<MV_LEGAL> ml(pos); !ml.end(); ++ml)
+      if (str == move_to_uci(ml.move(), pos.is_chess960()))
+          return ml.move();
 
   return MOVE_NONE;
 #endif
