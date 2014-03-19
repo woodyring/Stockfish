@@ -41,8 +41,8 @@ struct SplitPoint {
   SplitPoint* parent;
   const Position* pos;
   Depth depth;
-  bool pvNode;
   Value beta;
+  int pvNode;
   int ply;
   int master;
   Move threatMove;
@@ -83,6 +83,7 @@ struct Thread {
   bool cutoff_occurred() const;
   bool is_available_to(int master) const;
 
+  SplitPoint splitPoints[MAX_ACTIVE_SPLIT_POINTS];
 #ifndef GPSFISH
   MaterialInfoTable materialTable;
   PawnInfoTable pawnTable;
@@ -93,7 +94,6 @@ struct Thread {
   volatile ThreadState state;
   SplitPoint* volatile splitPoint;
   volatile int activeSplitPoints;
-  SplitPoint splitPoints[MAX_ACTIVE_SPLIT_POINTS];
 };
 
 
@@ -124,13 +124,13 @@ public:
   void split(Position& pos, SearchStack* ss, Value* alpha, const Value beta, Value* bestValue,
              Depth depth, Move threatMove, int moveCount, MovePicker* mp, bool pvNode);
 private:
+  Thread threads[MAX_THREADS];
   Lock mpLock;
   Depth minimumSplitDepth;
   int maxThreadsPerSplitPoint;
-  bool useSleepingThreads;
   int activeThreads;
+  bool useSleepingThreads;
   volatile bool allThreadsShouldExit;
-  Thread threads[MAX_THREADS];
 };
 
 extern ThreadsManager Threads;

@@ -76,9 +76,9 @@ struct StateInfo {
   Score value;
   Value npMaterial[2];
 
-  PieceType capturedType;
   Key key;
   Bitboard checkersBB;
+  PieceType capturedType;
   StateInfo* previous;
 #endif
 };
@@ -326,7 +326,6 @@ private:
   int index[64];               // [square]
 
   // Other info
-  Color sideToMove;
 #endif
   Key history[MaxGameLength];
 #ifndef GPSFISH
@@ -334,13 +333,14 @@ private:
   Square castleRookSquare[16]; // [castleRight]
 #endif
   StateInfo startState;
-#ifndef GPSFISH
-  bool chess960;
-#endif
+  int64_t nodes;
+  Color sideToMove;
   int fullMoves;
   int threadID;
-  int64_t nodes;
   StateInfo* st;
+#ifndef GPSFISH
+  int chess960;
+#endif
 
   // Static variables
 #ifdef GPSFISH
