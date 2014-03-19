@@ -265,7 +265,6 @@ void Position::from_fen(const string& fen, bool isChess960) {
   clear();
   osl::record::usi::parse(string("sfen ")+fen,osl_state);
   std::istringstream ss(fen);
-  int fmn;
 #else
   char col, row, token;
   size_t p;
@@ -712,23 +711,17 @@ bool Position::pl_move_is_legal(Move m, Bitboard pinned) const {
 }
 
 
-/// Position::move_is_pl_slow() takes a move and tests whether the move
-/// is pseudo legal. This version is not very fast and should be used
-/// only in non time-critical paths.
+/// Position::move_is_legal() takes a move and tests whether the move
+/// is legal. This version is not very fast and should be used only
+/// in non time-critical paths.
 
-bool Position::move_is_pl_slow(const Move m) const {
+bool Position::move_is_legal(const Move m) const {
 
 #ifdef GPSFISH
   return m.isNormal() && pl_move_is_legal(m);
 #else
-  MoveStack mlist[MAX_MOVES];
-  MoveStack *cur, *last;
-
-  last = in_check() ? generate<MV_EVASION>(*this, mlist)
-                    : generate<MV_NON_EVASION>(*this, mlist);
-
-  for (cur = mlist; cur != last; cur++)
-      if (cur->move == m)
+  for (MoveList<MV_LEGAL> ml(*this); !ml.end(); ++ml)
+      if (ml.move() == m)
           return true;
 
   return false;
@@ -742,7 +735,7 @@ bool Position::move_is_pl_slow(const Move m) const {
 bool Position::move_is_pl(const Move m) const {
 
 #ifdef GPSFISH
-  return move_is_pl_slow(m);
+  return move_is_legal(m);
 #else
   assert(is_ok());
 
@@ -754,7 +747,7 @@ bool Position::move_is_pl(const Move m) const {
 
   // Use a slower but simpler function for uncommon cases
   if (move_is_special(m))
-      return move_is_pl_slow(m);
+      return move_is_legal(m);
 
   // Is not a promotion, so promotion piece must be empty
   if (promotion_piece_type(m) - 2 != PIECE_TYPE_NONE)
