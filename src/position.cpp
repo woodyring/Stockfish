@@ -203,6 +203,8 @@ Position::Position(const Position& pos, int th) {
 #ifdef GPSFISH
   eval=NULL;
 #endif
+
+  assert(is_ok());
 }
 
 Position::Position(const string& fen, bool isChess960, int th) {
@@ -333,6 +335,8 @@ void Position::from_fen(const string& fenStr, bool isChess960) {
   st->npMaterial[WHITE] = compute_non_pawn_material(WHITE);
   st->npMaterial[BLACK] = compute_non_pawn_material(BLACK);
 #endif
+
+  assert(is_ok());
 }
 
 #ifndef GPSFISH
@@ -659,7 +663,6 @@ bool Position::pl_move_is_legal(Move m, Bitboard pinned) const {
 #ifdef GPSFISH
   return pl_move_is_legal(m);
 #else
-  assert(is_ok());
   assert(move_is_ok(m));
   assert(pinned == pinned_pieces());
 
@@ -734,8 +737,6 @@ bool Position::move_is_pl(const Move m) const {
 #ifdef GPSFISH
   return move_is_legal(m);
 #else
-  assert(is_ok());
-
   Color us = sideToMove;
   Color them = opposite_color(sideToMove);
   Square from = move_from(m);
@@ -865,7 +866,6 @@ bool Position::move_gives_check(Move m, const CheckInfo& ci) const {
   else 
     return osl::move_classifier::Check<WHITE>::isMember(osl_state,m.ptype(),m.from(),m.to());
 #else
-  assert(is_ok());
   assert(move_is_ok(m));
   assert(ci.dcCandidates == discovered_check_candidates());
   assert(piece_color(piece_on(move_from(m))) == side_to_move());
@@ -991,6 +991,8 @@ void Position::do_setup_move(Move m) {
   // Our StateInfo newSt is about going out of scope so copy
   // its content before it disappears.
   detach();
+
+  assert(is_ok());
 }
 
 
@@ -1054,7 +1056,6 @@ void Position::do_move(Move m, StateInfo& newSt) {
 #ifndef GPSFISH
 void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveIsCheck) {
 
-  assert(is_ok());
   assert(move_is_ok(m));
   assert(&newSt != st);
 
@@ -1426,7 +1427,6 @@ void Position::do_castle_move(Move m) {
 
 void Position::undo_move(Move m) {
 
-  assert(is_ok());
   assert(move_is_ok(m));
 
   sideToMove = opposite_color(sideToMove);
@@ -1600,7 +1600,6 @@ void Position::undo_castle_move(Move m) {
 
 void Position::do_null_move(StateInfo& backupSt) {
 
-  assert(is_ok());
   assert(!in_check());
 
   // Back up the information necessary to undo the null move to the supplied
@@ -1630,6 +1629,8 @@ void Position::do_null_move(StateInfo& backupSt) {
   st->rule50++;
   st->pliesFromNull = 0;
   st->value += (sideToMove == WHITE) ?  TempoValue : -TempoValue;
+
+  assert(is_ok());
 }
 
 
@@ -1637,7 +1638,6 @@ void Position::do_null_move(StateInfo& backupSt) {
 
 void Position::undo_null_move() {
 
-  assert(is_ok());
   assert(!in_check());
 
   // Restore information from the our backup StateInfo object
@@ -1652,6 +1652,8 @@ void Position::undo_null_move() {
   sideToMove = opposite_color(sideToMove);
   st->rule50--;
   st->gamePly--;
+
+  assert(is_ok());
 }
 #endif
 
@@ -2066,8 +2068,6 @@ void Position::init() {
 
 #ifndef GPSFISH
 void Position::flip() {
-
-  assert(is_ok());
 
   // Make a copy of current position before to start changing
   const Position pos(*this, threadID);

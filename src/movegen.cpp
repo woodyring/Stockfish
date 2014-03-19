@@ -178,7 +178,6 @@ MoveStack* generate(const Position& pos, MoveStack* mlist) {
 template<MoveType Type>
 MoveStack* generate(const Position& pos, MoveStack* mlist) {
 
-  assert(pos.is_ok());
   assert(!pos.in_check());
 
   Color us = pos.side_to_move();
@@ -234,7 +233,6 @@ template MoveStack* generate<MV_EVASION>(const Position& pos, MoveStack* mlist);
 template<>
 MoveStack* generate<MV_NON_CAPTURE_CHECK>(const Position& pos, MoveStack* mlist) {
 
-  assert(pos.is_ok());
   assert(!pos.in_check());
 
   Bitboard b, dc;
@@ -275,7 +273,6 @@ MoveStack* generate<MV_NON_CAPTURE_CHECK>(const Position& pos, MoveStack* mlist)
 template<>
 MoveStack* generate<MV_EVASION>(const Position& pos, MoveStack* mlist) {
 
-  assert(pos.is_ok());
   assert(pos.in_check());
 
   Bitboard b, target;
@@ -347,8 +344,6 @@ MoveStack* generate<MV_EVASION>(const Position& pos, MoveStack* mlist) {
 
 template<>
 MoveStack* generate<MV_LEGAL>(const Position& pos, MoveStack* mlist) {
-
-  assert(pos.is_ok());
 
   MoveStack *last, *cur = mlist;
 #ifndef GPSFISH

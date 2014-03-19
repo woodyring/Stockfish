@@ -306,8 +306,6 @@ namespace {
     limits.time = time[pos.side_to_move()];
     limits.increment = inc[pos.side_to_move()];
 
-    assert(pos.is_ok());
-
 #ifdef GPSFISH
     if(searchMoves == cur && !ignore_moves.empty()){
         MoveStack mlist[MAX_MOVES];
@@ -328,7 +326,6 @@ namespace {
         return true;
     }
 #endif
-
     return think(pos, limits, searchMoves);
   }
 
