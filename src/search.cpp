@@ -114,16 +114,9 @@ namespace {
     Move pv[PLY_MAX_PLUS_2];
   };
 
-  // RootMoveList struct is just a vector of RootMove objects,
-  // with an handful of methods above the standard ones.
+  // RootMoveList struct is mainly a std::vector of RootMove objects
   struct RootMoveList : public std::vector<RootMove> {
-
-    typedef std::vector<RootMove> Base;
-
     void init(Position& pos, Move searchMoves[]);
-    void sort() { insertion_sort<RootMove, Base::iterator>(begin(), end()); }
-    void sort_first(int n) { insertion_sort<RootMove, Base::iterator>(begin(), begin() + n); }
-
     int bestMoveChanges;
   };
 
@@ -1677,7 +1670,7 @@ split_point_start: // At split points actual search starts from here
               // because all the values but the first are usually set to
               // -VALUE_INFINITE and we want to keep the same order for all
               // the moves but the new PV that goes to head.
-              Rml.sort_first(moveCount);
+              sort<RootMove>(Rml.begin(), Rml.begin() + moveCount);
 
 #ifdef GPSFISH
               if (depth >= 5*ONE_PLY
@@ -2132,7 +2125,7 @@ split_point_start: // At split points actual search starts from here
   bool connected_moves(const Position& pos, Move m1, Move m2) {
 
     Square f1, t1, f2, t2;
-    Piece p;
+    Piece p1, p2;
 
 #ifdef GPSFISH
     assert(m1 != MOVE_NONE && move_is_ok(m1));
@@ -2161,18 +2154,19 @@ split_point_start: // At split points actual search starts from here
        Board_Table.getShortOffset(Offset32(f2,f1)) &&
        abs((f2-t2).intValue())>abs((f2-f1).intValue())) return true;
 #else
-    if (   piece_is_slider(pos.piece_on(f2))
+    p2 = pos.piece_on(f2);
+    if (   piece_is_slider(p2)
         && bit_is_set(squares_between(f2, t2), f1))
       return true;
 #endif
 
     // Case 4: The destination square for m2 is defended by the moving piece in m1
-    p = pos.piece_on(t1);
+    p1 = pos.piece_on(t1);
 #ifdef GPSFISH
     osl::Piece pc=pos.osl_state.pieceAt(t1);
     if(pos.osl_state.hasEffectByPiece(pc,t2)) return true;
 #else
-    if (bit_is_set(pos.attacks_from(p, t1), t2))
+    if (bit_is_set(pos.attacks_from(p1, t1), t2))
         return true;
 #endif
 
@@ -2180,13 +2174,13 @@ split_point_start: // At split points actual search starts from here
 #ifdef GPSFISH
     pc=pos.osl_state.pieceAt(t2);
     if(pc.isPiece() && pos.osl_state.hasEffectByPiece(pc,f2) &&
-       Ptype_Table.getEffect(p,t1,pos.king_square(pos.side_to_move())).hasBlockableEffect() &&
+       Ptype_Table.getEffect(p1,t1,pos.king_square(pos.side_to_move())).hasBlockableEffect() &&
        Board_Table.isBetweenSafe(f2,t1,pos.king_square(pos.side_to_move())) &&
        !Board_Table.isBetweenSafe(t2,t1,pos.king_square(pos.side_to_move())) &&
        pos.osl_state.pinOrOpen(pos.side_to_move()).test(pos.osl_state.pieceAt(t1).number()))
         return true;
 #else
-    if (    piece_is_slider(p)
+    if (    piece_is_slider(p1)
         &&  bit_is_set(squares_between(t1, pos.king_square(pos.side_to_move())), f2)
         && !bit_is_set(squares_between(t1, pos.king_square(pos.side_to_move())), t2))
     {
@@ -2854,7 +2848,7 @@ split_point_start: // At split points actual search starts from here
                 break;
             }
 
-    Rml.sort();
+    sort<RootMove>(Rml.begin(), Rml.end());
   }
 
 } // namespace
