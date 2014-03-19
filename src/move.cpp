@@ -25,7 +25,7 @@
 
 #include "move.h"
 #include "movegen.h"
-#include "search.h"
+#include "position.h"
 #ifdef GPSFISH
 #include "osl/record/usi.h"
 #include "osl/record/csa.h"

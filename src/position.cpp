@@ -34,7 +34,7 @@
 #include "rkiss.h"
 #include "thread.h"
 #include "tt.h"
-#include "ucioption.h"
+
 #ifdef GPSFISH
 #include "osl/eval/ptypeEvalTraits.h"
 using osl::eval::PtypeEvalTraits;
@@ -46,6 +46,7 @@ using osl::eval::PtypeEvalTraits;
 #include "osl/move_classifier/safeMove.h"
 #include "evaluate.h"
 #endif
+
 using std::string;
 using std::cout;
 using std::endl;

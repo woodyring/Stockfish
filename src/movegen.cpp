@@ -32,6 +32,7 @@
 #include "bitcount.h"
 #endif
 #include "movegen.h"
+#include "position.h"
 
 #ifndef GPSFISH
 // Simple macro to wrap a very common while loop, no facny, no flexibility,
