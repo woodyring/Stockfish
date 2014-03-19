@@ -2126,6 +2126,7 @@ split_point_start: // At split points actual search starts from here
 
     Square f1, t1, f2, t2;
     Piece p1, p2;
+    Square ksq;
 
 #ifdef GPSFISH
     assert(m1 != MOVE_NONE && move_is_ok(m1));
@@ -2180,16 +2181,13 @@ split_point_start: // At split points actual search starts from here
        pos.osl_state.pinOrOpen(pos.side_to_move()).test(pos.osl_state.pieceAt(t1).number()))
         return true;
 #else
+    ksq = pos.king_square(pos.side_to_move());
     if (    piece_is_slider(p1)
-        &&  bit_is_set(squares_between(t1, pos.king_square(pos.side_to_move())), f2)
-        && !bit_is_set(squares_between(t1, pos.king_square(pos.side_to_move())), t2))
+        &&  bit_is_set(squares_between(t1, ksq), f2))
     {
-        // discovered_check_candidates() works also if the Position's side to
-        // move is the opposite of the checking piece.
-        Color them = opposite_color(pos.side_to_move());
-        Bitboard dcCandidates = pos.discovered_check_candidates(them);
-
-        if (bit_is_set(dcCandidates, f2))
+        Bitboard occ = pos.occupied_squares();
+        clear_bit(&occ, f2);
+        if (bit_is_set(pos.attacks_from(p1, t1, occ), ksq))
             return true;
     }
 #endif
