@@ -2744,7 +2744,7 @@ split_point_start: // At split points actual search starts from here
     while (   (tte = TT.probe(pos.get_key())) != NULL
            && tte->move() != MOVE_NONE
            && pos.move_is_pl(tte->move())
-           && pos.pl_move_is_legal(tte->move(), pos.pinned_pieces(pos.side_to_move()))
+           && pos.pl_move_is_legal(tte->move(), pos.pinned_pieces())
            && ply < PLY_MAX
 #ifdef GPSFISH
            && (!pos.is_draw(dummy) || ply < 2))

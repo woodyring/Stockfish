@@ -159,9 +159,9 @@ public:
 
 #ifndef GPSFISH
   // Bitboards for pinned pieces and discovered check candidates
-  Bitboard discovered_check_candidates(Color c) const;
+  Bitboard discovered_check_candidates() const;
 #endif
-  Bitboard pinned_pieces(Color c) const;
+  Bitboard pinned_pieces() const;
 
 #ifndef GPSFISH
   // Checking pieces and under check information
@@ -296,7 +296,7 @@ private:
   void undo_castle_move(Move m);
 
   template<bool FindPinned>
-  Bitboard hidden_checkers(Color c) const;
+  Bitboard hidden_checkers() const;
 #endif
 
   // Computing hash keys from scratch (for initialization and debugging)
