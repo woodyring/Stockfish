@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
 #endif
 
 #ifndef GPSFISH
-  init_bitboards();
+  bitboards_init();
 #endif
   Position::init();
 #ifndef GPSFISH
