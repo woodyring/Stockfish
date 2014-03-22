@@ -126,7 +126,7 @@ void uci_loop() {
 
 #ifndef GPSFISH
       else if (token == "flip")
-          pos.flip();
+          pos.flip_me();
 
       else if (token == "eval")
       {

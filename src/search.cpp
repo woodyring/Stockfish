@@ -315,7 +315,7 @@ namespace {
         result += CheckExtension[PvNode];
 
 #ifndef GPSFISH
-    if (piece_type(pos.piece_on(move_from(m))) == PAWN)
+    if (type_of(pos.piece_on(move_from(m))) == PAWN)
     {
         Color c = pos.side_to_move();
         if (relative_rank(c, move_to(m)) == RANK_7)
@@ -331,7 +331,7 @@ namespace {
     }
 
     if (   captureOrPromotion
-        && piece_type(pos.piece_on(move_to(m))) != PAWN
+        && type_of(pos.piece_on(move_to(m))) != PAWN
         && (  pos.non_pawn_material(WHITE) + pos.non_pawn_material(BLACK)
             - piece_value_midgame(pos.piece_on(move_to(m))) == VALUE_ZERO)
         && !move_is_special(m))
@@ -398,7 +398,7 @@ namespace {
 #ifdef GPSFISH
   bool can_capture_king(Position const& pos){
     Color us=pos.side_to_move();
-    Color them=opposite_color(us);
+    Color them=flip(us);
     const osl::Square king = pos.king_square(them);
     return pos.osl_state.hasEffectAt(us, king);
   }
@@ -2050,7 +2050,7 @@ split_point_start: // At split points actual search starts from here
 
     from = move_from(move);
     to = move_to(move);
-    them = opposite_color(pos.side_to_move());
+    them = flip(pos.side_to_move());
     ksq = pos.king_square(them);
     kingAtt = pos.attacks_from<KING>(ksq);
     pc = pos.piece_on(from);
@@ -2066,7 +2066,7 @@ split_point_start: // At split points actual search starts from here
         return true;
 
     // Rule 2. Queen contact check is very dangerous
-    if (   piece_type(pc) == QUEEN
+    if (   type_of(pc) == QUEEN
         && bit_is_set(kingAtt, to))
         return true;
 
@@ -2227,12 +2227,11 @@ split_point_start: // At split points actual search starts from here
     if (   pos.move_is_capture(threat)
         && (   piece_value_midgame(pos.piece_on(tfrom)) >= piece_value_midgame(pos.piece_on(tto))
 #ifdef GPSFISH
-            || piece_type(pos.piece_on(tfrom)) == osl::KING)
-        && pos.osl_state.hasEffectIf(m.ptypeO(), m.to(), tto))
+            || type_of(pos.piece_on(tfrom)) == osl::KING)
 #else
-            || piece_type(pos.piece_on(tfrom)) == KING)
-        && pos.move_attacks_square(m, tto))
+            || type_of(pos.piece_on(tfrom)) == KING)
 #endif
+        && pos.move_attacks_square(m, tto))
         return true;
 
     // Case 3: If the moving piece in the threatened move is a slider, don't

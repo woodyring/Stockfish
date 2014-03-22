@@ -434,7 +434,7 @@ inline Piece make_piece(Color c, PieceType pt) {
 #endif
 }
 
-inline PieceType piece_type(Piece p)  {
+inline PieceType type_of(Piece p)  {
 #ifdef GPSFISH
   return getPtype(p);
 #else
@@ -442,7 +442,7 @@ inline PieceType piece_type(Piece p)  {
 #endif
 }
 
-inline Color piece_color(Piece p) {
+inline Color color_of(Piece p) {
 #ifdef GPSFISH
   return getOwner(p);
 #else
@@ -450,7 +450,7 @@ inline Color piece_color(Piece p) {
 #endif
 }
 
-inline Color opposite_color(Color c) {
+inline Color flip(Color c) {
 #ifdef GPSFISH
   return alt(c);
 #else
@@ -475,7 +475,7 @@ inline Square make_square(File f, Rank r) {
 #endif
 }
 
-inline File square_file(Square s) {
+inline File file_of(Square s) {
 #ifdef GPSFISH
   return File(s.x());
 #else
@@ -483,7 +483,7 @@ inline File square_file(Square s) {
 #endif
 }
 
-inline Rank square_rank(Square s) {
+inline Rank rank_of(Square s) {
 #ifdef GPSFISH
   return Rank(s.y());
 #else
@@ -491,7 +491,7 @@ inline Rank square_rank(Square s) {
 #endif
 }
 
-inline Square flip_square(Square s) {
+inline Square flip(Square s) {
 #ifdef GPSFISH
   // For shogi, do rotate180 instead of flipping
   return s.rotate180();
@@ -500,7 +500,7 @@ inline Square flip_square(Square s) {
 #endif
 }
 
-inline Square flop_square(Square s) {
+inline Square mirror(Square s) {
 #ifdef GPSFISH
   // flipHorizontal is expensive because it checks if s is pieceStand
   return s.flipHorizontal();
@@ -526,12 +526,12 @@ inline Rank relative_rank(Color c, Rank r) {
 }
 
 inline Rank relative_rank(Color c, Square s) {
-  return relative_rank(c, square_rank(s));
+  return relative_rank(c, rank_of(s));
 }
 
 #ifndef GPSFISH
 inline SquareColor square_color(Square s) {
-  return SquareColor(int(square_rank(s) + s) & 1);
+  return SquareColor(int(rank_of(s) + s) & 1);
 }
 #endif
 
@@ -543,11 +543,11 @@ inline bool opposite_color_squares(Square s1, Square s2) {
 #endif
 
 inline int file_distance(Square s1, Square s2) {
-  return abs(square_file(s1) - square_file(s2));
+  return abs(file_of(s1) - file_of(s2));
 }
 
 inline int rank_distance(Square s1, Square s2) {
-  return abs(square_rank(s1) - square_rank(s2));
+  return abs(rank_of(s1) - rank_of(s2));
 }
 
 #ifndef GPSFISH
@@ -569,7 +569,7 @@ inline char rank_to_char(Rank r) {
 }
 
 inline const std::string square_to_string(Square s) {
-  char ch[] = { file_to_char(square_file(s)), rank_to_char(square_rank(s)), 0 };
+  char ch[] = { file_to_char(file_of(s)), rank_to_char(rank_of(s)), 0 };
   return std::string(ch);
 }
 

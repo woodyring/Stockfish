@@ -73,8 +73,8 @@ static inline Move fromMove16(Move16 move16,Position const& pos) {
     return osl::Move(to,ptype,turn);
   }
   Square from=SquareCompressor::melt(move16&0x7f);
-  Ptype ptype=piece_type(pos.piece_on(from));
-  Ptype capture_ptype=piece_type(pos.piece_on(to));
+  Ptype ptype=type_of(pos.piece_on(from));
+  Ptype capture_ptype=type_of(pos.piece_on(to));
   bool is_promote=(move16&0x8000)!=0;
   if(is_promote)
     return osl::Move(from,to,promote(ptype),capture_ptype,true,turn);

@@ -258,7 +258,7 @@ public:
 
   // Position consistency check, for debugging
   bool is_ok(int* failedStep = NULL) const;
-  void flip();
+  void flip_me();
 #ifdef GPSFISH
   bool eval_is_ok() const;
 #endif
@@ -484,7 +484,7 @@ inline bool Position::in_check() const {
 
 #ifndef GPSFISH
 inline bool Position::pawn_is_passed(Color c, Square s) const {
-  return !(pieces(PAWN, opposite_color(c)) & passed_pawn_mask(c, s));
+  return !(pieces(PAWN, flip(c)) & passed_pawn_mask(c, s));
 }
 #endif
 
