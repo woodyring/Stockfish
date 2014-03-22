@@ -251,13 +251,13 @@ bool ThreadsManager::available_slave_exists(int master) const {
 // call search().When all threads have returned from search() then split() returns.
 
 template <bool Fake>
-void ThreadsManager::split(Position& pos, SearchStack* ss, Value* alpha, const Value beta,
-                           Value* bestValue, Depth depth, Move threatMove,
-                           int moveCount, MovePicker* mp, int nodeType) {
+Value ThreadsManager::split(Position& pos, SearchStack* ss, Value alpha, Value beta,
+                            Value bestValue, Depth depth, Move threatMove,
+                            int moveCount, MovePicker* mp, int nodeType) {
   assert(pos.is_ok());
-  assert(*bestValue >= -VALUE_INFINITE);
-  assert(*bestValue <= *alpha);
-  assert(*alpha < beta);
+  assert(bestValue >= -VALUE_INFINITE);
+  assert(bestValue <= alpha);
+  assert(alpha < beta);
   assert(beta <= VALUE_INFINITE);
   assert(depth > DEPTH_ZERO);
   assert(pos.thread() >= 0 && pos.thread() < activeThreads);
@@ -268,7 +268,7 @@ void ThreadsManager::split(Position& pos, SearchStack* ss, Value* alpha, const V
 
   // If we already have too many active split points, don't split
   if (masterThread.activeSplitPoints >= MAX_ACTIVE_SPLIT_POINTS)
-      return;
+      return bestValue;
 
   // Pick the next available split point object from the split point stack
   SplitPoint& splitPoint = masterThread.splitPoints[masterThread.activeSplitPoints];
@@ -279,10 +279,10 @@ void ThreadsManager::split(Position& pos, SearchStack* ss, Value* alpha, const V
   splitPoint.is_betaCutoff = false;
   splitPoint.depth = depth;
   splitPoint.threatMove = threatMove;
-  splitPoint.alpha = *alpha;
+  splitPoint.alpha = alpha;
   splitPoint.beta = beta;
   splitPoint.nodeType = nodeType;
-  splitPoint.bestValue = *bestValue;
+  splitPoint.bestValue = bestValue;
   splitPoint.mp = mp;
   splitPoint.moveCount = moveCount;
   splitPoint.pos = &pos;
@@ -314,12 +314,12 @@ void ThreadsManager::split(Position& pos, SearchStack* ss, Value* alpha, const V
 
   // We failed to allocate even one slave, return
   if (!Fake && !booked)
-      return;
+      return bestValue;
 
   masterThread.activeSplitPoints++;
   masterThread.splitPoint = &splitPoint;
 
-  // Tell the threads that they have work to do. This will make them leave
+  // Tell the threads that they have some work to do. This will make them leave
   // their idle loop.
   for (i = 0; i < activeThreads; i++)
       if (i == master || splitPoint.is_slave[i])
@@ -341,9 +341,8 @@ void ThreadsManager::split(Position& pos, SearchStack* ss, Value* alpha, const V
   idle_loop(master, &splitPoint);
 
   // We have returned from the idle loop, which means that all threads are
-  // finished. Update alpha and bestValue, and return. Note that changing
-  // state and decreasing activeSplitPoints is done under lock protection
-  // to avoid a race with Thread::is_available_to().
+  // finished. Note that changing state and decreasing activeSplitPoints is done
+  // under lock protection to avoid a race with Thread::is_available_to().
   lock_grab(&threadsLock);
 
   masterThread.state = Thread::SEARCHING;
@@ -352,11 +351,10 @@ void ThreadsManager::split(Position& pos, SearchStack* ss, Value* alpha, const V
 
   lock_release(&threadsLock);
 
-  *alpha = splitPoint.alpha;
-  *bestValue = splitPoint.bestValue;
   pos.set_nodes_searched(pos.nodes_searched() + splitPoint.nodes);
+  return splitPoint.bestValue;
 }
 
 // Explicit template instantiations
-template void ThreadsManager::split<false>(Position&, SearchStack*, Value*, const Value, Value*, Depth, Move, int, MovePicker*, int);
-template void ThreadsManager::split<true>(Position&, SearchStack*, Value*, const Value, Value*, Depth, Move, int, MovePicker*, int);
+template Value ThreadsManager::split<false>(Position&, SearchStack*, Value, Value, Value, Depth, Move, int, MovePicker*, int);
+template Value ThreadsManager::split<true>(Position&, SearchStack*, Value, Value, Value, Depth, Move, int, MovePicker*, int);
