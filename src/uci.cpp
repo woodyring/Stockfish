@@ -266,7 +266,7 @@ namespace {
 
     string token;
     SearchLimits limits;
-    Move searchMoves[MAX_MOVES], *cur = searchMoves;
+    std::vector<Move> searchMoves;
 #ifdef GPSFISH
     osl::CArray<int,2> time={{0,0}},inc={{0,0}};
 #else
@@ -308,14 +308,14 @@ namespace {
 #endif
         else if (token == "searchmoves")
             while (up >> token)
-                *cur++ = move_from_uci(pos, token);
+                searchMoves.push_back(move_from_uci(pos, token));
     }
 
-    *cur = MOVE_NONE;
+    searchMoves.push_back(MOVE_NONE);
     limits.time = time[pos.side_to_move()];
     limits.increment = inc[pos.side_to_move()];
 
-#ifdef GPSFISH
+#if 0 //def GPSFISH
     if(searchMoves == cur && !ignore_moves.empty()){
         MoveStack mlist[MAX_MOVES];
         MoveStack* last = pos.in_check() ? generate<MV_EVASION>(pos, mlist)
@@ -335,7 +335,8 @@ namespace {
         return true;
     }
 #endif
-    return think(pos, limits, searchMoves);
+
+    return think(pos, limits, &searchMoves[0]);
   }
 
 
