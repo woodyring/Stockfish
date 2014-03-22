@@ -530,7 +530,7 @@ inline bool Position::move_is_passed_pawn_push(Move m) const {
 #endif
 
 inline int Position::startpos_ply_counter() const {
-  return startPosPly;
+  return startPosPly + st->pliesFromNull; // HACK
 }
 
 #ifndef GPSFISH
