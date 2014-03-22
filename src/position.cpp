@@ -302,10 +302,14 @@ void Position::from_fen(const string& fenStr, bool isChess960) {
 
   // 5-6. Halfmove clock and fullmove number
 #ifdef GPSFISH
-  fen >> fullMoves;
+  fen >> st->gamePly;
 #else
-  fen >> std::skipws >> st->rule50 >> fullMoves;
+  fen >> std::skipws >> st->rule50 >> st->gamePly;
 #endif
+
+  // Convert from fullmove starting from 1 to ply starting from 0,
+  // handle also common incorrect FEN with fullmove = 0.
+  st->gamePly = Max(2 * (st->gamePly - 1), 0) + int(sideToMove == BLACK);
 
 #ifndef GPSFISH
   // Various initialisations
@@ -445,7 +449,7 @@ const string Position::to_fen() const {
       fen << '-';
 
   fen << (ep_square() == SQ_NONE ? " -" : " " + square_to_string(ep_square()))
-      << " " << st->rule50 << " " << fullMoves;
+      << " " << st->rule50 << " " << 1 + (st->gamePly - int(sideToMove == BLACK)) / 2;
 
   fen += (ep_square() == SQ_NONE ? " -" : " " + square_to_string(ep_square()));
 #endif
@@ -941,32 +945,6 @@ bool Position::move_gives_check(Move m, const CheckInfo& ci) const {
 
   return false;
 #endif
-}
-
-/// Position::do_setup_move() makes a permanent move on the board. It should
-/// be used when setting up a position on board. You can't undo the move.
-
-void Position::do_setup_move(Move m, StateInfo& newSt) {
-
-  assert(move_is_ok(m));
-
-  // Update the number of full moves after black's move
-#ifdef GPSFISH
-  if (side_to_move() == BLACK)
-#else
-  if (sideToMove == BLACK)
-#endif
-      fullMoves++;
-
-  do_move(m, newSt);
-
-#ifdef GPSFISH
-  if(eval)
-    *eval=eval_t(osl_state,false);
-#endif
-
-
-  assert(is_ok());
 }
 
 
@@ -1788,7 +1766,6 @@ void Position::clear() {
 #else
   sideToMove = WHITE;
 #endif
-  fullMoves = 1;
   nodes = 0;
 }
 
@@ -1970,9 +1947,9 @@ bool Position::is_draw() const {
   if (!SkipRepetition)
   {
 #ifdef GPSFISH
-      int i = 4, e = Min(st->gamePly, st->pliesFromNull);
+      int i = 4, e = st->pliesFromNull;
 #else
-      int i = 4, e = Min(Min(st->gamePly, st->rule50), st->pliesFromNull);
+      int i = 4, e = Min(st->rule50, st->pliesFromNull);
 #endif
 
       if (i <= e)

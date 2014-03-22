@@ -347,21 +347,17 @@ template<>
 MoveStack* generate<MV_LEGAL>(const Position& pos, MoveStack* mlist) {
 
   MoveStack *last, *cur = mlist;
-#ifndef GPSFISH
   Bitboard pinned = pos.pinned_pieces();
-#endif
 
   last = pos.in_check() ? generate<MV_EVASION>(pos, mlist)
                         : generate<MV_NON_EVASION>(pos, mlist);
 
-#ifndef GPSFISH
   // Remove illegal moves from the list
   while (cur != last)
       if (!pos.pl_move_is_legal(cur->move, pinned))
           cur->move = (--last)->move;
       else
           cur++;
-#endif
 
   return last;
 }
