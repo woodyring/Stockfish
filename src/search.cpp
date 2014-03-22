@@ -542,7 +542,8 @@ bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]) {
   read_evaluation_uci_options(pos.side_to_move());
   Threads.read_uci_options();
 
-  // If needed allocate pawn and material hash tables and adjust TT size
+  // Allocate pawn and material hash tables if number of active threads
+  // increased and set a new TT size if changed.
   Threads.init_hash_tables();
   TT.set_size(Options["Hash"].value<int>());
 
@@ -2879,7 +2880,7 @@ void ThreadsManager::idle_loop(int threadID, SplitPoint* sp) {
 
   while (true)
   {
-      // Slave threads can exit as soon as AllThreadsShouldExit raises,
+      // Slave threads can exit as soon as allThreadsShouldExit flag raises,
       // master should exit as last one.
       if (allThreadsShouldExit)
       {
@@ -2888,7 +2889,7 @@ void ThreadsManager::idle_loop(int threadID, SplitPoint* sp) {
           return;
       }
 
-      // If we are not thinking, wait for a condition to be signaled
+      // If we are not searching, wait for a condition to be signaled
       // instead of wasting CPU time polling for work.
       while (   threadID >= activeThreads
              || threads[threadID].state == Thread::INITIALIZING
@@ -2903,7 +2904,7 @@ void ThreadsManager::idle_loop(int threadID, SplitPoint* sp) {
           // Grab the lock to avoid races with Thread::wake_up()
           lock_grab(&threads[threadID].sleepLock);
 
-          // If we are master and all slaves have finished do not go to sleep
+          // If we are master and all slaves have finished don't go to sleep
           for (i = 0; sp && i < activeThreads && !sp->is_slave[i]; i++) {}
           allFinished = (i == activeThreads);
 
@@ -2913,7 +2914,10 @@ void ThreadsManager::idle_loop(int threadID, SplitPoint* sp) {
               break;
           }
 
-          // Do sleep here after retesting sleep conditions
+          // Do sleep after retesting sleep conditions under lock protection, in
+          // particular we need to avoid a deadlock in case a master thread has,
+          // in the meanwhile, allocated us and sent the wake_up() call before we
+          // had the chance to grab the lock.
           if (threadID >= activeThreads || threads[threadID].state == Thread::AVAILABLE)
               cond_wait(&threads[threadID].sleepCond, &threads[threadID].sleepLock);
 
@@ -2928,31 +2932,31 @@ void ThreadsManager::idle_loop(int threadID, SplitPoint* sp) {
           threads[threadID].state = Thread::SEARCHING;
 
           // Copy split point position and search stack and call search()
-          // with SplitPoint template parameter set to true.
 #ifdef MOVE_STACK_REJECTIONS
           SearchStack ss_base[PLY_MAX_PLUS_2];
-	  SplitPoint* tsp = threads[threadID].splitPoint;
+          SplitPoint* tsp = threads[threadID].splitPoint;
           Position pos(*tsp->pos, threadID);
-	  int ply=tsp->ss->ply;
-	  assert(0< ply && ply+3<PLY_MAX_PLUS_2);
-	  for(int i=0;i<ply-1;i++)
-	    ss_base[i].currentMove=(tsp->ss-ply+i)->currentMove;
-	  SearchStack *ss= &ss_base[ply-1];
-          memcpy(ss, tsp->ss - 1, 4 * sizeof(SearchStack));
-          (ss+1)->sp = tsp;
+          int ply=tsp->ss->ply;
+          assert(0< ply && ply+3<PLY_MAX_PLUS_2);
+          for(int i=0;i<ply-1;i++)
+              ss_base[i].currentMove=(tsp->ss-ply+i)->currentMove;
+          SearchStack *ss= &ss_base[ply-1];
 #else
           SearchStack ss[PLY_MAX_PLUS_2];
           SplitPoint* tsp = threads[threadID].splitPoint;
           Position pos(*tsp->pos, threadID);
+#endif
 
           memcpy(ss, tsp->ss - 1, 4 * sizeof(SearchStack));
           (ss+1)->sp = tsp;
+
+#ifdef GPSFISH
+          uint64_t es_base[(PLY_MAX_PLUS_2*sizeof(eval_t)+sizeof(uint64_t)-1)/sizeof(uint64_t)];
+          eval_t *es=(eval_t *)&es_base[0];
+          assert(tsp->pos->eval);
+          es[0]= *(tsp->pos->eval);
+          pos.eval= &es[0];
 #endif
-	  uint64_t es_base[(PLY_MAX_PLUS_2*sizeof(eval_t)+sizeof(uint64_t)-1)/sizeof(uint64_t)];
-	  eval_t *es=(eval_t *)&es_base[0];
-	  assert(tsp->pos->eval);
-	  es[0]= *(tsp->pos->eval);
-	  pos.eval= &es[0];
 
           if (tsp->nodeType == Root)
               search<SplitPointRoot>(pos, ss+1, tsp->alpha, tsp->beta, tsp->depth);
@@ -2982,14 +2986,10 @@ void ThreadsManager::idle_loop(int threadID, SplitPoint* sp) {
 
       if (allFinished)
       {
-          // Because sp->slaves[] is reset under lock protection,
+          // Because sp->is_slave[] is reset under lock protection,
           // be sure sp->lock has been released before to return.
           lock_grab(&(sp->lock));
           lock_release(&(sp->lock));
-
-          // In helpful master concept a master can help only a sub-tree, and
-          // because here is all finished is not possible master is booked.
-          assert(threads[threadID].state == Thread::AVAILABLE);
           return;
       }
   }
