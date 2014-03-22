@@ -217,7 +217,6 @@ namespace {
 
   // Node counters, used only by thread[0] but try to keep in different cache
   // lines (64 bytes each) from the heavy multi-thread read accessed variables.
-  bool SendSearchedNodes;
   int NodesSincePoll;
   int NodesBetweenPolls = 30000;
 
@@ -483,7 +482,7 @@ bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]) {
   static Book book;
 
   // Initialize global search-related variables
-  StopOnPonderhit = StopRequest = QuitRequest = AspirationFailLow = SendSearchedNodes = false;
+  StopOnPonderhit = StopRequest = QuitRequest = AspirationFailLow = false;
   NodesSincePoll = 0;
   current_search_time(get_system_time());
   Limits = limits;
@@ -1426,14 +1425,6 @@ split_point_start: // At split points actual search starts from here
 
           // Save the current node count before the move is searched
           nodes = pos.nodes_searched();
-
-          // If it's time to send nodes info, do it here where we have the
-          // correct accumulated node counts searched by each thread.
-          if (!SpNode && SendSearchedNodes)
-          {
-              SendSearchedNodes = false;
-              cout << "info" << speed_to_uci(pos.nodes_searched()) << endl;
-          }
 
           // For long searches send current move info to GUI
 #ifndef GPSFISH
@@ -2602,9 +2593,6 @@ split_point_start: // At split points actual search starts from here
 
         dbg_print_mean();
         dbg_print_hit_rate();
-
-        // Send info on searched nodes as soon as we return to root
-        SendSearchedNodes = true;
     }
 
     // Should we stop the search?
