@@ -1824,9 +1824,6 @@ undo:
         return value_mated_in(ss->ply+1);
     else if(repeat_check>0) 
         return value_mate_in(ss->ply);
-#else
-    if (pos.is_draw<true>() || ss->ply > PLY_MAX)
-        return VALUE_DRAW;
 #endif
 
     // Decide whether or not to include checks, this fixes also the type of
@@ -1999,7 +1996,10 @@ undo:
 #else
       pos.do_move(move, st, ci, givesCheck);
 #endif
-      value = -qsearch<NT>(pos, ss+1, -beta, -alpha, depth-ONE_PLY);
+      if (pos.is_draw<true>() || ss->ply+1 > PLY_MAX)
+          value = VALUE_DRAW;
+      else
+          value = -qsearch<NT>(pos, ss+1, -beta, -alpha, depth-ONE_PLY);
 #ifdef GPSFISH
               --pos.eval;
               }
