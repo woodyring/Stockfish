@@ -164,22 +164,24 @@ void ThreadsManager::init() {
 
 #if defined(_MSC_VER) || defined(_WIN32) 
 #if defined(GPSFISH)
-      bool ok = (CreateThread(NULL, 1024*1024*8, start_routine, (LPVOID)&threads[i].threadID, 0, NULL) != NULL);
+      threads[i].handle = CreateThread(NULL, 1024*1024*8, start_routine, (LPVOID)&threads[i].threadID, 0, NULL);
 #else
-      bool ok = (CreateThread(NULL, 0, start_routine, (LPVOID)&threads[i].threadID , 0, NULL) != NULL);
+      threads[i].handle = CreateThread(NULL, 0, start_routine, (LPVOID)&threads[i].threadID, 0, NULL);
 #endif
+      bool ok = (threads[i].handle != NULL);
 #else
       pthread_t pthreadID;
 #if defined(GPSFISH)
       pthread_attr_t attr  ;
       pthread_attr_init(&attr);
       pthread_attr_setstacksize(&attr,1024*1024*4);
-      bool ok = (pthread_create(&pthreadID, &attr, start_routine, (void*)&threads[i].threadID) == 0);
+      bool ok = (pthread_create(&threads[i].handle, &attr, start_routine, (void*)&threads[i].threadID) == 0);
 #else
-      bool ok = (pthread_create(&pthreadID, NULL, start_routine, (void*)&threads[i].threadID) == 0);
+      bool ok = (pthread_create(&threads[i].handle, NULL, start_routine, (void*)&threads[i].threadID) == 0);
 #endif
       pthread_detach(pthreadID);
 #endif
+
       if (!ok)
       {
           std::cout << "Failed to create thread number " << i << std::endl;
@@ -200,7 +202,14 @@ void ThreadsManager::exit() {
       {
           threads[i].do_terminate = true;
           threads[i].wake_up();
-          while (threads[i].state != Thread::TERMINATED) {}
+
+#if defined(_MSC_VER) || defined(_WIN32)
+          WaitForSingleObject(threads[i].handle, 0);
+          CloseHandle(threads[i].handle);
+#else
+          pthread_join(threads[i].handle, NULL);
+          pthread_detach(threads[i].handle);
+#endif
       }
 
       // Now we can safely destroy locks and wait conditions
