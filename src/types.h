@@ -393,6 +393,7 @@ extern const Value PieceValueEndgame[osl::PTYPE_SIZE];
 #else
 extern const Value PieceValueMidgame[17];
 extern const Value PieceValueEndgame[17];
+extern int SquareDistance[64][64];
 #endif
 
 inline Value piece_value_midgame(Piece p) {
@@ -549,9 +550,11 @@ inline int rank_distance(Square s1, Square s2) {
   return abs(square_rank(s1) - square_rank(s2));
 }
 
+#ifndef GPSFISH
 inline int square_distance(Square s1, Square s2) {
-  return Max(file_distance(s1, s2), rank_distance(s1, s2));
+  return SquareDistance[s1][s2];
 }
+#endif
 
 inline char file_to_char(File f) {
 #ifdef GPSFISH
