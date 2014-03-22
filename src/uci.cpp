@@ -46,9 +46,9 @@ namespace {
 
   // FEN string for the initial position
 #ifdef GPSFISH
-  const string StartPositionFEN = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
+  const char* StarFEN = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
 #else
-  const string StartPositionFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+  const char* StarFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 #endif
 
   // Keep track of position keys along the setup moves (from start position to the
@@ -73,108 +73,113 @@ std::vector<Move> ignore_moves;
 #define FEN_TOKEN 	"fen"
 #endif
 
-/// execute_uci_command() takes a string as input, parses this text string as
-/// an UCI command, and calls the appropriate functions. In addition to the
-/// UCI commands, the function also supports a few debug commands.
+/// Wait for a command from the user, parse this text string as an UCI command,
+/// and calls the appropriate functions. Also intercepts EOF from stdin to
+/// ensure that we exit gracefully if the GUI dies unexpectedly. In addition to
+/// the UCI commands, the function also supports a few debug commands.
 
-bool execute_uci_command(const string& cmd) {
+void uci_loop() {
 
-  static Position pos(StartPositionFEN, false, 0); // The root position
+  Position pos(StarFEN, false, 0); // The root position
+  string cmd, token;
 
-  istringstream is(cmd);
-  string token;
+  while (getline(cin, cmd))
+  {
+      istringstream is(cmd);
 
-  is >> skipws >> token;
+      is >> skipws >> token;
 
-  if (token == "quit")
-      return false;
+      if (token == "quit")
+          break;
 
-  if (token == "go")
-      return go(pos, is);
+      if (token == "go" && !go(pos, is))
+          break;
 
-  if (token == NEWGAME_TOKEN)
-      pos.from_fen(StartPositionFEN, false);
+      if (token == NEWGAME_TOKEN)
+          pos.from_fen(StarFEN, false);
 
-  else if (token == "isready") {
+      else if (token == "isready")
+      {
 #ifdef GPSFISH
-      bool ok = osl::eval::ml::OpenMidEndingEval::setUp();
-      ok &= osl::progress::ml::NewProgress::setUp();
-      if (! ok) {
-          std::cerr << "set up failed\n";
-          return false;
+          bool ok = osl::eval::ml::OpenMidEndingEval::setUp();
+          ok &= osl::progress::ml::NewProgress::setUp();
+          if (! ok) {
+              std::cerr << "set up failed\n";
+              return;
+          }
+#endif
+          cout << "readyok" << endl;
+      }
+
+      else if (token == "position")
+          set_position(pos, is);
+
+      else if (token == "setoption")
+          set_option(is);
+
+      else if (token == "perft")
+          perft(pos, is);
+
+      else if (token == "d")
+          pos.print();
+
+#ifndef GPSFISH
+      else if (token == "flip")
+          pos.flip();
+
+      else if (token == "eval")
+      {
+          read_evaluation_uci_options(pos.side_to_move());
+          cout << trace_evaluate(pos) << endl;
       }
 #endif
-      cout << "readyok" << endl;
-  }
 
-  else if (token == "position")
-      set_position(pos, is);
-
-  else if (token == "setoption")
-      set_option(is);
-
-  else if (token == "perft")
-      perft(pos, is);
-
-  else if (token == "d")
-      pos.print();
-
-#ifndef GPSFISH
-  else if (token == "flip")
-      pos.flip();
-#endif
-
-#ifndef GPSFISH
-  else if (token == "eval")
-  {
-      read_evaluation_uci_options(pos.side_to_move());
-      cout << trace_evaluate(pos) << endl;
-  }
-#endif
-  else if (token == "key")
+      else if (token == "key")
 #ifdef GPSFISH
-      cout << "key: " << hex     << pos.get_key() << endl;
+          cout << "key: " << hex     << pos.get_key() << endl;
 #else
-      cout << "key: " << hex     << pos.get_key()
-           << "\nmaterial key: " << pos.get_material_key()
-           << "\npawn key: "     << pos.get_pawn_key() << endl;
+          cout << "key: " << hex     << pos.get_key()
+               << "\nmaterial key: " << pos.get_material_key()
+               << "\npawn key: "     << pos.get_pawn_key() << endl;
 #endif
 
 #ifdef GPSFISH
-  else if ( token == "ignore_moves"){
-      ignore_moves.clear();
-      while(is >> token) ignore_moves.push_back(move_from_uci(pos, token));
-  }
-#endif    
-#ifdef GPSFISH
-  else if (token == "usi")
-#else
-  else if (token == "uci")
+      else if ( token == "ignore_moves"){
+          ignore_moves.clear();
+          while(is >> token) ignore_moves.push_back(move_from_uci(pos, token));
+      }
 #endif
-      cout << "id name "     << engine_name()
-           << "\nid author " << engine_authors()
-#ifdef GPSFISH
-           << Options.print_all()
-           << "\nusiok"      << endl;
-#else
-           << "\n"           << Options.print_all()
-           << "\nuciok"      << endl;
-#endif
-#ifdef GPSFISH
-  else if (token == "stop"){
-  }
-  else if (token == "echo"){
-      is >> token;
-      cout << token << endl;
-  }
-  else if (token == "show_tree"){
-      show_tree(pos);
-  }
-#endif
-  else
-      cout << "Unknown command: " << cmd << endl;
 
-  return true;
+#ifdef GPSFISH
+      else if (token == "usi")
+#else
+      else if (token == "uci")
+#endif
+          cout << "id name "     << engine_name()
+               << "\nid author " << engine_authors()
+#ifdef GPSFISH
+               << Options.print_all()
+               << "\nusiok"      << endl;
+#else
+               << "\n"           << Options.print_all()
+               << "\nuciok"      << endl;
+#endif
+
+#ifdef GPSFISH
+      else if (token == "stop"){
+      }
+      else if (token == "echo"){
+          is >> token;
+          cout << token << endl;
+      }
+      else if (token == "show_tree"){
+          show_tree(pos);
+      }
+#endif
+
+      else
+          cout << "Unknown command: " << cmd << endl;
+  }
 }
 
 
@@ -197,7 +202,7 @@ namespace {
 
     if (token == "startpos")
     {
-        fen = StartPositionFEN;
+        fen = StarFEN;
         is >> token; // Consume "moves" token if any
     }
     else if (token == FEN_TOKEN)
