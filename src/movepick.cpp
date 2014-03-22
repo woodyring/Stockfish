@@ -258,7 +258,7 @@ void MovePicker::score_captures() {
 #ifdef GPSFISH
           cur->score ++; // XXX , calc correct value ?
 #else
-          cur->score += QueenValueMidgame;
+          cur->score += piece_value_midgame(Piece(promotion_piece_type(m)));
 #endif
   }
 }
@@ -346,8 +346,7 @@ Move MovePicker::get_next_move() {
               if (seeValue >= captureThreshold)
                   return move;
 
-              // Losing capture, move it to the tail of the array, note
-              // that move has now been already checked for pseudo legality.
+              // Losing capture, move it to the tail of the array
               (--badCaptures)->move = move;
               badCaptures->score = seeValue;
           }
