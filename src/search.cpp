@@ -471,14 +471,15 @@ bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]) {
 
   static Book book; // Defined static to initialize the PRNG only once
 
+  // Save "search start" time and reset elapsed time to zero
+  elapsed_search_time(get_system_time());
+
   // Initialize global search-related variables
   StopOnPonderhit = StopRequest = QuitRequest = AspirationFailLow = false;
-  elapsed_search_time(get_system_time());
   Limits = limits;
-  TimeMgr.init(Limits, pos.startpos_ply_counter());
 
 #ifndef GPSFISH
-  // Set output stream in normal or chess960 mode
+  // Set output stream mode: normal or chess960. Castling notation is different
   cout << set960(pos.is_chess960());
 #endif
 
@@ -506,23 +507,7 @@ bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]) {
       }
   }
 
-  // Set best timer interval to avoid lagging under time pressure. Timer is
-  // used to check for remaining available thinking time.
-  if (TimeMgr.available_time())
-      Threads.set_timer(std::min(100, std::max(TimeMgr.available_time() / 8, 20)));
-  else
-      Threads.set_timer(100);
-
-  // Read UCI options
-  UCIMultiPV = Options["MultiPV"].value<int>();
-  SkillLevel = Options["Skill Level"].value<int>();
-#ifdef GPSFISH
-  if(pos.side_to_move()==osl::BLACK)
-    DrawValue = (Value)(Options["DrawValue"].value<int>()*2);
-  else
-    DrawValue = -(Value)(Options["DrawValue"].value<int>()*2);
-#endif
-
+  // Read UCI options: GUI could change UCI parameters during the game
   read_evaluation_uci_options(pos.side_to_move());
   Threads.read_uci_options();
 
@@ -535,21 +520,13 @@ bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]) {
       TT.clear();
   }
 
+  UCIMultiPV = Options["MultiPV"].value<int>();
+  SkillLevel = Options["Skill Level"].value<int>();
+
   // Do we have to play with skill handicap? In this case enable MultiPV that
   // we will use behind the scenes to retrieve a set of possible moves.
   SkillLevelEnabled = (SkillLevel < 20);
   MultiPV = (SkillLevelEnabled ? std::max(UCIMultiPV, 4) : UCIMultiPV);
-
-  // Wake up needed threads and reset maxPly counter
-  for (int i = 0; i < Threads.size(); i++)
-  {
-      Threads[i].wake_up();
-      Threads[i].maxPly = 0;
-  }
-
-  // Start async mode to catch UCI commands sent to us while searching,
-  // like "quit", "stop", etc.
-  Threads.start_listener();
 
   // Write current search header to log file
   if (Options["Use Search Log"].value<bool>())
@@ -564,9 +541,38 @@ bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]) {
           << endl;
   }
 
+  // Wake up needed threads and reset maxPly counter
+  for (int i = 0; i < Threads.size(); i++)
+  {
+      Threads[i].maxPly = 0;
+      Threads[i].wake_up();
+  }
+
+  // Set best timer interval to avoid lagging under time pressure. Timer is
+  // used to check for remaining available thinking time.
+   TimeMgr.init(Limits, pos.startpos_ply_counter());
+
+  if (TimeMgr.available_time())
+      Threads.set_timer(std::min(100, std::max(TimeMgr.available_time() / 8, 20)));
+  else
+      Threads.set_timer(100);
+
+  // Start async mode to catch UCI commands sent to us while searching,
+  // like "quit", "stop", etc.
+  Threads.start_listener();
+
   // We're ready to start thinking. Call the iterative deepening loop function
   Move ponderMove = MOVE_NONE;
   Move bestMove = id_loop(pos, searchMoves, &ponderMove);
+
+  // From now on any UCI command will be read in-sync with Threads.getline()
+  Threads.stop_listener();
+
+  // Stop timer, no need to check for available time any more
+  Threads.set_timer(0);
+
+  // This makes all the slave threads to go to sleep, if not already sleeping
+  Threads.set_size(1);
 
   // Write current search final statistics to log file
   if (Options["Use Search Log"].value<bool>())
@@ -595,17 +601,8 @@ bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]) {
 #endif
   }
 
-  // This makes all the threads to go to sleep
-  Threads.set_size(1);
-
-  // From now on any UCI command will be read in-sync with Threads.getline()
-  Threads.stop_listener();
-
-  // Stop timer, no need to check for available time any more
-  Threads.set_timer(0);
-
-  // If we are pondering or in infinite search, we shouldn't print the
-  // best move before we are told to do so.
+  // If we are pondering or in infinite search, we shouldn't print the best move
+  // before we are told to do so.
   if (Limits.ponder || Limits.infinite)
       wait_for_stop_or_ponderhit();
 
@@ -2401,6 +2398,7 @@ split_point_start: // At split points actual search starts from here
     return s.str();
   }
 
+
   // pv_to_uci() returns a string with information on the current PV line
   // formatted according to UCI specification.
 
@@ -2423,6 +2421,7 @@ split_point_start: // At split points actual search starts from here
 
     return s.str();
   }
+
 
   // depth_to_uci() returns a string with information on the current depth and
   // seldepth formatted according to UCI specification.
@@ -2473,6 +2472,7 @@ split_point_start: // At split points actual search starts from here
 
     return s.str();
   }
+
 
   // pretty_pv() creates a human-readable string from a position and a PV.
   // It is used to write search information to the log file (which is created
@@ -2555,6 +2555,7 @@ split_point_start: // At split points actual search starts from here
 
   // When playing with strength handicap choose best move among the MultiPV set
   // using a statistical rule dependent on SkillLevel. Idea by Heinz van Saanen.
+
   void do_skill_level(Move* best, Move* ponder) {
 
     assert(MultiPV > 1);
@@ -2738,6 +2739,7 @@ split_point_start: // At split points actual search starts from here
     }
   }
 #endif
+
   // insert_pv_in_tt() is called at the end of a search iteration, and inserts
   // the PV back into the TT. This makes sure the old PV moves are searched
   // first, even if the old TT entries have been overwritten.
