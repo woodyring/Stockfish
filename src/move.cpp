@@ -55,10 +55,10 @@ const string move_to_uci(Move m, bool chess960) {
   if (m == MOVE_NULL)
       return "0000";
 
-  if (move_is_castle(m) && !chess960)
+  if (is_castle(m) && !chess960)
       to = from + (file_of(to) == FILE_H ? Square(2) : -Square(2));
 
-  if (move_is_promotion(m))
+  if (is_promotion(m))
       promotion = char(tolower(piece_type_to_char(promotion_piece_type(m))));
 
   return square_to_string(from) + square_to_string(to) + promotion;
@@ -101,7 +101,7 @@ const string move_to_san(Position& pos, Move m) {
   if (m == MOVE_NULL)
       return "(null)";
 
-  assert(move_is_ok(m));
+  assert(is_ok(m));
 
   Bitboard attackers;
   bool ambiguousMove, ambiguousFile, ambiguousRank;
@@ -110,7 +110,7 @@ const string move_to_san(Position& pos, Move m) {
   PieceType pt = type_of(pos.piece_on(from));
   string san;
 
-  if (move_is_castle(m))
+  if (is_castle(m))
       san = (move_to(m) < move_from(m) ? "O-O-O" : "O-O");
   else
   {
@@ -148,7 +148,7 @@ const string move_to_san(Position& pos, Move m) {
           }
       }
 
-      if (pos.move_is_capture(m))
+      if (pos.is_capture(m))
       {
           if (pt == PAWN)
               san += file_to_char(file_of(from));
@@ -158,7 +158,7 @@ const string move_to_san(Position& pos, Move m) {
 
       san += square_to_string(to);
 
-      if (move_is_promotion(m))
+      if (is_promotion(m))
       {
           san += '=';
           san += piece_type_to_char(promotion_piece_type(m));
