@@ -277,8 +277,7 @@ private:
   void clear();
   void put_piece(Piece p, Square s);
 #ifndef GPSFISH
-  void set_castle(int f, Square ksq, Square rsq);
-  void set_castling_rights(char token);
+  void set_castle_right(Square ksq, Square rsq);
 #endif
   bool move_is_legal(const Move m) const;
 
