@@ -254,7 +254,7 @@ namespace {
   int current_search_time(int set = 0);
   std::string score_to_uci(Value v, Value alpha, Value beta);
   std::string speed_to_uci(int64_t nodes);
-  std::string pv_to_uci(Move pv[], int pvNum);
+  std::string pv_to_uci(Move pv[], int pvNum, bool chess960);
   std::string depth_to_uci(Depth depth);
   void poll(const Position& pos);
   void wait_for_stop_or_ponderhit();
@@ -890,7 +890,7 @@ namespace {
                          << depth_to_uci(depth * ONE_PLY)
                          << score_to_uci(Rml[i].pv_score, alpha, beta)
                          << speed_to_uci(pos.nodes_searched())
-                         << pv_to_uci(Rml[i].pv, i + 1) << endl;
+                         << pv_to_uci(Rml[i].pv, i + 1, pos.is_chess960()) << endl;
 
             // In case of failing high/low increase aspiration window and research,
             // otherwise exit the fail high/low loop.
@@ -1685,7 +1685,7 @@ split_point_start: // At split points actual search starts from here
                       << depth_to_uci(depth)
                       << score_to_uci(Rml[0].pv_score, alpha, beta)
                       << speed_to_uci(pos.nodes_searched())
-                      << pv_to_uci(Rml[0].pv, 0 + 1) << endl;
+                      << pv_to_uci(Rml[0].pv, 0 + 1, false) << endl;
 #endif
 
               // Update alpha. In multi-pv we don't use aspiration window, so set
@@ -1721,7 +1721,7 @@ split_point_start: // At split points actual search starts from here
     // If one move was excluded return fail low score.
     if (!SpNode && !moveCount)
 #ifdef GPSFISH
-      return excludedMove!=MOVE_NONE ? oldAlpha : (inCheck ? (move_is_pawn_drop((ss-1)->currentMove) ? value_mate_in(ss->ply) : value_mated_in(ss->ply) ): VALUE_DRAW);
+        return excludedMove!=MOVE_NONE ? oldAlpha : (inCheck ? (move_is_pawn_drop((ss-1)->currentMove) ? value_mate_in(ss->ply) : value_mated_in(ss->ply) ): VALUE_DRAW);
 #else
         return excludedMove ? oldAlpha : inCheck ? value_mated_in(ss->ply) : VALUE_DRAW;
 #endif
@@ -2415,14 +2415,14 @@ split_point_start: // At split points actual search starts from here
   // pv_to_uci() returns a string with information on the current PV line
   // formatted according to UCI specification.
 
-  std::string pv_to_uci(Move pv[], int pvNum) {
+  std::string pv_to_uci(Move pv[], int pvNum, bool chess960) {
 
     std::stringstream s;
 
 #ifdef GPSFISH
     s << " pv ";
 #else
-    s << " multipv " << pvNum << " pv ";
+    s << " multipv " << pvNum << " pv " << set960(chess960);
 #endif
 
     for ( ; *pv != MOVE_NONE; pv++)

@@ -244,8 +244,8 @@ public:
   bool opposite_colored_bishops() const;
 #ifndef GPSFISH
   bool has_pawn_on_7th(Color c) const;
-  bool is_chess960() const;
 #endif
+  bool is_chess960() const;
 
   // Current thread ID searching on the position
   int thread() const;
@@ -544,11 +544,15 @@ inline bool Position::opposite_colored_bishops() const {
 inline bool Position::has_pawn_on_7th(Color c) const {
   return pieces(PAWN, c) & rank_bb(relative_rank(c, RANK_7));
 }
+#endif
 
 inline bool Position::is_chess960() const {
+#ifdef GPSFISH
+  return false;
+#else
   return chess960;
-}
 #endif
+}
 
 inline bool Position::move_is_capture_or_promotion(Move m) const {
 
