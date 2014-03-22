@@ -854,17 +854,17 @@ namespace {
         }
 
 #ifdef GPSFISH_DFPN
-	if (pos.nodes_searched() > next_checkmate
-	    && current_search_time()+1000
-	    < std::max(Limits.maxTime,TimeMgr.maximum_time())*4/5) {
-	    run_checkmate(depth, next_checkmate, pos);
-	    next_checkmate *= 2;
-	    if (Rml[0].pv_score <= VALUE_MATED_IN_PLY_MAX) {
-		depth -= std::min(4, (int)depth/2);
-		alpha = Max(alpha - aspirationDelta*63, -VALUE_INFINITE);
-		beta  = Min(beta  + aspirationDelta*63,  VALUE_INFINITE);
-	    }
-	}
+        if ((uint64_t)pos.nodes_searched() > next_checkmate
+                && current_search_time()+1000
+                < std::max(Limits.maxTime,TimeMgr.maximum_time())*4/5) {
+            run_checkmate(depth, next_checkmate, pos);
+            next_checkmate *= 2;
+            if (Rml[0].pv_score <= VALUE_MATED_IN_PLY_MAX) {
+                depth -= std::min(4, (int)depth/2);
+                alpha = Max(alpha - aspirationDelta*63, -VALUE_INFINITE);
+                beta  = Min(beta  + aspirationDelta*63,  VALUE_INFINITE);
+            }
+        }
 #endif
 
         // Start with a small aspiration window and, in case of fail high/low,
@@ -931,7 +931,8 @@ namespace {
         else if (bestMove != easyMove)
             easyMove = MOVE_NONE;
 
-#ifdef GPSFISH
+#if 0 //def GPSFISH
+        // removed a6fc3d6ee501911375b29ebdb09638eb6789d091
 	if (! Limits.ponder
 	    && !StopRequest
 	    && depth >= 5
@@ -941,16 +942,10 @@ namespace {
 	    StopRequest = true;
 	}
 #endif
+
         // Check for some early stop condition
         if (!StopRequest && Limits.useTimeManagement())
         {
-#ifndef GPSFISH
-            // Stop search early when the last two iterations returned a mate score
-            if (   depth >= 5
-                && abs(bestValues[depth])     >= VALUE_MATE_IN_PLY_MAX
-                && abs(bestValues[depth - 1]) >= VALUE_MATE_IN_PLY_MAX)
-                StopRequest = true;
-#endif
             // Stop search early if one move seems to be much better than the
             // others or if there is only a single legal move. Also in the latter
             // case we search up to some depth anyway to get a proper score.
@@ -1607,7 +1602,6 @@ split_point_start: // At split points actual search starts from here
           }
       }
 #ifdef GPSFISH
-undo:
       --pos.eval;
 	}
 	);
