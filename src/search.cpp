@@ -78,7 +78,7 @@ namespace {
   const bool FakeSplit = false;
 
   // Different node types, used as template parameter
-  enum NodeType { Root, PV, NonPV, SplitPointPV, SplitPointNonPV };
+  enum NodeType { Root, PV, NonPV, SplitPointRoot, SplitPointPV, SplitPointNonPV };
 
   // RootMove struct is used for moves at the root of the tree. For each root
   // move, we store a score, a node count, and a PV (really a refutation
@@ -1005,9 +1005,9 @@ namespace {
   template <NodeType NT>
   Value search(Position& pos, SearchStack* ss, Value alpha, Value beta, Depth depth) {
 
-    const bool PvNode   = (NT == PV || NT == Root || NT == SplitPointPV);
-    const bool SpNode   = (NT == SplitPointPV || NT == SplitPointNonPV);
-    const bool RootNode = (NT == Root);
+    const bool PvNode   = (NT == PV || NT == Root || NT == SplitPointPV || NT == SplitPointRoot);
+    const bool SpNode   = (NT == SplitPointPV || NT == SplitPointNonPV || NT == SplitPointRoot);
+    const bool RootNode = (NT == Root || NT == SplitPointRoot);
 
     assert(alpha >= -VALUE_INFINITE && alpha <= VALUE_INFINITE);
     assert(beta > alpha && beta <= VALUE_INFINITE);
@@ -1428,7 +1428,7 @@ split_point_start: // At split points actual search starts from here
 
           // If it's time to send nodes info, do it here where we have the
           // correct accumulated node counts searched by each thread.
-          if (SendSearchedNodes)
+          if (!SpNode && SendSearchedNodes)
           {
               SendSearchedNodes = false;
               cout << "info" << speed_to_uci(pos.nodes_searched()) << endl;
@@ -1436,7 +1436,7 @@ split_point_start: // At split points actual search starts from here
 
           // For long searches send current move info to GUI
 #ifndef GPSFISH
-          if (current_search_time() > 2000)
+          if (pos.thread() == 0 && current_search_time() > 2000)
               cout << "info" << depth_to_uci(depth)
                    << " currmove " << move
                    << " currmovenumber " << moveCount + MultiPVIteration << endl;
@@ -1562,9 +1562,9 @@ split_point_start: // At split points actual search starts from here
               pos.eval->update(pos.osl_state,move);
               assert(pos.eval->value()==eval_t(pos.osl_state,false).value());
 
-    const bool PvNode   = (NT == PV || NT == Root || NT == SplitPointPV);
-    const bool SpNode   = (NT == SplitPointPV || NT == SplitPointNonPV);
-    const bool RootNode = (NT == Root);
+    const bool PvNode   = (NT == PV || NT == Root || NT == SplitPointPV || NT == SplitPointRoot);
+    const bool SpNode   = (NT == SplitPointPV || NT == SplitPointNonPV || NT == SplitPointRoot);
+    const bool RootNode = (NT == Root || NT == SplitPointRoot);
 
 #else
       // Step 14. Make the move
@@ -1634,25 +1634,6 @@ split_point_start: // At split points actual search starts from here
           alpha = sp->alpha;
       }
 
-      if (value > bestValue)
-      {
-          bestValue = value;
-          ss->bestMove = move;
-
-          if (  !RootNode
-              && PvNode
-              && value > alpha
-              && value < beta) // We want always alpha < beta
-              alpha = value;
-
-          if (SpNode && !thread.cutoff_occurred())
-          {
-              sp->bestValue = value;
-              sp->ss->bestMove = move;
-              sp->alpha = alpha;
-              sp->is_betaCutoff = (value >= beta);
-          }
-      }
 
       if (RootNode)
       {
@@ -1680,7 +1661,6 @@ split_point_start: // At split points actual search starts from here
               // the best move changes frequently, we allocate some more time.
               if (!isPvMove && MultiPV == 1)
                   Rml.bestMoveChanges++;
-
 #if 0 //def GPSFISH
               if (depth >= 5*ONE_PLY
                       && (!isPvMove || current_search_time() >= 5000))
@@ -1691,9 +1671,6 @@ split_point_start: // At split points actual search starts from here
                       << pv_to_uci(&rm->pv[0], 0 + 1, false) << endl;
 #endif
 
-              // Update alpha
-              if (value > alpha)
-                  alpha = value;
           }
           else
               // All other moves but the PV are set to the lowest value, this
@@ -1702,6 +1679,25 @@ split_point_start: // At split points actual search starts from here
               rm->score = -VALUE_INFINITE;
 
       } // RootNode
+
+      if (value > bestValue)
+      {
+          bestValue = value;
+          ss->bestMove = move;
+
+          if (   PvNode
+              && value > alpha
+              && value < beta) // We want always alpha < beta
+              alpha = value;
+
+          if (SpNode && !thread.cutoff_occurred())
+          {
+              sp->bestValue = value;
+              sp->ss->bestMove = move;
+              sp->alpha = alpha;
+              sp->is_betaCutoff = (value >= beta);
+          }
+      }
 
       // Step 19. Check for split
       if (   !RootNode
