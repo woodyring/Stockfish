@@ -17,7 +17,6 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <cstdio>
 #include <iostream>
 #include <string>
 
@@ -85,12 +84,6 @@ int setup_network(int *pargc, char* argv[]) {
 
 int main(int argc, char* argv[]) {
 
-  // Disable IO buffering for C and C++ standard libraries
-  setvbuf(stdin, NULL, _IONBF, 0);
-  setvbuf(stdout, NULL, _IONBF, 0);
-  cout.rdbuf()->pubsetbuf(NULL, 0);
-  cin.rdbuf()->pubsetbuf(NULL, 0);
-
 #if defined(GPSFISH) && !defined(_WIN32)
   setup_network(argc,argv);
 #endif
@@ -103,6 +96,7 @@ int main(int argc, char* argv[]) {
   osl::OslConfig::home(GPSFISH_HOME);
 #  endif
 #endif
+
 #ifndef GPSFISH
   init_bitboards();
 #endif
@@ -122,7 +116,7 @@ int main(int argc, char* argv[]) {
 
       uci_loop(); // Enter the UCI loop and wait for user input
   }
-  else if (string(argv[1]) == "bench" && argc < 8)
+  else if (string(argv[1]) == "bench")
       benchmark(argc, argv);
 
   else
