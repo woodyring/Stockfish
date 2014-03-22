@@ -2273,7 +2273,7 @@ bool Position::pos_is_ok(int* failedStep) const {
 }
 #ifdef GPSFISH
 bool Position::eval_is_ok() const {
-  if(!is_ok()) return false;
+  if(!pos_is_ok()) return false;
   if(!eval) return true;
   int ret1=eval_t(osl_state,false).value();
   int ret2=eval->value();
