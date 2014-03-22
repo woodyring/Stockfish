@@ -204,7 +204,7 @@ Position::Position(const Position& pos, int th) {
   eval=NULL;
 #endif
 
-  assert(is_ok());
+  assert(pos_is_ok());
 }
 
 Position::Position(const string& fen, bool isChess960, int th) {
@@ -328,7 +328,7 @@ void Position::from_fen(const string& fenStr, bool isChess960) {
   st->npMaterial[BLACK] = compute_non_pawn_material(BLACK);
 #endif
 
-  assert(is_ok());
+  assert(pos_is_ok());
 }
 
 #ifndef GPSFISH
@@ -1210,7 +1210,7 @@ void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveI
   sideToMove = flip(sideToMove);
   st->value += (sideToMove == WHITE ?  TempoValue : -TempoValue);
 
-  assert(is_ok());
+  assert(pos_is_ok());
 }
 
 
@@ -1373,7 +1373,7 @@ void Position::do_castle_move(Move m) {
   sideToMove = flip(sideToMove);
   st->value += (sideToMove == WHITE ?  TempoValue : -TempoValue);
 
-  assert(is_ok());
+  assert(pos_is_ok());
 }
 
 
@@ -1474,7 +1474,7 @@ void Position::undo_move(Move m) {
   // Finally point our state pointer back to the previous state
   st = st->previous;
 
-  assert(is_ok());
+  assert(pos_is_ok());
 }
 
 
@@ -1546,7 +1546,7 @@ void Position::undo_castle_move(Move m) {
   // Finally point our state pointer back to the previous state
   st = st->previous;
 
-  assert(is_ok());
+  assert(pos_is_ok());
 }
 
 
@@ -1581,7 +1581,7 @@ void Position::do_null_move(StateInfo& backupSt) {
   st->pliesFromNull = 0;
   st->value += (sideToMove == WHITE) ?  TempoValue : -TempoValue;
 
-  assert(is_ok());
+  assert(pos_is_ok());
 }
 
 
@@ -1603,7 +1603,7 @@ void Position::undo_null_move() {
   sideToMove = flip(sideToMove);
   st->rule50--;
 
-  assert(is_ok());
+  assert(pos_is_ok());
 }
 #endif
 
@@ -2085,14 +2085,14 @@ void Position::flip_me() {
   st->npMaterial[WHITE] = compute_non_pawn_material(WHITE);
   st->npMaterial[BLACK] = compute_non_pawn_material(BLACK);
 
-  assert(is_ok());
+  assert(pos_is_ok());
 }
 #endif
 
-/// Position::is_ok() performs some consitency checks for the position object.
+/// Position::pos_is_ok() performs some consitency checks for the position object.
 /// This is meant to be helpful when debugging.
 
-bool Position::is_ok(int* failedStep) const {
+bool Position::pos_is_ok(int* failedStep) const {
 
 #ifndef MINIMAL
   // What features of the position should be verified?
