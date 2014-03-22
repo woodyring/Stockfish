@@ -20,8 +20,9 @@
 #if !defined(HISTORY_H_INCLUDED)
 #define HISTORY_H_INCLUDED
 
-#include <cstring>
 #include "types.h"
+#include <cstring>
+#include <algorithm>
 
 #ifdef GPSFISH
 #define VALUE_HISTORY(p,to) (history[ptypeOIndex(p)][to.index()])
@@ -82,7 +83,7 @@ inline Value History::gain(Piece p, Square to) const {
 }
 
 inline void History::update_gain(Piece p, Square to, Value g) {
-  VALUE_MAXGAIN(p,to) = Max(g, VALUE_MAXGAIN(p,to) - 1);
+  VALUE_MAXGAIN(p,to) = std::max(g, VALUE_MAXGAIN(p,to) - 1);
 }
 
 #endif // !defined(HISTORY_H_INCLUDED)
