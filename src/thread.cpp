@@ -318,7 +318,7 @@ Value ThreadsManager::split(Position& pos, SearchStack* ss, Value alpha, Value b
           threads[i].splitPoint = sp;
 
           // This makes the slave to exit from idle_loop()
-          threads[i].state = Thread::WORKISWAITING;
+          threads[i].state = Thread::SEARCHING;
 
           if (useSleepingThreads)
               threads[i].wake_up();
@@ -332,7 +332,6 @@ Value ThreadsManager::split(Position& pos, SearchStack* ss, Value alpha, Value b
 
   masterThread.splitPoint = sp;
   masterThread.activeSplitPoints++;
-  masterThread.state = Thread::WORKISWAITING;
 
   // Everything is set up. The master thread enters the idle loop, from
   // which it will instantly launch a search, because its state is

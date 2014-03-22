@@ -2924,11 +2924,9 @@ void Thread::idle_loop(SplitPoint* sp) {
       }
 
       // If this thread has been assigned work, launch a search
-      if (state == Thread::WORKISWAITING)
+      if (state == Thread::SEARCHING)
       {
           assert(!do_terminate);
-
-          state = Thread::SEARCHING;
 
           // Copy split point position and search stack and call search()
 #ifdef MOVE_STACK_REJECTIONS
