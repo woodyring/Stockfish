@@ -572,6 +572,10 @@ bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]) {
           << endl;
   }
 
+  // Start async mode to catch UCI commands sent to us while searching,
+  // like "quit", "stop", etc.
+  Threads.start_listener();
+
   // We're ready to start thinking. Call the iterative deepening loop function
   Move ponderMove = MOVE_NONE;
   Move bestMove = id_loop(pos, searchMoves, &ponderMove);
@@ -605,6 +609,9 @@ bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]) {
 
   // This makes all the threads to go to sleep
   Threads.set_size(1);
+
+  // From now on any UCI command will be read in-sync with Threads.getline()
+  Threads.stop_listener();
 
   // If we are pondering or in infinite search, we shouldn't print the
   // best move before we are told to do so.
@@ -2550,45 +2557,6 @@ split_point_start: // At split points actual search starts from here
     static int lastInfoTime;
     int t = current_search_time();
 
-    //  Poll for input
-    if (input_available())
-    {
-        // We are line oriented, don't read single chars
-        string command;
-
-        if (!std::getline(std::cin, command) || command == "quit")
-        {
-            // Quit the program as soon as possible
-            Limits.ponder = false;
-            QuitRequest = StopRequest = true;
-            return;
-        }
-#ifdef GPSFISH
-        else if (command.size() >= 5 && string(command,0,5) == "echo "){
-            cout << string(command,5) << endl;
-        }
-        else if (command == "stop" || command.find("gameover")==0)
-#else
-        else if (command == "stop")
-#endif
-        {
-            // Stop calculating as soon as possible, but still send the "bestmove"
-            // and possibly the "ponder" token when finishing the search.
-            Limits.ponder = false;
-            StopRequest = true;
-        }
-        else if (command == "ponderhit")
-        {
-            // The opponent has played the expected move. GUI sends "ponderhit" if
-            // we were told to ponder on the same move the opponent has played. We
-            // should continue searching but switching from pondering to normal search.
-            Limits.ponder = false;
-
-            if (StopOnPonderhit)
-                StopRequest = true;
-        }
-    }
-
     // Print search information
     if (t < 1000)
         lastInfoTime = 0;
@@ -2633,23 +2601,19 @@ split_point_start: // At split points actual search starts from here
 
   void wait_for_stop_or_ponderhit() {
 
-    string command;
+    string cmd;
 
     // Wait for a command from stdin
-    while (   std::getline(std::cin, command)
-	      && command.find("gameover") != 0
-	      && command != "ponderhit" && command != "stop" && command != "quit")
 #ifdef GPSFISH
-    {
-        if (command.size() >= 5 && string(command,0,5) == "echo ")
-            cout << string(command,5) << endl;
-    }
+    while (cmd.find("gameover") != 0
+        && cmd != "ponderhit" && cmd != "stop" && cmd != "quit")
 #else
-    {};
+    while (cmd != "ponderhit" && cmd != "stop" && cmd != "quit")
 #endif
+        Threads.getline(cmd);
 
-    if (command != "ponderhit" && command != "stop" && command.find("gameover")!=0)
-        QuitRequest = true; // Must be "quit" or getline() returned false
+    if (cmd == "quit")
+        QuitRequest = true;
   }
 
 
@@ -3001,63 +2965,100 @@ void Thread::idle_loop(SplitPoint* sp) {
 
 #ifdef GPSFISHONE
 void do_checkmate(Position& pos, int mateTime){
-  cout << "checkmate notimplemented";
-  return;
+    cout << "checkmate notimplemented";
+    return;
 }
 #else
 void do_checkmate(Position& pos, int mateTime){
-  QuitRequest=false;
-  osl::state::NumEffectState state(pos.osl_state);
+    QuitRequest=false;
+    osl::state::NumEffectState state(pos.osl_state);
 #if (! defined ALLOW_KING_ABSENCE)
-  if (state.kingSquare(state.turn()).isPieceStand()) {
-    cout << "checkmate notimplemented";
-    return;
-  }
+    if (state.kingSquare(state.turn()).isPieceStand()) {
+        cout << "checkmate notimplemented";
+        return;
+    }
 #endif
-  osl::checkmate::DfpnTable table(state.turn());
-  const osl::PathEncoding path(state.turn());
-  osl::Move checkmate_move;
-  osl::stl::vector<osl::Move> pv;
-  osl::checkmate::ProofDisproof result;
-  osl::checkmate::Dfpn dfpn;
-  dfpn.setTable(&table);
-  double seconds=(double)mateTime/1000.0;
-  osl::misc::MilliSeconds start = osl::misc::MilliSeconds::now();
-  size_t step = 100000, total = 0;
-  double scale = 1.0; 
-  for (size_t limit = step; true; limit = static_cast<size_t>(step*scale)) {
-    result = dfpn.
-      hasCheckmateMove(state, osl::hash::HashKey(state), path, limit, checkmate_move, Move(), &pv);
-    double elapsed = start.elapsedSeconds();
-    double memory = osl::OslConfig::memoryUseRatio();
-    uint64_t node_count = dfpn.nodeCount();
-    cout << "info time " << static_cast<int>(elapsed*1000)
-       << " nodes " << total+node_count << " nps " << static_cast<int>(node_count/elapsed)
-       << " hashfull " << static_cast<int>(memory*1000) << "\n";
-    poll(pos);
-    if (result.isFinal() || elapsed >= seconds || memory > 0.9 || QuitRequest || StopRequest)
-      break;
-    total += limit;
-    // estimate: total * std::min(seconds/elapsed, 1.0/memory)
-    // next: (estimate - total) / 2 + total
-    scale = (total * std::min(seconds/elapsed, 1.0/memory) - total) / 2.0 / step;
-    scale = std::max(std::min(16.0, scale), 0.1);
-  }
-  if (! result.isFinal()) {
-    cout << "checkmate timeout\n";
-    return;
-  }
-  if (! result.isCheckmateSuccess()) {
-    cout << "checkmate nomate\n";
-    return;
-  }
-  std::string msg = "checkmate";
-  for (size_t i=0; i<pv.size(); ++i)
-    msg += " " + move_to_uci(pv[i],false);
-  cout << msg << "\n" << std::flush;
+    osl::checkmate::DfpnTable table(state.turn());
+    const osl::PathEncoding path(state.turn());
+    osl::Move checkmate_move;
+    osl::stl::vector<osl::Move> pv;
+    osl::checkmate::ProofDisproof result;
+    osl::checkmate::Dfpn dfpn;
+    dfpn.setTable(&table);
+    double seconds=(double)mateTime/1000.0;
+    osl::misc::MilliSeconds start = osl::misc::MilliSeconds::now();
+    size_t step = 100000, total = 0;
+    double scale = 1.0; 
+    for (size_t limit = step; true; limit = static_cast<size_t>(step*scale)) {
+        result = dfpn.
+            hasCheckmateMove(state, osl::hash::HashKey(state), path, limit, checkmate_move, Move(), &pv);
+        double elapsed = start.elapsedSeconds();
+        double memory = osl::OslConfig::memoryUseRatio();
+        uint64_t node_count = dfpn.nodeCount();
+        cout << "info time " << static_cast<int>(elapsed*1000)
+            << " nodes " << total+node_count << " nps " << static_cast<int>(node_count/elapsed)
+            << " hashfull " << static_cast<int>(memory*1000) << "\n";
+        poll(pos);
+        if (result.isFinal() || elapsed >= seconds || memory > 0.9 || QuitRequest || StopRequest)
+            break;
+        total += limit;
+        // estimate: total * std::min(seconds/elapsed, 1.0/memory)
+        // next: (estimate - total) / 2 + total
+        scale = (total * std::min(seconds/elapsed, 1.0/memory) - total) / 2.0 / step;
+        scale = std::max(std::min(16.0, scale), 0.1);
+    }
+    if (! result.isFinal()) {
+        cout << "checkmate timeout\n";
+        return;
+    }
+    if (! result.isCheckmateSuccess()) {
+        cout << "checkmate nomate\n";
+        return;
+    }
+    std::string msg = "checkmate";
+    for (size_t i=0; i<pv.size(); ++i)
+        msg += " " + move_to_uci(pv[i],false);
+    cout << msg << "\n" << std::flush;
 }
 #endif
 
 void show_tree(Position &pos){
-  show_tree_rec(pos);
+    show_tree_rec(pos);
+}
+
+// ThreadsManager::do_uci_async_cmd() processes the commands from GUI received
+// by listener thread while the other threads are searching.
+
+void ThreadsManager::do_uci_async_cmd(const std::string& cmd) {
+
+  if (cmd == "quit")
+  {
+      // Quit the program as soon as possible
+      Limits.ponder = false;
+      QuitRequest = StopRequest = true;
+  }
+#ifdef GPSFISH
+  else if (cmd.size() >= 5 && string(cmd,0,5) == "echo "){
+      cout << string(cmd,5) << endl;
+  }
+  else if (cmd == "stop" || cmd.find("gameover")==0)
+#else
+  else if (cmd == "stop")
+#endif
+  {
+      // Stop calculating as soon as possible, but still send the "bestmove"
+      // and possibly the "ponder" token when finishing the search.
+      Limits.ponder = false;
+      StopRequest = true;
+  }
+  else if (cmd == "ponderhit")
+  {
+      // The opponent has played the expected move. GUI sends "ponderhit" if
+      // we were told to ponder on the same move the opponent has played. We
+      // should continue searching but switching from pondering to normal search.
+      Limits.ponder = false;
+
+      if (StopOnPonderhit)
+          StopRequest = true;
+  }
 }

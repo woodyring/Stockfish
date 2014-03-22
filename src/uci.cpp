@@ -28,6 +28,7 @@
 #include "move.h"
 #include "position.h"
 #include "search.h"
+#include "thread.h"
 #include "ucioption.h"
 
 #ifdef GPSFISH
@@ -84,8 +85,10 @@ void uci_loop() {
   string cmd, token;
   bool quit = false;
 
-  while (!quit && getline(cin, cmd))
+  while (!quit)
   {
+      Threads.getline(cmd);
+
       istringstream is(cmd);
 
       is >> skipws >> token;
