@@ -66,10 +66,10 @@ struct StateInfo {
   StateInfo* previous;
 #else
   Key pawnKey, materialKey;
-  int castleRights, rule50, gamePly, pliesFromNull;
-  Square epSquare;
-  Score value;
   Value npMaterial[2];
+  int castleRights, rule50, pliesFromNull;
+  Score value;
+  Square epSquare;
 
   Key key;
   Bitboard checkersBB;
@@ -237,8 +237,8 @@ public:
 #endif
   template<bool SkipRepetition> bool is_draw() const;
 
-  // Number of plies from starting position
-  int game_ply() const;
+  // Plies from start position to the beginning of search
+  int startpos_ply_counter() const;
 
   // Other properties of the position
   bool opposite_colored_bishops() const;
@@ -327,6 +327,7 @@ private:
 #endif
   StateInfo startState;
   int64_t nodes;
+  int startPosPly;
   Color sideToMove;
   int threadID;
   StateInfo* st;
@@ -528,8 +529,8 @@ inline bool Position::move_is_passed_pawn_push(Move m) const {
 }
 #endif
 
-inline int Position::game_ply() const {
-  return st->gamePly;
+inline int Position::startpos_ply_counter() const {
+  return startPosPly;
 }
 
 #ifndef GPSFISH
