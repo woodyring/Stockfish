@@ -1045,7 +1045,7 @@ namespace {
     if (PvNode && thread.maxPly < ss->ply)
         thread.maxPly = ss->ply;
 
-    // Step 1. Initialize node and poll. Polling can abort search
+    // Step 1. Initialize node.
     if (!SpNode)
     {
         ss->currentMove = ss->bestMove = threatMove = (ss+1)->excludedMove = MOVE_NONE;
@@ -1061,55 +1061,36 @@ namespace {
         goto split_point_start;
     }
 
-    if (pos.thread() == 0 && ++NodesSincePoll > NodesBetweenPolls)
-    {
-        NodesSincePoll = 0;
-        poll(pos);
-    }
-
-    // Step 2. Check for aborted search and immediate draw
-    if ((   StopRequest
-#ifdef GPSFISH
-         || pos.is_draw(repeat_check)
-#else
-         || pos.is_draw<false>()
-#endif
-         || ss->ply > PLY_MAX) && !RootNode)
-#ifdef GPSFISH
-        return value_draw(pos);
-#else
-        return VALUE_DRAW;
-#endif
 #ifdef GPSFISH
     if ( !Root ){
-      if(repeat_check<0) 
-        return value_mated_in(ss->ply);
-      else if(repeat_check>0) 
-        return value_mate_in(ss->ply);
-      else if(osl::EnterKing::canDeclareWin(pos.osl_state)) 
-	return value_mate_in(ss->ply+1);
+        if(repeat_check<0) 
+            return value_mated_in(ss->ply);
+        else if(repeat_check>0) 
+            return value_mate_in(ss->ply);
+        else if(osl::EnterKing::canDeclareWin(pos.osl_state)) 
+            return value_mate_in(ss->ply+1);
     }
     if (!ss->checkmateTested) {
-      ss->checkmateTested = true;
-      if(!pos.osl_state.inCheck()
-	 && ImmediateCheckmate::hasCheckmateMove
-	 (pos.side_to_move(),pos.osl_state,ss->bestMove)) {
-	  return value_mate_in(ss->ply);
-      }
+        ss->checkmateTested = true;
+        if(!pos.osl_state.inCheck()
+                && ImmediateCheckmate::hasCheckmateMove
+                (pos.side_to_move(),pos.osl_state,ss->bestMove)) {
+            return value_mate_in(ss->ply);
+        }
 #  ifdef GPSFISH_CHECKMATE3
-      if ((! (ss-1)->currentMove.isNormal()
-	   || (ss-1)->currentMove.ptype() == osl::KING)) {
-	  osl::checkmate::King8Info king8=pos.osl_state.king8Info(alt(pos.side_to_move()));
-	  assert(king8.uint64Value() == osl::checkmate::King8Info::make(pos.side_to_move(), pos.osl_state).uint64Value());
-	  bool in_danger = king8.dropCandidate() | king8.moveCandidate2();
-	  if (in_danger) {
-	      osl::checkmate::FixedDepthSearcher solver(pos.osl_state);
-	      if (solver.hasCheckmateMoveOfTurn(2,ss->bestMove)
-		  .isCheckmateSuccess()) {
-		  return value_mate_in(ss->ply+2);;
-	      }
-	  }
-      }
+        if ((! (ss-1)->currentMove.isNormal()
+                    || (ss-1)->currentMove.ptype() == osl::KING)) {
+            osl::checkmate::King8Info king8=pos.osl_state.king8Info(alt(pos.side_to_move()));
+            assert(king8.uint64Value() == osl::checkmate::King8Info::make(pos.side_to_move(), pos.osl_state).uint64Value());
+            bool in_danger = king8.dropCandidate() | king8.moveCandidate2();
+            if (in_danger) {
+                osl::checkmate::FixedDepthSearcher solver(pos.osl_state);
+                if (solver.hasCheckmateMoveOfTurn(2,ss->bestMove)
+                        .isCheckmateSuccess()) {
+                    return value_mate_in(ss->ply+2);;
+                }
+            }
+        }
 #  endif
     }
 #endif
@@ -1320,7 +1301,10 @@ namespace {
 #else
                 pos.do_move(move, st, ci, pos.move_gives_check(move, ci));
 #endif
-                value = -search<NonPV>(pos, ss+1, -rbeta, -rbeta+1, rdepth);
+                if (pos.is_draw<false>() || ss->ply + 1 > PLY_MAX)
+                    value = VALUE_DRAW;
+                else
+                    value = -search<NonPV>(pos, ss+1, -rbeta, -rbeta+1, rdepth);
 #ifdef GPSFISH
                 --pos.eval;
                 });
@@ -1557,6 +1541,22 @@ split_point_start: // At split points actual search starts from here
       pos.do_move(move, st, ci, givesCheck);
 #endif
 
+      // Step XX. Poll. Check if search should be aborted.
+      if (pos.thread() == 0 && ++NodesSincePoll > NodesBetweenPolls)
+      {
+          NodesSincePoll = 0;
+          poll(pos);
+      }
+
+      // Step XX. Check for aborted search and immediate draw
+      if (   StopRequest
+          || pos.is_draw<false>()
+          || ss->ply + 1 > PLY_MAX)
+      {
+          value = VALUE_DRAW;
+          goto undo;
+      }
+
       // Step extra. pv search (only in PV nodes)
       // The first move in list is the expected PV
       if (isPvMove)
@@ -1602,11 +1602,13 @@ split_point_start: // At split points actual search starts from here
           }
       }
 #ifdef GPSFISH
+undo:
       --pos.eval;
 	}
 	);
 #else
       // Step 17. Undo move
+undo:
       pos.undo_move(move);
 #endif
 
@@ -2125,7 +2127,7 @@ split_point_start: // At split points actual search starts from here
   bool connected_moves(const Position& pos, Move m1, Move m2) {
 
     Square f1, t1, f2, t2;
-    Piece p1, p2;
+    Piece p1; //, p2;
     Square ksq;
 
 #ifdef GPSFISH

@@ -240,9 +240,8 @@ public:
   // if is_draw return false, and ret==-1 -> continous check by side_to_move
   // if is_draw return false, and ret==1  -> continous check by opposit_color
   bool is_draw(int& ret) const; 
-#else
-  template<bool SkipRepetition> bool is_draw() const;
 #endif
+  template<bool SkipRepetition> bool is_draw() const;
 
   // Number of plies from starting position
   int startpos_ply_counter() const;

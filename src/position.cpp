@@ -1981,9 +1981,15 @@ bool Position::is_draw(int& ret) const {
     }
   return false;
 }
-#else
+#endif
+
 template<bool SkipRepetition>
 bool Position::is_draw() const {
+
+#ifdef GPSFISH
+  int dummy;
+  return is_draw(dummy);
+#else
 
   // Draw by material?
   if (   !pieces(PAWN)
@@ -2001,13 +2007,13 @@ bool Position::is_draw() const {
               return true;
 
   return false;
+#endif
 }
 
 // Explicit template instantiations
 template bool Position::is_draw<false>() const;
 template bool Position::is_draw<true>() const;
 
-#endif
 
 
 
