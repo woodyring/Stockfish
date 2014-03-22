@@ -280,12 +280,10 @@ private:
 #endif
   bool move_is_legal(const Move m) const;
 
-  // Helper functions for doing and undoing moves
 #ifndef GPSFISH
+  // Helper template functions
   template<bool Do> void do_castle_move(Move m);
-
-  template<bool FindPinned>
-  Bitboard hidden_checkers() const;
+  template<bool FindPinned> Bitboard hidden_checkers() const;
 #endif
 
   // Computing hash keys from scratch (for initialization and debugging)
@@ -484,6 +482,21 @@ inline bool Position::in_check() const {
   return osl_state.inCheck();
 #else
   return st->checkersBB != 0;
+#endif
+}
+
+
+#ifndef GPSFISH
+inline Bitboard Position::discovered_check_candidates() const {
+  return hidden_checkers<false>();
+}
+#endif
+
+inline Bitboard Position::pinned_pieces() const {
+#ifdef GPSFISH
+  return 0;
+#else
+  return hidden_checkers<true>();
 #endif
 }
 
