@@ -988,7 +988,7 @@ namespace {
             {
                 // If we are allowed to ponder do not stop the search now but
                 // keep pondering until GUI sends "ponderhit" or "stop".
-                if (Limits.ponder) // FIXME racing
+                if (Limits.ponder)
                     Signals.stopOnPonderhit = true;
                 else
                     Signals.stop = true;

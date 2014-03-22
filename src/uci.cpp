@@ -17,7 +17,6 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <cassert>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -45,11 +44,11 @@ using namespace std;
 
 namespace {
 
-  // FEN string for the initial position
+  // FEN string of the initial position, normal chess
 #ifdef GPSFISH
-  const char* StarFEN = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
+  const char* StartFEN = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
 #else
-  const char* StarFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+  const char* StartFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 #endif
 
   // Keep track of position keys along the setup moves (from start position to the
@@ -66,51 +65,44 @@ namespace {
 std::vector<Move> ignore_moves;
 #endif
 
-#ifdef GPSFISH
-#define NEWGAME_TOKEN 	"usinewgame"
-#define FEN_TOKEN 	"sfen"
-#else
-#define NEWGAME_TOKEN 	"ucinewgame"
-#define FEN_TOKEN 	"fen"
-#endif
-
 /// Wait for a command from the user, parse this text string as an UCI command,
-/// and calls the appropriate functions. Also intercepts EOF from stdin to
-/// ensure that we exit gracefully if the GUI dies unexpectedly. In addition to
-/// the UCI commands, the function also supports a few debug commands.
+/// and call the appropriate functions. Also intercepts EOF from stdin to ensure
+/// that we exit gracefully if the GUI dies unexpectedly. In addition to the UCI
+/// commands, the function also supports a few debug commands.
 
 void uci_loop() {
 
-  Position pos(StarFEN, false, 0); // The root position
+  Position pos(StartFEN, false, 0); // The root position
   string cmd, token;
-  bool quit = false;
 
-  while (!quit && getline(cin, cmd))
+  while (token != "quit")
   {
+      if (!getline(cin, cmd)) // Block here waiting for input
+          cmd = "quit";
+
       istringstream is(cmd);
 
       is >> skipws >> token;
 
 #ifdef GPSFISH
-      if (cmd.size() >= 5 && string(cmd,0,5) == "echo ")
-          cout << string(cmd,5) << endl;
+      if (token.size() >= 5 && string(token,0,5) == "echo ")
+          cout << string(token,5) << endl;
       else
-      if (cmd == "quit" || cmd == "stop" || cmd.find("gameover")==0)
+      if (token == "quit" || token == "stop" || token.find("gameover")==0)
 #else
-      if (cmd == "quit" || cmd == "stop")
+      if (token == "quit" || token == "stop")
 #endif
       {
-          quit = (token == "quit");
           Search::Signals.stop = true;
           Threads[0].wake_up(); // In case is waiting for stop or ponderhit
       }
 
-      else if (cmd == "ponderhit")
+      else if (token == "ponderhit")
       {
           // The opponent has played the expected move. GUI sends "ponderhit" if
           // we were told to ponder on the same move the opponent has played. We
           // should continue searching but switching from pondering to normal search.
-          Search::Limits.ponder = false; // FIXME racing
+          Search::Limits.ponder = false;
 
           if (Search::Signals.stopOnPonderhit)
               Search::Signals.stop = true;
@@ -121,8 +113,12 @@ void uci_loop() {
       else if (token == "go")
           go(pos, is);
 
-      else if (token == NEWGAME_TOKEN)
-          pos.from_fen(StarFEN, false);
+#ifdef GPSFISH
+      else if (token == "usinewgame")
+#else
+      else if (token == "ucinewgame")
+#endif
+          pos.from_fen(StartFEN, false);
 
       else if (token == "isready")
       {
@@ -228,10 +224,14 @@ namespace {
 
     if (token == "startpos")
     {
-        fen = StarFEN;
+        fen = StartFEN;
         is >> token; // Consume "moves" token if any
     }
-    else if (token == FEN_TOKEN)
+#ifdef GPSFISH
+    else if (token == "sfen")
+#else
+    else if (token == "fen")
+#endif
         while (is >> token && token != "moves")
             fen += token + " ";
     else
@@ -259,9 +259,8 @@ namespace {
   }
 
 
-  // set_option() is called when engine receives the "setoption" UCI
-  // command. The function updates the corresponding UCI option ("name")
-  // to the given value ("value").
+  // set_option() is called when engine receives the "setoption" UCI command. The
+  // function updates the UCI option ("name") to the given value ("value").
 
   void set_option(istringstream& is) {
 
@@ -284,10 +283,9 @@ namespace {
   }
 
 
-  // go() is called when engine receives the "go" UCI command. The
-  // function sets the thinking time and other parameters from the input
-  // string, and then calls think(). Returns false if a quit command
-  // is received while thinking, true otherwise.
+  // go() is called when engine receives the "go" UCI command. The function sets
+  // the thinking time and other parameters from the input string, and then starts
+  // the main searching thread.
 
   void go(Position& pos, istringstream& is) {
 
@@ -367,21 +365,20 @@ namespace {
   }
 
 
-  // perft() is called when engine receives the "perft" command.
-  // The function calls perft() passing the required search depth
-  // then prints counted leaf nodes and elapsed time.
+  // perft() is called when engine receives the "perft" command. The function
+  // calls perft() with the required search depth then prints counted leaf nodes
+  // and elapsed time.
 
   void perft(Position& pos, istringstream& is) {
 
     int depth, time;
-    int64_t n;
 
     if (!(is >> depth))
         return;
 
     time = get_system_time();
 
-    n = Search::perft(pos, depth * ONE_PLY);
+    int64_t n = Search::perft(pos, depth * ONE_PLY);
 
     time = get_system_time() - time;
 
