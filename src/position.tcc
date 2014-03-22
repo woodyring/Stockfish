@@ -23,7 +23,7 @@ void Position::do_undo_move(Move m, StateInfo& newSt,F const& f){
 
   // Save the current key to the history[] array, in order to be able to
   // detect repetition draws.
-  history[st->gamePly++] = key;
+  //history[st->gamePly++] = key;
 
   // Update side to move
   key ^= zobSideToMove;
@@ -66,7 +66,7 @@ void Position::do_undo_null_move(StateInfo& backupSt, F const& f){
   backupSt.previous = st->previous;
   backupSt.pliesFromNull = st->pliesFromNull;
   st->previous = &backupSt;
-  history[st->gamePly++] = st->key;
+  //history[st->gamePly++] = st->key;
   st->key ^= zobSideToMove;
   prefetch((char*)TT.first_entry(st->key));
   st->pliesFromNull = 0;

@@ -198,7 +198,6 @@ CheckInfo::CheckInfo(const Position& pos) {
 Position::Position(const Position& pos, int th) {
 
   memcpy(this, &pos, sizeof(Position));
-  detach(); // Always detach() in copy c'tor to avoid surprises
   threadID = th;
   nodes = 0;
 #ifdef GPSFISH
@@ -215,18 +214,6 @@ Position::Position(const string& fen, bool isChess960, int th) {
 #endif
   from_fen(fen, isChess960);
   threadID = th;
-}
-
-
-/// Position::detach() copies the content of the current state and castling
-/// masks inside the position itself. This is needed when the st pointee could
-/// become stale, as example because the caller is about to going out of scope.
-
-void Position::detach() {
-
-  startState = *st;
-  st = &startState;
-  st->previous = NULL; // As a safe guard
 }
 
 
@@ -959,11 +946,9 @@ bool Position::move_gives_check(Move m, const CheckInfo& ci) const {
 /// Position::do_setup_move() makes a permanent move on the board. It should
 /// be used when setting up a position on board. You can't undo the move.
 
-void Position::do_setup_move(Move m) {
+void Position::do_setup_move(Move m, StateInfo& newSt) {
 
   assert(move_is_ok(m));
-
-  StateInfo newSt;
 
   // Update the number of full moves after black's move
 #ifdef GPSFISH
@@ -974,26 +959,12 @@ void Position::do_setup_move(Move m) {
       fullMoves++;
 
   do_move(m, newSt);
+
+#ifdef GPSFISH
   if(eval)
     *eval=eval_t(osl_state,false);
-
-  // Reset "game ply" in case we made a non-reversible move.
-  // "game ply" is used for repetition detection.
-#ifdef GPSFISH
-  if(st->gamePly>16){
-    for(int i=0;i<16;i++){
-      history[i]=history[i+st->gamePly-16];
-    }
-    st->gamePly=16;
-  }
-#else
-  if (st->rule50 == 0)
-      st->gamePly = 0;
 #endif
 
-  // Our StateInfo newSt is about going out of scope so copy
-  // its content before it disappears.
-  detach();
 
   assert(is_ok());
 }
@@ -1018,7 +989,7 @@ void Position::do_move(Move m, StateInfo& newSt) {
 
   newSt.previous = st;
   st = &newSt;
-  history[st->gamePly++] = key;
+  //history[st->gamePly++] = key;
 
   // Update side to move
   key ^= zobSideToMove;
@@ -1081,16 +1052,13 @@ void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveI
   newSt.previous = st;
   st = &newSt;
 
-  // Save the current key to the history[] array, in order to be able to
-  // detect repetition draws.
-  history[st->gamePly++] = key;
-
   // Update side to move
   key ^= zobSideToMove;
 
   // Increment the 50 moves rule draw counter. Resetting it to zero in the
   // case of non-reversible moves is taken care of later.
   st->rule50++;
+  st->gamePly++;
   st->pliesFromNull++;
 
   if (move_is_castle(m))
@@ -1616,10 +1584,6 @@ void Position::do_null_move(StateInfo& backupSt) {
   backupSt.pliesFromNull = st->pliesFromNull;
   st->previous = &backupSt;
 
-  // Save the current key to the history[] array, in order to be able to
-  // detect repetition draws.
-  history[st->gamePly++] = st->key;
-
   // Update the necessary information
   if (st->epSquare != SQ_NONE)
       st->key ^= zobEp[st->epSquare];
@@ -1630,6 +1594,7 @@ void Position::do_null_move(StateInfo& backupSt) {
   sideToMove = opposite_color(sideToMove);
   st->epSquare = SQ_NONE;
   st->rule50++;
+  st->gamePly++;
   st->pliesFromNull = 0;
   st->value += (sideToMove == WHITE) ?  TempoValue : -TempoValue;
 
@@ -1970,6 +1935,9 @@ Value Position::compute_non_pawn_material(Color c) const {
 #ifdef GPSFISH
 bool Position::is_draw(int& ret) const {
 
+    // retire history by 3d8140a54101a50860ba2e3eb0f2d6cce68bfe47
+    // should use st->previous
+#if 0
   ret=0;
   for (int i = 4, e = Min(st->gamePly,st->pliesFromNull); i <= e; i += 2)
     if (history[st->gamePly - i] == st->key){
@@ -1979,6 +1947,7 @@ bool Position::is_draw(int& ret) const {
       else if(continuous_check[them]*2>=i) {ret= 1; return false;}
       else return true;
     }
+#endif
   return false;
 }
 #endif
@@ -1986,11 +1955,7 @@ bool Position::is_draw(int& ret) const {
 template<bool SkipRepetition>
 bool Position::is_draw() const {
 
-#ifdef GPSFISH
-  int dummy;
-  return is_draw(dummy);
-#else
-
+#ifndef GPSFISH
   // Draw by material?
   if (   !pieces(PAWN)
       && (non_pawn_material(WHITE) + non_pawn_material(BLACK) <= BishopValueMidgame))
@@ -1999,15 +1964,34 @@ bool Position::is_draw() const {
   // Draw by the 50 moves rule?
   if (st->rule50 > 99 && !is_mate())
       return true;
+#endif
 
   // Draw by repetition?
   if (!SkipRepetition)
-      for (int i = 4, e = Min(Min(st->gamePly, st->rule50), st->pliesFromNull); i <= e; i += 2)
-          if (history[st->gamePly - i] == st->key)
-              return true;
+  {
+#ifdef GPSFISH
+      int i = 4, e = Min(st->gamePly, st->pliesFromNull);
+#else
+      int i = 4, e = Min(Min(st->gamePly, st->rule50), st->pliesFromNull);
+#endif
+
+      if (i <= e)
+      {
+          StateInfo* stp = st->previous->previous;
+
+          do {
+              stp = stp->previous->previous;
+
+              if (stp->key == st->key)
+                  return true;
+
+              i +=2;
+
+          } while (i <= e);
+      }
+  }
 
   return false;
-#endif
 }
 
 // Explicit template instantiations
