@@ -2776,20 +2776,8 @@ split_point_start: // At split points actual search starts from here
     do pos.undo_move(pv[--ply]); while (ply);
 #endif
   }
+
 } // namespace
-
-
-// Little helper used by idle_loop() to check that all the slave threads of a
-// split point have finished searching.
-
-static bool all_slaves_finished(SplitPoint* sp) {
-
-  for (int i = 0; i < Threads.size(); i++)
-      if (sp->is_slave[i])
-          return false;
-
-  return true;
-}
 
 
 // Thread::idle_loop() is where the thread is parked when it has no work to do.
@@ -2819,7 +2807,7 @@ void Thread::idle_loop(SplitPoint* sp) {
           lock_grab(&sleepLock);
 
           // If we are master and all slaves have finished don't go to sleep
-          if (sp && all_slaves_finished(sp))
+          if (sp && Threads.split_point_finished(sp))
           {
               lock_release(&sleepLock);
               break;
@@ -2890,7 +2878,7 @@ void Thread::idle_loop(SplitPoint* sp) {
 
       // If this thread is the master of a split point and all slaves have
       // finished their work at this split point, return from the idle loop.
-      if (sp && all_slaves_finished(sp))
+      if (sp && Threads.split_point_finished(sp))
       {
           // Because sp->is_slave[] is reset under lock protection,
           // be sure sp->lock has been released before to return.
