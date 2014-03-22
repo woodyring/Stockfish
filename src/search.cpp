@@ -244,7 +244,7 @@ namespace {
   void update_history(const Position& pos, Move move, Depth depth, Move movesSearched[], int moveCount);
   void do_skill_level(Move* best, Move* ponder);
 
-  int elapsed_search_time(int set = 0);
+  int elapsed_time(bool reset = false);
   string score_to_uci(Value v, Value alpha = -VALUE_INFINITE, Value beta = VALUE_INFINITE);
   string speed_to_uci(int64_t nodes);
   string pv_to_uci(const Move pv[], int pvNum, bool chess960);
@@ -480,8 +480,8 @@ void Search::think() {
 
   Position& pos = RootPosition;
 
-  // Save "search start" time and reset elapsed time to zero
-  elapsed_search_time(get_system_time());
+  // Reset elapsed search time
+  elapsed_time(true);
 
 #ifndef GPSFISH
   // Set output stream mode: normal or chess960. Castling notation is different
@@ -575,7 +575,7 @@ void Search::think() {
   // Write current search final statistics to log file
   if (Options["Use Search Log"].value<bool>())
   {
-      int e = elapsed_search_time();
+      int e = elapsed_time();
 
       Log log(Options["Search Log Filename"].value<string>());
       log << "Nodes: "          << pos.nodes_searched()
@@ -811,7 +811,7 @@ namespace {
 
 #ifdef GPSFISH_DFPN
         if ((uint64_t)pos.nodes_searched() > next_checkmate
-                && elapsed_search_time()+1000
+                && elapsed_time()+1000
                 < std::max(Limits.maxTime,TimeMgr.maximum_time())*4/5) {
             run_checkmate(depth, next_checkmate, pos);
             next_checkmate *= 2;
@@ -881,7 +881,7 @@ namespace {
                 // if we have a fail high/low and we are deep in the search. UCI
                 // protocol requires to send all the PV lines also if are still
                 // to be searched and so refer to the previous search's score.
-                if ((bestValue > alpha && bestValue < beta) || elapsed_search_time() > 2000)
+                if ((bestValue > alpha && bestValue < beta) || elapsed_time() > 2000)
                     for (int i = 0; i < std::min(UCIMultiPV, (int)Rml.size()); i++)
                     {
                         bool updated = (i <= MultiPVIdx);
@@ -934,7 +934,7 @@ namespace {
         if (Options["Use Search Log"].value<bool>())
         {
             Log log(Options["Search Log Filename"].value<string>());
-            log << pretty_pv(pos, depth, bestValue, elapsed_search_time(), &Rml[0].pv[0]) << endl;
+            log << pretty_pv(pos, depth, bestValue, elapsed_time(), &Rml[0].pv[0]) << endl;
         }
 
         // Filter out startup noise when monitoring best move stability
@@ -964,14 +964,14 @@ namespace {
 
             // Stop search if most of available time is already consumed. We probably don't
             // have enough time to search the first move at the next iteration anyway.
-            if (elapsed_search_time() > (TimeMgr.available_time() * 62) / 100)
+            if (elapsed_time() > (TimeMgr.available_time() * 62) / 100)
                 stop = true;
 
             // Stop search early if one move seems to be much better than others
             if (   depth >= 10
                 && !stop
                 && (   bestMoveNeverChanged
-                    || elapsed_search_time() > (TimeMgr.available_time() * 40) / 100))
+                    || elapsed_time() > (TimeMgr.available_time() * 40) / 100))
             {
                 Value rBeta = bestValue - EasyMoveMargin;
                 (ss+1)->excludedMove = bestMove;
@@ -1464,7 +1464,7 @@ split_point_start: // At split points actual search starts from here
 
           // For long searches send current move info to GUI
 #ifndef GPSFISH
-          if (pos.thread() == 0 && elapsed_search_time() > 2000)
+          if (pos.thread() == 0 && elapsed_time() > 2000)
               cout << "info" << depth_to_uci(depth)
                    << " currmove " << move
                    << " currmovenumber " << moveCount + MultiPVIdx << endl;
@@ -2338,12 +2338,12 @@ split_point_start: // At split points actual search starts from here
   // current_search_time() returns the number of milliseconds which have passed
   // since the beginning of the current search.
 
-  int elapsed_search_time(int set) {
+  int elapsed_time(bool reset) {
 
     static int searchStartTime;
 
-    if (set)
-        searchStartTime = set;
+    if (reset)
+        searchStartTime = get_system_time();
 
     return get_system_time() - searchStartTime;
   }
@@ -2384,7 +2384,7 @@ split_point_start: // At split points actual search starts from here
   string speed_to_uci(int64_t nodes) {
 
     std::stringstream s;
-    int t = elapsed_search_time();
+    int t = elapsed_time();
 
     s << " nodes " << nodes
       << " nps " << (t > 0 ? int(nodes * 1000 / t) : 0)
@@ -2936,7 +2936,7 @@ void show_tree(Position &pos){
 void do_timer_event() {
 
   static int lastInfoTime;
-  int e = elapsed_search_time();
+  int e = elapsed_time();
 
   // Print debug information every one second
   if (!lastInfoTime || get_system_time() - lastInfoTime >= 1000)
