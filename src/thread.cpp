@@ -33,17 +33,17 @@ namespace { extern "C" {
 
 #if defined(_MSC_VER) || defined(_WIN32)
 
-  DWORD WINAPI start_routine(LPVOID threadID) {
+  DWORD WINAPI start_routine(LPVOID thread) {
 
-    Threads[*(int*)threadID].idle_loop(NULL);
+    ((Thread*)thread)->idle_loop(NULL);
     return 0;
   }
 
 #else
 
-  void* start_routine(void* threadID) {
+  void* start_routine(void* thread) {
 
-    Threads[*(int*)threadID].idle_loop(NULL);
+    ((Thread*)thread)->idle_loop(NULL);
     return NULL;
   }
 
@@ -176,9 +176,9 @@ void ThreadsManager::init() {
 
 #if defined(_MSC_VER) || defined(_WIN32) 
 #if defined(GPSFISH)
-      threads[i].handle = CreateThread(NULL, 1024*1024*8, start_routine, (LPVOID)&threads[i].threadID, 0, NULL);
+      threads[i].handle = CreateThread(NULL, 1024*1024*16, start_routine, (LPVOID)&threads[i], 0, NULL);
 #else
-      threads[i].handle = CreateThread(NULL, 0, start_routine, (LPVOID)&threads[i].threadID, 0, NULL);
+      threads[i].handle = CreateThread(NULL, 0, start_routine, (LPVOID)&threads[i], 0, NULL);
 #endif
       bool ok = (threads[i].handle != NULL);
 #else
@@ -187,16 +187,16 @@ void ThreadsManager::init() {
       pthread_attr_t attr  ;
       pthread_attr_init(&attr);
       pthread_attr_setstacksize(&attr,1024*1024*4);
-      bool ok = (pthread_create(&threads[i].handle, &attr, start_routine, (void*)&threads[i].threadID) == 0);
+      bool ok = (pthread_create(&threads[i].handle, &attr, start_routine, (void*)&threads[i]) == 0);
 #else
-      bool ok = (pthread_create(&threads[i].handle, NULL, start_routine, (void*)&threads[i].threadID) == 0);
+      bool ok = (pthread_create(&threads[i].handle, NULL, start_routine, (void*)&threads[i]) == 0);
 #endif
       pthread_detach(pthreadID);
 #endif
 
       if (!ok)
       {
-          std::cout << "Failed to create thread number " << i << std::endl;
+          std::cerr << "Failed to create thread number " << i << std::endl;
           ::exit(EXIT_FAILURE);
       }
   }
