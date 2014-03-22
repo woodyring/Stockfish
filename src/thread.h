@@ -31,6 +31,7 @@
 #include "pawns.h"
 #endif
 #include "position.h"
+#include "search.h"
 
 const int MAX_THREADS = 32;
 const int MAX_ACTIVE_SPLIT_POINTS = 8;
@@ -73,7 +74,7 @@ struct Thread {
   bool cutoff_occurred() const;
   bool is_available_to(int master) const;
   void idle_loop(SplitPoint* sp);
-  void listener_loop();
+  void main_loop();
   void timer_loop();
 
   SplitPoint splitPoints[MAX_ACTIVE_SPLIT_POINTS];
@@ -122,10 +123,9 @@ public:
   bool available_slave_exists(int master) const;
   bool split_point_finished(SplitPoint* sp) const;
 
-  void getline(std::string& cmd);
-  void start_listener();
-  void stop_listener();
+  void start_thinking(bool asyncMode = true);
   void set_timer(int msec);
+  void wait_for_stop_or_ponderhit();
 
   template <bool Fake>
   Value split(Position& pos, SearchStack* ss, Value alpha, Value beta, Value bestValue,
@@ -140,7 +140,6 @@ private:
   int activeThreads;
   bool useSleepingThreads;
   WaitCondition sleepCond;
-  std::string inputLine;
 };
 
 extern ThreadsManager Threads;

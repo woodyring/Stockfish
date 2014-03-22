@@ -72,6 +72,10 @@ using std::cout;
 using std::endl;
 using std::string;
 
+SearchLimits Limits;
+std::vector<Move> SearchMoves;
+Position* RootPosition;
+
 namespace {
 
   // Set to true to force running with one thread. Used for debugging
@@ -204,9 +208,8 @@ namespace {
   Value DrawValue;
 #endif
   // Time management variables
-  volatile bool StopOnPonderhit, FirstRootMove, StopRequest, QuitRequest, AspirationFailLow;
+  volatile bool StopOnPonderhit, FirstRootMove, StopRequest, AspirationFailLow;
   TimeManager TimeMgr;
-  SearchLimits Limits;
 
   // Skill level adjustment
   int SkillLevel;
@@ -242,7 +245,6 @@ namespace {
   string pv_to_uci(const Move pv[], int pvNum, bool chess960);
   string pretty_pv(Position& pos, int depth, Value score, int time, Move pv[]);
   string depth_to_uci(Depth depth);
-  void wait_for_stop_or_ponderhit();
 
   // MovePickerExt template class extends MovePicker and allows to choose at compile
   // time the proper moves source according to the type of node. In the default case
@@ -467,16 +469,17 @@ int64_t perft(Position& pos, Depth depth) {
 /// variables, and calls id_loop(). It returns false when a "quit" command is
 /// received during the search.
 
-bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]) {
+void think() {
 
   static Book book; // Defined static to initialize the PRNG only once
+
+  Position& pos = *RootPosition;
 
   // Save "search start" time and reset elapsed time to zero
   elapsed_search_time(get_system_time());
 
   // Initialize global search-related variables
-  StopOnPonderhit = StopRequest = QuitRequest = AspirationFailLow = false;
-  Limits = limits;
+  StopOnPonderhit = StopRequest = AspirationFailLow = false;
 
 #ifndef GPSFISH
   // Set output stream mode: normal or chess960. Castling notation is different
@@ -495,15 +498,15 @@ bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]) {
       Move bookMove = book.probe(pos, Options["Best Book Move"].value<bool>());
       if (bookMove != MOVE_NONE)
       {
-          if (Limits.ponder)
-              wait_for_stop_or_ponderhit();
+          if (!StopRequest && (Limits.ponder || Limits.infinite))
+              Threads.wait_for_stop_or_ponderhit();
 
 #ifdef GPSFISH
           cout << "bestmove " << move_to_uci(bookMove,false) << endl;
 #else
           cout << "bestmove " << bookMove << endl;
 #endif
-          return !QuitRequest;
+          return;
       }
   }
 
@@ -557,16 +560,9 @@ bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]) {
   else
       Threads.set_timer(100);
 
-  // Start async mode to catch UCI commands sent to us while searching,
-  // like "quit", "stop", etc.
-  Threads.start_listener();
-
   // We're ready to start thinking. Call the iterative deepening loop function
   Move ponderMove = MOVE_NONE;
-  Move bestMove = id_loop(pos, searchMoves, &ponderMove);
-
-  // From now on any UCI command will be read in-sync with Threads.getline()
-  Threads.stop_listener();
+  Move bestMove = id_loop(pos, &SearchMoves[0], &ponderMove);
 
   // Stop timer, no need to check for available time any more
   Threads.set_timer(0);
@@ -605,7 +601,7 @@ bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]) {
   // we are pondering or in infinite search, we shouldn't print the best move
   // before we are told to do so.
   if (!StopRequest && (Limits.ponder || Limits.infinite))
-      wait_for_stop_or_ponderhit();
+      Threads.wait_for_stop_or_ponderhit();
 
   // Could be MOVE_NONE when searching on a stalemate position
 #ifdef GPSFISH
@@ -625,8 +621,6 @@ bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]) {
 #endif
 
   cout << endl;
-
-  return !QuitRequest;
 }
 
 #ifdef GPSFISH_DFPN
@@ -2531,26 +2525,6 @@ split_point_start: // At split points actual search starts from here
   }
 
 
-  // wait_for_stop_or_ponderhit() is called when the maximum depth is reached
-  // while the program is pondering. The point is to work around a wrinkle in
-  // the UCI protocol: When pondering, the engine is not allowed to give a
-  // "bestmove" before the GUI sends it a "stop" or "ponderhit" command.
-  // We simply wait here until one of these commands (that raise StopRequest) is
-  // sent, and return, after which the bestmove and pondermove will be printed.
-
-  void wait_for_stop_or_ponderhit() {
-
-    string cmd;
-    StopOnPonderhit = true;
-
-    while (!StopRequest)
-    {
-        Threads.getline(cmd);
-        do_uci_async_cmd(cmd);
-    }
-  }
-
-
   // When playing with strength handicap choose best move among the MultiPV set
   // using a statistical rule dependent on SkillLevel. Idea by Heinz van Saanen.
 
@@ -2894,7 +2868,7 @@ void do_checkmate(Position& pos, int mateTime){
 }
 #else
 void do_checkmate(Position& pos, int mateTime){
-    QuitRequest=false;
+    StopRequest=false;
     osl::state::NumEffectState state(pos.osl_state);
 #if (! defined ALLOW_KING_ABSENCE)
     if (state.kingSquare(state.turn()).isPieceStand()) {
@@ -2923,7 +2897,7 @@ void do_checkmate(Position& pos, int mateTime){
             << " nodes " << total+node_count << " nps " << static_cast<int>(node_count/elapsed)
             << " hashfull " << static_cast<int>(memory*1000) << "\n";
         //poll(pos);
-        if (result.isFinal() || elapsed >= seconds || memory > 0.9 || QuitRequest || StopRequest)
+        if (result.isFinal() || elapsed >= seconds || memory > 0.9 || StopRequest)
             break;
         total += limit;
         // estimate: total * std::min(seconds/elapsed, 1.0/memory)
@@ -2950,20 +2924,40 @@ void show_tree(Position &pos){
     show_tree_rec(pos);
 }
 
-// do_uci_async_cmd() is called by listener thread when in async mode and 'cmd'
-// input line is received from the GUI.
+// ThreadsManager::wait_for_stop_or_ponderhit() is called when the maximum depth
+// is reached while the program is pondering. The point is to work around a wrinkle
+// in the UCI protocol: When pondering, the engine is not allowed to give a
+// "bestmove" before the GUI sends it a "stop" or "ponderhit" command.
+// We simply wait here until one of these commands (that raise StopRequest) is
+// sent, and return, after which the bestmove and pondermove will be printed.
 
-void do_uci_async_cmd(const std::string& cmd) {
+void ThreadsManager::wait_for_stop_or_ponderhit() {
 
-  if (cmd == "quit")
-      QuitRequest = StopRequest = true;
+  StopOnPonderhit = true;
+
+  Thread& main = threads[0];
+
+  lock_grab(&main.sleepLock);
+
+  while (!StopRequest)
+      cond_wait(&main.sleepCond, &main.sleepLock);
+
+  lock_release(&main.sleepLock);
+}
+
+
+// uci_async_command() is called when a 'cmd' input line is received from the
+// GUI while searching.
+
+void uci_async_command(const std::string& cmd) {
 
 #ifdef GPSFISH
-  else if (cmd.size() >= 5 && string(cmd,0,5) == "echo ")
+  if (cmd.size() >= 5 && string(cmd,0,5) == "echo ")
       cout << string(cmd,5) << endl;
-  else if (cmd == "stop" || cmd.find("gameover")==0)
+  else
+  if (cmd == "quit" || cmd == "stop" || cmd.find("gameover")==0)
 #else
-  else if (cmd == "stop")
+  if (cmd == "quit" || cmd == "stop")
 #endif
       StopRequest = true;
 
