@@ -170,7 +170,9 @@ enum ValueType {
 
 enum Value {
   VALUE_ZERO      = 0,
+#ifndef GPSFISH
   VALUE_DRAW      = 0,
+#endif
   VALUE_KNOWN_WIN = 15000,
   VALUE_MATE      = 30000,
   VALUE_INFINITE  = 30001,
@@ -197,6 +199,7 @@ using osl::WHITE;
 using osl::PTYPEO_SIZE;
 using osl::PTYPE_SIZE;
 const PieceType PIECE_TYPE_NONE=osl::PTYPE_EMPTY;
+#define VALUE_DRAW  value_draw(pos)
 #else
 enum PieceType {
   PIECE_TYPE_NONE = 0,

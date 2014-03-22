@@ -1045,7 +1045,7 @@ namespace {
     if (PvNode && thread.maxPly < ss->ply)
         thread.maxPly = ss->ply;
 
-    // Step 1. Initialize node.
+    // Step 1. Initialize node and poll. Polling can abort search
     if (!SpNode)
     {
         ss->currentMove = ss->bestMove = threatMove = (ss+1)->excludedMove = MOVE_NONE;
@@ -1060,6 +1060,29 @@ namespace {
         threatMove = sp->threatMove;
         goto split_point_start;
     }
+
+    if (pos.thread() == 0 && ++NodesSincePoll > NodesBetweenPolls)
+    {
+        NodesSincePoll = 0;
+        poll(pos);
+    }
+
+    // Check for an instant draw or maximum ply reached
+#ifdef GPSFISH
+    if (StopRequest || ss->ply > PLY_MAX || pos.is_draw(repeat_check))
+        return value_draw(pos);
+
+    if(repeat_check<0) 
+        return value_mated_in(ss->ply+1);
+    else if(repeat_check>0) 
+        return value_mate_in(ss->ply);
+#endif
+
+    // Step 2. Check for aborted search and immediate draw
+    if ((   StopRequest
+         || pos.is_draw<false>()
+         || ss->ply > PLY_MAX) && !RootNode)
+        return VALUE_DRAW;
 
 #ifdef GPSFISH
     if ( !Root ){
@@ -1301,14 +1324,12 @@ namespace {
 #else
                 pos.do_move(move, st, ci, pos.move_gives_check(move, ci));
 #endif
-                if (pos.is_draw<false>() || ss->ply + 1 > PLY_MAX)
-                    value = VALUE_DRAW;
-                else
-                    value = -search<NonPV>(pos, ss+1, -rbeta, -rbeta+1, rdepth);
+                value = -search<NonPV>(pos, ss+1, -rbeta, -rbeta+1, rdepth);
 #ifdef GPSFISH
                 --pos.eval;
                 });
 #else
+=======
                 pos.undo_move(move);
 #endif
                 if (value >= rbeta)
@@ -1541,22 +1562,6 @@ split_point_start: // At split points actual search starts from here
       pos.do_move(move, st, ci, givesCheck);
 #endif
 
-      // Step XX. Poll. Check if search should be aborted.
-      if (pos.thread() == 0 && ++NodesSincePoll > NodesBetweenPolls)
-      {
-          NodesSincePoll = 0;
-          poll(pos);
-      }
-
-      // Step XX. Check for aborted search and immediate draw
-      if (   StopRequest
-          || pos.is_draw<false>()
-          || ss->ply + 1 > PLY_MAX)
-      {
-          value = VALUE_DRAW;
-          goto undo;
-      }
-
       // Step extra. pv search (only in PV nodes)
       // The first move in list is the expected PV
       if (isPvMove)
@@ -1608,7 +1613,6 @@ undo:
 	);
 #else
       // Step 17. Undo move
-undo:
       pos.undo_move(move);
 #endif
 
@@ -1796,6 +1800,10 @@ undo:
     ss->bestMove = ss->currentMove = MOVE_NONE;
     ss->ply = (ss-1)->ply + 1;
 
+    // Check for an instant draw or maximum ply reached
+    if (pos.is_draw<true>() || ss->ply > PLY_MAX)
+        return VALUE_DRAW;
+
 #ifdef GPSFISH
     if(can_capture_king(pos)){
         return value_mate_in(0);
@@ -1805,25 +1813,6 @@ undo:
             (pos.side_to_move(),pos.osl_state,ss->bestMove)) {
         return value_mate_in(ss->ply); 
     }
-#endif
-
-    // Check for an instant draw or maximum ply reached
-#ifdef GPSFISH
-    int threadID = pos.thread();
-    if (threadID == 0 && ++NodesSincePoll > NodesBetweenPolls)
-    {
-        NodesSincePoll = 0;
-        poll(pos);
-    }
-
-    int repeat_check=0;
-    if (StopRequest || ss->ply > PLY_MAX || pos.is_draw(repeat_check))
-        return value_draw(pos);
-
-    if(repeat_check<0) 
-        return value_mated_in(ss->ply+1);
-    else if(repeat_check>0) 
-        return value_mate_in(ss->ply);
 #endif
 
     // Decide whether or not to include checks, this fixes also the type of
@@ -1996,14 +1985,11 @@ undo:
 #else
       pos.do_move(move, st, ci, givesCheck);
 #endif
-      if (pos.is_draw<true>() || ss->ply+1 > PLY_MAX)
-          value = VALUE_DRAW;
-      else
-          value = -qsearch<NT>(pos, ss+1, -beta, -alpha, depth-ONE_PLY);
+      value = -qsearch<NT>(pos, ss+1, -beta, -alpha, depth-ONE_PLY);
 #ifdef GPSFISH
-              --pos.eval;
-              }
-              );
+      --pos.eval;
+      }
+      );
 #else
       pos.undo_move(move);
 #endif
