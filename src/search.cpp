@@ -329,7 +329,7 @@ namespace {
     if (   captureOrPromotion
         && type_of(pos.piece_on(move_to(m))) != PAWN
         && (  pos.non_pawn_material(WHITE) + pos.non_pawn_material(BLACK)
-            - piece_value_midgame(pos.piece_on(move_to(m))) == VALUE_ZERO)
+            - PieceValueMidgame[pos.piece_on(move_to(m))] == VALUE_ZERO)
         && !is_special(m))
     {
         result += PawnEndgameExtension[PvNode];
@@ -1906,11 +1906,11 @@ split_point_start: // At split points actual search starts from here
       {
 #ifdef GPSFISH
           futilityValue =  futilityBase
-                         + piece_value_endgame(pos.piece_on(move_to(move)))
+                         + PieceValueEndgame[pos.piece_on(move_to(move))]
                          + (is_promotion(move) ? promote_value_of_piece_on(pos.piece_on(move_from(move))) : VALUE_ZERO);
 #else
           futilityValue =  futilityBase
-                         + piece_value_endgame(pos.piece_on(move_to(move)))
+                         + PieceValueEndgame[pos.piece_on(move_to(move))]
                          + (is_enpassant(move) ? PawnValueEndgame : VALUE_ZERO);
 #endif
 
@@ -2088,7 +2088,7 @@ split_point_start: // At split points actual search starts from here
     while (b)
     {
         victimSq = pop_1st_bit(&b);
-        futilityValue = futilityBase + piece_value_endgame(pos.piece_on(victimSq));
+        futilityValue = futilityBase + PieceValueEndgame[pos.piece_on(victimSq)];
 
         // Note that here we generate illegal "double move"!
         if (   futilityValue >= beta
@@ -2237,7 +2237,7 @@ split_point_start: // At split points actual search starts from here
     // Case 2: If the threatened piece has value less than or equal to the
     // value of the threatening piece, don't prune moves which defend it.
     if (   pos.is_capture(threat)
-        && (   piece_value_midgame(pos.piece_on(tfrom)) >= piece_value_midgame(pos.piece_on(tto))
+        && (   PieceValueMidgame[pos.piece_on(tfrom)] >= PieceValueMidgame[pos.piece_on(tto)]
 #ifdef GPSFISH
             || type_of(pos.piece_on(tfrom)) == osl::KING)
 #else

@@ -396,14 +396,6 @@ extern const Value PieceValueEndgame[17];
 extern int SquareDistance[64][64];
 #endif
 
-inline Value piece_value_midgame(Piece p) {
-  return PieceValueMidgame[p];
-}
-
-inline Value piece_value_endgame(Piece p) {
-  return PieceValueEndgame[p];
-}
-
 #ifdef GPSFISH
 extern const Value PromoteValue[osl::PTYPE_SIZE];
 extern const Value PieceValueType[osl::PTYPE_SIZE];
@@ -416,7 +408,6 @@ inline Value type_value_of_piece_on(Piece p) {
   return PieceValueType[p];
 }
 #endif
-
 
 inline Value value_mate_in(int ply) {
   return VALUE_MATE - ply;

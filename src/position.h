@@ -340,7 +340,7 @@ private:
   static osl::misc::CArray3d<Key,2,osl::PTYPE_SIZE,osl::Square::SIZE> zobrist;
 #else
   static Score pieceSquareTable[16][64]; // [piece][square]
-  static Key zobrist[2][8][64];          // [color][pieceType][square]
+  static Key zobrist[2][8][64];          // [color][pieceType][square]/[piece count]
   static Key zobEp[64];                  // [square]
   static Key zobCastle[16];              // [castleRight]
 #endif

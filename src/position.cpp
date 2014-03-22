@@ -1590,7 +1590,7 @@ int Position::see_sign(Move m) const {
   // Early return if SEE cannot be negative because captured piece value
   // is not less then capturing one. Note that king moves always return
   // here because king midgame value is set to 0.
-  if (piece_value_midgame(piece_on(to)) >= piece_value_midgame(piece_on(from)))
+  if (PieceValueMidgame[piece_on(to)] >= PieceValueMidgame[piece_on(from)])
       return 1;
 
   return see(m);
@@ -1827,7 +1827,7 @@ Key Position::compute_material_key() const {
 
   for (Color c = WHITE; c <= BLACK; c++)
       for (PieceType pt = PAWN; pt <= QUEEN; pt++)
-          for (int i = 0, cnt = piece_count(c, pt); i < cnt; i++)
+          for (int i = 0; i < piece_count(c, pt); i++)
               result ^= zobrist[c][pt][i];
 
   return result;
@@ -1994,7 +1994,7 @@ void Position::init() {
   zobExclusion  = rk.rand<Key>();
   for (Piece p = WP; p <= WK; p++)
   {
-      Score ps = make_score(piece_value_midgame(p), piece_value_endgame(p));
+      Score ps = make_score(PieceValueMidgame[p], PieceValueEndgame[p]);
 
       for (Square s = SQ_A1; s <= SQ_H8; s++)
       {
