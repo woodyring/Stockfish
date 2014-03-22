@@ -57,6 +57,7 @@ namespace Search {
 
 struct LimitsType {
 
+  LimitsType() {  memset(this, 0, sizeof(LimitsType)); }
   bool useTimeManagement() const { return !(maxTime | maxDepth | maxNodes | infinite); }
 
   int time, increment, movesToGo, maxTime, maxDepth, maxNodes, infinite, ponder;
@@ -69,7 +70,7 @@ struct SignalsType {
 extern volatile SignalsType Signals;
 extern LimitsType Limits;
 extern std::vector<Move> RootMoves;
-extern Position* RootPosition;
+extern Position RootPosition;
 
 extern void init();
 extern int64_t perft(Position& pos, Depth depth);

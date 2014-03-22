@@ -103,7 +103,6 @@ void uci_loop() {
           quit = (token == "quit");
           Search::Signals.stop = true;
           Threads[0].wake_up(); // In case is waiting for stop or ponderhit
-          Threads.wait_end_of_search(); // Block here until search finishes
       }
 
       else if (cmd == "ponderhit")
@@ -293,22 +292,21 @@ namespace {
   void go(Position& pos, istringstream& is) {
 
     string token;
+    Search::LimitsType limits;
+    std::vector<Move> searchMoves;
+
 #ifdef GPSFISH
     osl::CArray<int,2> time={{0,0}},inc={{0,0}};
 #else
     int time[] = { 0, 0 }, inc[] = { 0, 0 };
 #endif
 
-    memset(&Search::Limits, 0, sizeof(Search::Limits));
-    Search::RootMoves.clear();
-    Search::RootPosition = &pos;
-
     while (is >> token)
     {
         if (token == "infinite")
-            Search::Limits.infinite = true;
+            limits.infinite = true;
         else if (token == "ponder")
-            Search::Limits.ponder = true;
+            limits.ponder = true;
         else if (token == "wtime")
             is >> time[WHITE];
         else if (token == "btime")
@@ -318,11 +316,11 @@ namespace {
         else if (token == "binc")
             is >> inc[BLACK];
         else if (token == "movestogo")
-            is >> Search::Limits.movesToGo;
+            is >> limits.movesToGo;
         else if (token == "depth")
-            is >> Search::Limits.maxDepth;
+            is >> limits.maxDepth;
         else if (token == "nodes")
-            is >> Search::Limits.maxNodes;
+            is >> limits.maxNodes;
 #ifdef GPSFISH
         else if (token == "mate"){
             int mateTime;
@@ -334,15 +332,11 @@ namespace {
 #else
         else if (token == "movetime")
 #endif
-            is >> Search::Limits.maxTime;
+            is >> limits.maxTime;
         else if (token == "searchmoves")
             while (is >> token)
-                Search::RootMoves.push_back(move_from_uci(pos, token));
+                searchMoves.push_back(move_from_uci(pos, token));
     }
-
-    Search::RootMoves.push_back(MOVE_NONE);
-    Search::Limits.time = time[pos.side_to_move()];
-    Search::Limits.increment = inc[pos.side_to_move()];
 
 #if 0 //def GPSFISH
     if(searchMoves == cur && !ignore_moves.empty()){
@@ -365,7 +359,11 @@ namespace {
     }
 #endif
 
-    Threads.start_thinking();
+    searchMoves.push_back(MOVE_NONE);
+    limits.time = time[pos.side_to_move()];
+    limits.increment = inc[pos.side_to_move()];
+
+    Threads.start_thinking(pos, limits, searchMoves, true);
   }
 
 
