@@ -86,10 +86,6 @@ namespace {
   // -VALUE_INFINITE for all non-pv moves.
   struct RootMove {
 
-    RootMove();
-    RootMove(const RootMove& rm) { *this = rm; }
-    RootMove& operator=(const RootMove& rm);
-
     // RootMove::operator<() is the comparison function used when
     // sorting the moves. A move m1 is considered to be better
     // than a move m2 if it has an higher pv_score
@@ -106,13 +102,15 @@ namespace {
 
     int64_t nodes;
     Value pv_score;
-    Move pv[PLY_MAX_PLUS_2];
+    std::vector<Move> pv;
   };
 
   // RootMoveList struct is mainly a std::vector of RootMove objects
   struct RootMoveList : public std::vector<RootMove> {
+
     void init(Position& pos, Move searchMoves[]);
-    RootMove* find(const Move &m, const int startIndex = 0);
+    RootMove* find(const Move& m, int startIndex = 0);
+
     int bestMoveChanges;
   };
 
@@ -248,9 +246,9 @@ namespace {
   void do_skill_level(Move* best, Move* ponder);
 
   int current_search_time(int set = 0);
-  string score_to_uci(Value v, Value alpha, Value beta);
+  string score_to_uci(Value v, Value alpha = -VALUE_INFINITE, Value beta = VALUE_INFINITE);
   string speed_to_uci(int64_t nodes);
-  string pv_to_uci(Move pv[], int pvNum, bool chess960);
+  string pv_to_uci(const Move pv[], int pvNum, bool chess960);
   string pretty_pv(Position& pos, int depth, Value score, int time, Move pv[]);
   string depth_to_uci(Depth depth);
   void poll(const Position& pos);
@@ -266,10 +264,10 @@ namespace {
   };
 
   // In case of a SpNode we use split point's shared MovePicker object as moves source
-  template<> struct MovePickerExt<SplitPointNonPV> : public MovePickerExt<NonPV> {
+  template<> struct MovePickerExt<SplitPointNonPV> : public MovePicker {
 
     MovePickerExt(const Position& p, Move ttm, Depth d, const History& h, SearchStack* ss, Value b)
-                  : MovePickerExt<NonPV>(p, ttm, d, h, ss, b), mp(ss->sp->mp) {}
+                  : MovePicker(p, ttm, d, h, ss, b), mp(ss->sp->mp) {}
 
     Move get_next_move() { return mp->get_next_move(); }
     MovePicker* mp;
@@ -747,7 +745,7 @@ void run_checkmate(int depth, uint64_t nodes, Position& pos)
     for (size_t i=0; i<Rml.size() && nodes >= 1024 && !StopRequest; ++i) {
         osl::Move win_move;
         TestCheckmate function(*solver, pos, win_move, nodes,
-                Rml[i].pv, 0, (i==0) ? depth/2 : 1);
+                &Rml[i].pv[0], 0, (i==0) ? depth/2 : 1);
         pos.do_undo_move(Rml[i].pv[0], st, function);
         if (! win_move.isNormal())
             nodes /= 4;
@@ -823,17 +821,10 @@ namespace {
     // Iterative deepening loop until requested to stop or target depth reached
     while (!StopRequest && ++depth <= PLY_MAX && (!Limits.maxDepth || depth <= Limits.maxDepth))
     {
-        Rml.bestMoveChanges = 0;
-
         // Remember best moves and values from previous iteration
-        std::vector<Move> prevMoves;
-        std::vector<Value> prevValues;
+        RootMoveList prevRml = Rml;
 
-        for (int i = 0; i < Min(MultiPV, (int)Rml.size()); i++)
-        {
-            prevMoves.push_back(Rml[i].pv[0]);
-            prevValues.push_back(Rml[i].pv_score);
-        }
+        Rml.bestMoveChanges = 0;
 
 #ifdef GPSFISH_DFPN
         if ((uint64_t)pos.nodes_searched() > next_checkmate
@@ -853,7 +844,7 @@ namespace {
         for (MultiPVIteration = 0; MultiPVIteration < Min(MultiPV, (int)Rml.size()); MultiPVIteration++)
         {
             // Calculate dynamic aspiration window based on previous iterations
-            if (depth >= 5 && abs(prevValues[MultiPVIteration]) < VALUE_KNOWN_WIN)
+            if (depth >= 5 && abs(prevRml[MultiPVIteration].pv_score) < VALUE_KNOWN_WIN)
             {
                 int prevDelta1 = bestValues[depth - 1] - bestValues[depth - 2];
                 int prevDelta2 = bestValues[depth - 2] - bestValues[depth - 3];
@@ -861,8 +852,8 @@ namespace {
                 aspirationDelta = Min(Max(abs(prevDelta1) + abs(prevDelta2) / 2, 16), 24);
                 aspirationDelta = (aspirationDelta + 7) / 8 * 8; // Round to match grainSize
 
-                alpha = Max(prevValues[MultiPVIteration] - aspirationDelta, -VALUE_INFINITE);
-                beta  = Min(prevValues[MultiPVIteration] + aspirationDelta,  VALUE_INFINITE);
+                alpha = Max(prevRml[MultiPVIteration].pv_score - aspirationDelta, -VALUE_INFINITE);
+                beta  = Min(prevRml[MultiPVIteration].pv_score + aspirationDelta,  VALUE_INFINITE);
             }
             else
             {
@@ -902,19 +893,18 @@ namespace {
                     for (int i = 0; i < Min(UCIMultiPV, (int)Rml.size()); i++)
                     {
                         bool updated = (i <= MultiPVIteration);
-                        bool match = (i == MultiPVIteration);
 
-                        if (!updated && depth == 1)
+                        if (depth == 1 && !updated)
                               continue;
+
+                        const RootMoveList& rml = (updated ? Rml : prevRml);
 
                         cout << "info"
                              << depth_to_uci((updated ? depth : depth - 1)  * ONE_PLY)
-                             << score_to_uci(updated ? Rml[i].pv_score : prevValues[i],
-                                             match ? alpha : -VALUE_INFINITE,
-                                             match ? beta  :  VALUE_INFINITE)
+                             << (i == MultiPVIteration ? score_to_uci(rml[i].pv_score, alpha, beta)
+                                                       : score_to_uci(rml[i].pv_score))
                              << speed_to_uci(pos.nodes_searched())
-                             << pv_to_uci(updated ? Rml[i].pv : Rml.find(prevMoves[i])->pv,
-                                          i + 1, pos.is_chess960())
+                             << pv_to_uci(&rml[i].pv[0], i + 1, pos.is_chess960())
                              << endl;
                     }
 
@@ -950,7 +940,7 @@ namespace {
             do_skill_level(&skillBest, &skillPonder);
 
         if (LogFile.is_open())
-            LogFile << pretty_pv(pos, depth, value, current_search_time(), Rml[0].pv) << endl;
+            LogFile << pretty_pv(pos, depth, value, current_search_time(), &Rml[0].pv[0]) << endl;
 
         // Init easyMove after first iteration or drop if differs from the best move
         if (depth == 1 && (Rml.size() == 1 || Rml[0].pv_score > Rml[1].pv_score + EasyMoveMargin))
@@ -1685,14 +1675,15 @@ split_point_start: // At split points actual search starts from here
               break;
 
           // Remember searched nodes counts for this move
-          Rml.find(move)->nodes += pos.nodes_searched() - nodes;
+          RootMove* rm = Rml.find(move);
+          rm->nodes += pos.nodes_searched() - nodes;
 
           // PV move or new best move ?
           if (isPvMove || value > alpha)
           {
               // Update PV
-              Rml.find(move)->pv_score = value;
-              Rml.find(move)->extract_pv_from_tt(pos);
+              rm->pv_score = value;
+              rm->extract_pv_from_tt(pos);
 
               // We record how often the best move has been changed in each
               // iteration. This information is used for time management: When
@@ -1700,14 +1691,14 @@ split_point_start: // At split points actual search starts from here
               if (!isPvMove && MultiPV == 1)
                   Rml.bestMoveChanges++;
 
-#ifdef GPSFISH
+#if 0 //def GPSFISH
               if (depth >= 5*ONE_PLY
                       && (!isPvMove || current_search_time() >= 5000))
                   cout << "info"
                       << depth_to_uci(depth)
-                      << score_to_uci(Rml[0].pv_score, alpha, beta)
+                      << score_to_uci(rm->pv_score, alpha, beta)
                       << speed_to_uci(pos.nodes_searched())
-                      << pv_to_uci(Rml[0].pv, 0 + 1, false) << endl;
+                      << pv_to_uci(&rm->pv[0], 0 + 1, false) << endl;
 #endif
 
               // Update alpha.
@@ -1718,7 +1709,7 @@ split_point_start: // At split points actual search starts from here
               // All other moves but the PV are set to the lowest value, this
               // is not a problem when sorting becuase sort is stable and move
               // position in the list is preserved, just the PV is pushed up.
-              Rml.find(move)->pv_score = -VALUE_INFINITE;
+              rm->pv_score = -VALUE_INFINITE;
 
       } // RootNode
 
@@ -2434,7 +2425,7 @@ split_point_start: // At split points actual search starts from here
   // pv_to_uci() returns a string with information on the current PV line
   // formatted according to UCI specification.
 
-  string pv_to_uci(Move pv[], int pvNum, bool chess960) {
+  string pv_to_uci(const Move pv[], int pvNum, bool chess960) {
 
     std::stringstream s;
 
@@ -2723,26 +2714,6 @@ split_point_start: // At split points actual search starts from here
 
   /// RootMove and RootMoveList method's definitions
 
-  RootMove::RootMove() {
-
-    nodes = 0;
-    pv_score = -VALUE_INFINITE;
-    pv[0] = MOVE_NONE;
-  }
-
-  RootMove& RootMove::operator=(const RootMove& rm) {
-
-    const Move* src = rm.pv;
-    Move* dst = pv;
-
-    // Avoid a costly full rm.pv[] copy
-    do *dst++ = *src; while (*src++ != MOVE_NONE);
-
-    nodes = rm.nodes;
-    pv_score = rm.pv_score;
-    return *this;
-  }
-
   void RootMoveList::init(Position& pos, Move searchMoves[]) {
 
     Move* sm;
@@ -2764,53 +2735,47 @@ split_point_start: // At split points actual search starts from here
             continue;
 
         RootMove rm;
-        rm.pv[0] = ml.move();
-        rm.pv[1] = MOVE_NONE;
+        rm.pv.push_back(ml.move());
+        rm.pv.push_back(MOVE_NONE);
         rm.pv_score = -VALUE_INFINITE;
+        rm.nodes = 0;
         push_back(rm);
     }
+  }
+
+  RootMove* RootMoveList::find(const Move& m, int startIndex) {
+
+    for (size_t i = startIndex; i < size(); i++)
+        if ((*this)[i].pv[0] == m)
+            return &(*this)[i];
+
+    return NULL;
   }
 
 #ifdef GPSFISH
   void RootMove::extract_pv_from_tt_rec(Position& pos,int ply) {
     TTEntry* tte;
-#ifdef GPSFISH
-    int dummy=0;
-#endif
+
     if (   (tte = TT.probe(pos.get_key())) != NULL
            && tte->move(pos) != MOVE_NONE
            && pos.move_is_pl(tte->move(pos))
+           && pos.pl_move_is_legal(tte->move(pos), pos.pinned_pieces())
            && ply < PLY_MAX
-#ifdef GPSFISH
-           && (!pos.is_draw(dummy) || ply < 2))
-#else
-           && (!pos.is_draw() || ply < 2))
-#endif
+           && (!pos.is_draw<false>() || ply < 2))
     {
-        pv[ply] = tte->move(pos);
+        pv.push_back(tte->move(pos));
         StateInfo st;
-        pos.do_undo_move(pv[ply],st,
+        pos.do_undo_move(tte->move(pos),st,
                 [&](osl::Square){
                 assert(pos.is_ok());
                 extract_pv_from_tt_rec(pos,ply+1);
                 }
                 );
     }
-    else
-      pv[ply] = MOVE_NONE;
+
+    pv.push_back(MOVE_NONE);
   }
 #endif
-
-  RootMove* RootMoveList::find(const Move &m, const int startIndex) {
-
-      for (int i = startIndex; i < int(size()); i++)
-      {
-          if ((*this)[i].pv[0] == m)
-              return &(*this)[i];
-      }
-
-      return NULL;
-  }
 
   // extract_pv_from_tt() builds a PV by adding moves from the transposition table.
   // We consider also failing high nodes and not only VALUE_TYPE_EXACT nodes. This
@@ -2824,8 +2789,12 @@ split_point_start: // At split points actual search starts from here
     TTEntry* tte;
     int ply = 1;
 #endif
+    Move m = pv[0];
 
-    assert(pv[0] != MOVE_NONE && pos.move_is_pl(pv[0]));
+    assert(m != MOVE_NONE && pos.move_is_pl(m));
+
+    pv.clear();
+    pv.push_back(m);
 
 #ifdef GPSFISH
     StateInfo st;
@@ -2836,27 +2805,20 @@ split_point_start: // At split points actual search starts from here
          }
          );
 #else
-    pos.do_move(pv[0], *st++);
-
-#ifdef GPSFISH
-    int dummy=0;
-#endif
+    pos.do_move(m, *st++);
 
     while (   (tte = TT.probe(pos.get_key())) != NULL
            && tte->move() != MOVE_NONE
            && pos.move_is_pl(tte->move())
            && pos.pl_move_is_legal(tte->move(), pos.pinned_pieces())
            && ply < PLY_MAX
-#ifdef GPSFISH
-           && (!pos.is_draw(dummy) || ply < 2))
-#else
            && (!pos.is_draw<false>() || ply < 2))
-#endif
     {
-        pv[ply] = tte->move();
-        pos.do_move(pv[ply++], *st++);
+        pv.push_back(tte->move());
+        pos.do_move(tte->move(), *st++);
+        ply++;
     }
-    pv[ply] = MOVE_NONE;
+    pv.push_back(MOVE_NONE);
 
     do pos.undo_move(pv[--ply]); while (ply);
 #endif
