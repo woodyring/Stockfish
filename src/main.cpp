@@ -117,7 +117,7 @@ int main(int argc, char* argv[]) {
 #ifndef GPSFISH
   kpk_bitbase_init();
 #endif
-  init_search();
+  Search::init();
   Threads.init();
 
 #ifdef USE_CALLGRIND

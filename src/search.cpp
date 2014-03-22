@@ -71,10 +71,16 @@ using std::string;
 using std::cout;
 using std::endl;
 using std::string;
+using Search::Signals;
+using Search::Limits;
 
-SearchLimits Limits;
-std::vector<Move> SearchMoves;
-Position* RootPosition;
+namespace Search {
+
+  volatile SignalsType Signals;
+  LimitsType Limits;
+  std::vector<Move> RootMoves;
+  Position* RootPosition;
+}
 
 namespace {
 
@@ -113,7 +119,7 @@ namespace {
   // RootMoveList struct is mainly a std::vector of RootMove objects
   struct RootMoveList : public std::vector<RootMove> {
 
-    void init(Position& pos, Move searchMoves[]);
+    void init(Position& pos, Move rootMoves[]);
     RootMove* find(const Move& m, int startIndex = 0);
 
     int bestMoveChanges;
@@ -208,7 +214,6 @@ namespace {
   Value DrawValue;
 #endif
   // Time management variables
-  volatile bool StopOnPonderhit, FirstRootMove, StopRequest, AspirationFailLow;
   TimeManager TimeMgr;
 
   // Skill level adjustment
@@ -221,7 +226,7 @@ namespace {
 
   /// Local functions
 
-  Move id_loop(Position& pos, Move searchMoves[], Move* ponderMove);
+  Move id_loop(Position& pos, Move rootMoves[], Move* ponderMove);
 
   template <NodeType NT>
   Value search(Position& pos, SearchStack* ss, Value alpha, Value beta, Depth depth);
@@ -400,7 +405,7 @@ namespace {
 
 /// init_search() is called during startup to initialize various lookup tables
 
-void init_search() {
+void Search::init() {
 
   int d;  // depth (ONE_PLY == 2)
   int hd; // half depth (ONE_PLY == 1)
@@ -427,7 +432,7 @@ void init_search() {
 /// perft() is our utility to verify move generation. All the leaf nodes up to
 /// the given depth are generated and counted and the sum returned.
 
-int64_t perft(Position& pos, Depth depth) {
+int64_t Search::perft(Position& pos, Depth depth) {
 
   StateInfo st;
   int64_t sum = 0;
@@ -469,7 +474,7 @@ int64_t perft(Position& pos, Depth depth) {
 /// variables, and calls id_loop(). It returns false when a "quit" command is
 /// received during the search.
 
-void think() {
+void Search::think() {
 
   static Book book; // Defined static to initialize the PRNG only once
 
@@ -478,8 +483,8 @@ void think() {
   // Save "search start" time and reset elapsed time to zero
   elapsed_search_time(get_system_time());
 
-  // Initialize global search-related variables
-  StopOnPonderhit = StopRequest = AspirationFailLow = false;
+  // Reset global search signals
+  memset((void*)&Signals, 0, sizeof(Signals));
 
 #ifndef GPSFISH
   // Set output stream mode: normal or chess960. Castling notation is different
@@ -498,7 +503,7 @@ void think() {
       Move bookMove = book.probe(pos, Options["Best Book Move"].value<bool>());
       if (bookMove != MOVE_NONE)
       {
-          if (!StopRequest && (Limits.ponder || Limits.infinite))
+          if (!Signals.stop && (Limits.ponder || Limits.infinite))
               Threads.wait_for_stop_or_ponderhit();
 
 #ifdef GPSFISH
@@ -562,7 +567,7 @@ void think() {
 
   // We're ready to start thinking. Call the iterative deepening loop function
   Move ponderMove = MOVE_NONE;
-  Move bestMove = id_loop(pos, &SearchMoves[0], &ponderMove);
+  Move bestMove = id_loop(pos, &RootMoves[0], &ponderMove);
 
   // Stop timer, no need to check for available time any more
   Threads.set_timer(0);
@@ -600,7 +605,7 @@ void think() {
   // When we reach max depth we arrive here even without a StopRequest, but if
   // we are pondering or in infinite search, we shouldn't print the best move
   // before we are told to do so.
-  if (!StopRequest && (Limits.ponder || Limits.infinite))
+  if (!Signals.stop && (Limits.ponder || Limits.infinite))
       Threads.wait_for_stop_or_ponderhit();
 
   // Could be MOVE_NONE when searching on a stalemate position
@@ -696,7 +701,7 @@ struct TestCheckmate
                     << ") " << move_to_uci(moves[first],false)
                     << " by " << move_to_uci(*result,false) << '\n';
         }
-        else if (! StopRequest) {
+        else if (! Signals.stop) {
             Move move;
             TestCheckmate next = *this;
             next.first++;
@@ -717,7 +722,7 @@ void run_checkmate(int depth, uint64_t nodes, Position& pos)
     StateInfo st;
     nodes /= 16;
     int mated = 0;
-    for (size_t i=0; i<Rml.size() && nodes >= 1024 && !StopRequest; ++i) {
+    for (size_t i=0; i<Rml.size() && nodes >= 1024 && !Signals.stop; ++i) {
         osl::Move win_move;
         TestCheckmate function(*solver, pos, win_move, nodes,
                 &Rml[i].pv[0], 0, (i==0) ? depth/2 : 1);
@@ -743,7 +748,7 @@ namespace {
   // with increasing depth until the allocated thinking time has been consumed,
   // user stops the search, or the maximum search depth is reached.
 
-  Move id_loop(Position& pos, Move searchMoves[], Move* ponderMove) {
+  Move id_loop(Position& pos, Move rootMoves[], Move* ponderMove) {
 
     SearchStack ss[PLY_MAX_PLUS_2];
     Value bestValues[PLY_MAX_PLUS_2];
@@ -781,7 +786,7 @@ namespace {
 #endif
 
     // Moves to search are verified and copied
-    Rml.init(pos, searchMoves);
+    Rml.init(pos, rootMoves);
 
     // Handle special case of searching on a mate/stalemate position
     if (!Rml.size())
@@ -799,7 +804,7 @@ namespace {
     uint64_t next_checkmate = 1<<18;
 #endif
     // Iterative deepening loop until requested to stop or target depth reached
-    while (!StopRequest && ++depth <= PLY_MAX && (!Limits.maxDepth || depth <= Limits.maxDepth))
+    while (!Signals.stop && ++depth <= PLY_MAX && (!Limits.maxDepth || depth <= Limits.maxDepth))
     {
         // Save now last iteration's scores, before Rml moves are reordered
         for (size_t i = 0; i < Rml.size(); i++)
@@ -872,7 +877,7 @@ namespace {
                 // If search has been stopped exit the aspiration window loop,
                 // note that sorting and writing PV back to TT is safe becuase
                 // Rml is still valid, although refers to the previous iteration.
-                if (StopRequest)
+                if (Signals.stop)
                     break;
 
                 // Send full PV info to GUI if we are going to leave the loop or
@@ -907,8 +912,8 @@ namespace {
                 }
                 else if (bestValue <= alpha)
                 {
-                    AspirationFailLow = true;
-                    StopOnPonderhit = false;
+                    Signals.failedLowAtRoot = true;
+                    Signals.stopOnPonderhit = false;
 
                     alpha = std::max(alpha - aspirationDelta, -VALUE_INFINITE);
                     aspirationDelta += aspirationDelta / 2;
@@ -942,17 +947,17 @@ namespace {
 #if 0 //def GPSFISH
         // removed a6fc3d6ee501911375b29ebdb09638eb6789d091
         if (! Limits.ponder
-          && !StopRequest
+          && !Signals.stop
           && depth >= 5
           && abs(bestValues[depth])     >= VALUE_MATE_IN_PLY_MAX
           && abs(bestValues[depth - 1]) >= VALUE_MATE_IN_PLY_MAX)
         {
-            StopRequest = true;
+            Signals.stop = true;
         }
 #endif
 
         // Do we have time for the next iteration? Can we stop searching now?
-        if (!StopRequest && !StopOnPonderhit && Limits.useTimeManagement())
+        if (!Signals.stop && !Signals.stopOnPonderhit && Limits.useTimeManagement())
         {
             // Take in account some extra time if the best move has changed
             if (depth > 4 && depth < 50)
@@ -961,11 +966,11 @@ namespace {
             // Stop search if most of available time is already consumed. We probably don't
             // have enough time to search the first move at the next iteration anyway.
             if (elapsed_search_time() > (TimeMgr.available_time() * 62) / 100)
-                StopRequest = true;
+                Signals.stop = true;
 
             // Stop search early if one move seems to be much better than others
             if (   depth >= 10
-                && !StopRequest
+                && !Signals.stop
                 && (   bestMoveNeverChanged
                     || elapsed_search_time() > (TimeMgr.available_time() * 40) / 100))
             {
@@ -977,14 +982,14 @@ namespace {
                 (ss+1)->excludedMove = MOVE_NONE;
 
                 if (v < rBeta)
-                    StopRequest = true;
+                    Signals.stop = true;
             }
 
             // If we are allowed to ponder do not stop the search now but keep pondering
-            if (StopRequest && Limits.ponder) // FIXME Limits.ponder is racy
+            if (Signals.stop && Limits.ponder) // FIXME Limits.ponder is racy
             {
-                StopRequest = false;
-                StopOnPonderhit = true;
+                Signals.stop = false;
+                Signals.stopOnPonderhit = true;
             }
         }
     }
@@ -1072,7 +1077,7 @@ namespace {
 
     // Check for an instant draw or maximum ply reached
 #ifdef GPSFISH
-    if (StopRequest || ss->ply > PLY_MAX || pos.is_draw(repeat_check))
+    if (Signals.stop || ss->ply > PLY_MAX || pos.is_draw(repeat_check))
         return value_draw(pos);
 
     if(repeat_check<0) 
@@ -1081,7 +1086,7 @@ namespace {
         return value_mate_in(ss->ply);
 #endif
     // Step 2. Check for aborted search and immediate draw
-    if ((   StopRequest
+    if ((   Signals.stop
          || pos.is_draw<false>()
          || ss->ply > PLY_MAX) && !RootNode)
         return VALUE_DRAW;
@@ -1450,7 +1455,7 @@ split_point_start: // At split points actual search starts from here
       if (RootNode)
       {
           // This is used by time management
-          FirstRootMove = (moveCount == 1);
+          Signals.firstRootMove = (moveCount == 1);
 
           // Save the current node count before the move is searched
           nodes = pos.nodes_searched();
@@ -1650,7 +1655,7 @@ split_point_start: // At split points actual search starts from here
       // was aborted because the user interrupted the search or because we
       // ran out of time. In this case, the return value of the search cannot
       // be trusted, and we don't update the best move and/or PV.
-      if (RootNode && !StopRequest)
+      if (RootNode && !Signals.stop)
       {
           // Remember searched nodes counts for this move
           RootMove* rm = Rml.find(move);
@@ -1711,7 +1716,7 @@ split_point_start: // At split points actual search starts from here
           && depth >= Threads.min_split_depth()
           && bestValue < beta
           && Threads.available_slave_exists(pos.thread())
-          && !StopRequest
+          && !Signals.stop
           && !thread.cutoff_occurred())
           bestValue = Threads.split<FakeSplit>(pos, ss, alpha, beta, bestValue, depth,
                                                threatMove, moveCount, &mp, NT);
@@ -1733,7 +1738,7 @@ split_point_start: // At split points actual search starts from here
     // Step 21. Update tables
     // If the search is not aborted, update the transposition table,
     // history counters, and killer moves.
-    if (!SpNode && !StopRequest && !thread.cutoff_occurred())
+    if (!SpNode && !Signals.stop && !thread.cutoff_occurred())
     {
         move = bestValue <= oldAlpha ? MOVE_NONE : ss->bestMove;
         vt   = bestValue <= oldAlpha ? VALUE_TYPE_UPPER
@@ -2572,7 +2577,7 @@ split_point_start: // At split points actual search starts from here
 
   /// RootMove and RootMoveList method's definitions
 
-  void RootMoveList::init(Position& pos, Move searchMoves[]) {
+  void RootMoveList::init(Position& pos, Move rootMoves[]) {
 
     Move* sm;
     bestMoveChanges = 0;
@@ -2581,15 +2586,15 @@ split_point_start: // At split points actual search starts from here
     // Generate all legal moves and add them to RootMoveList
     for (MoveList<MV_LEGAL> ml(pos); !ml.end(); ++ml)
     {
-        // If we have a searchMoves[] list then verify the move
+        // If we have a rootMoves[] list then verify the move
         // is in the list before to add it.
 #ifdef GPSFISH
-        for (sm = searchMoves; *sm!=MOVE_NONE && *sm != ml.move(); sm++) {}
+        for (sm = rootMoves; *sm!=MOVE_NONE && *sm != ml.move(); sm++) {}
 #else
-        for (sm = searchMoves; *sm && *sm != ml.move(); sm++) {}
+        for (sm = rootMoves; *sm && *sm != ml.move(); sm++) {}
 #endif
 
-        if (sm != searchMoves && *sm != ml.move())
+        if (sm != rootMoves && *sm != ml.move())
             continue;
 
         RootMove rm;
@@ -2868,7 +2873,7 @@ void do_checkmate(Position& pos, int mateTime){
 }
 #else
 void do_checkmate(Position& pos, int mateTime){
-    StopRequest=false;
+    Signals.stop=false;
     osl::state::NumEffectState state(pos.osl_state);
 #if (! defined ALLOW_KING_ABSENCE)
     if (state.kingSquare(state.turn()).isPieceStand()) {
@@ -2897,7 +2902,7 @@ void do_checkmate(Position& pos, int mateTime){
             << " nodes " << total+node_count << " nps " << static_cast<int>(node_count/elapsed)
             << " hashfull " << static_cast<int>(memory*1000) << "\n";
         //poll(pos);
-        if (result.isFinal() || elapsed >= seconds || memory > 0.9 || StopRequest)
+        if (result.isFinal() || elapsed >= seconds || memory > 0.9 || Signals.stop)
             break;
         total += limit;
         // estimate: total * std::min(seconds/elapsed, 1.0/memory)
@@ -2924,56 +2929,6 @@ void show_tree(Position &pos){
     show_tree_rec(pos);
 }
 
-// ThreadsManager::wait_for_stop_or_ponderhit() is called when the maximum depth
-// is reached while the program is pondering. The point is to work around a wrinkle
-// in the UCI protocol: When pondering, the engine is not allowed to give a
-// "bestmove" before the GUI sends it a "stop" or "ponderhit" command.
-// We simply wait here until one of these commands (that raise StopRequest) is
-// sent, and return, after which the bestmove and pondermove will be printed.
-
-void ThreadsManager::wait_for_stop_or_ponderhit() {
-
-  StopOnPonderhit = true;
-
-  Thread& main = threads[0];
-
-  lock_grab(&main.sleepLock);
-
-  while (!StopRequest)
-      cond_wait(&main.sleepCond, &main.sleepLock);
-
-  lock_release(&main.sleepLock);
-}
-
-
-// uci_async_command() is called when a 'cmd' input line is received from the
-// GUI while searching.
-
-void uci_async_command(const std::string& cmd) {
-
-#ifdef GPSFISH
-  if (cmd.size() >= 5 && string(cmd,0,5) == "echo ")
-      cout << string(cmd,5) << endl;
-  else
-  if (cmd == "quit" || cmd == "stop" || cmd.find("gameover")==0)
-#else
-  if (cmd == "quit" || cmd == "stop")
-#endif
-      StopRequest = true;
-
-  else if (cmd == "ponderhit")
-  {
-      // The opponent has played the expected move. GUI sends "ponderhit" if
-      // we were told to ponder on the same move the opponent has played. We
-      // should continue searching but switching from pondering to normal search.
-      Limits.ponder = false;
-
-      if (StopOnPonderhit)
-          StopRequest = true;
-  }
-}
-
-
 // do_timer_event() is called by the timer thread when the timer triggers
 
 void do_timer_event() {
@@ -2994,8 +2949,8 @@ void do_timer_event() {
   if (Limits.ponder)
       return;
 
-  bool stillAtFirstMove =    FirstRootMove
-                         && !AspirationFailLow
+  bool stillAtFirstMove =    Signals.firstRootMove
+                         && !Signals.failedLowAtRoot
                          &&  e > TimeMgr.available_time();
 
   bool noMoreTime =   e > TimeMgr.maximum_time()
@@ -3004,5 +2959,5 @@ void do_timer_event() {
   if (   (Limits.useTimeManagement() && noMoreTime)
       || (Limits.maxTime && e >= Limits.maxTime)
          /* missing nodes limit */ ) // FIXME
-      StopRequest = true;
+      Signals.stop = true;
 }
