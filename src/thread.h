@@ -69,12 +69,6 @@ struct SplitPoint {
 
 struct Thread {
 
-  enum ThreadState
-  {
-    AVAILABLE,     // Thread is waiting for work
-    SEARCHING      // Thread is performing work
-  };
-
   void wake_up();
   bool cutoff_occurred() const;
   bool is_available_to(int master) const;
@@ -89,9 +83,9 @@ struct Thread {
   int maxPly;
   Lock sleepLock;
   WaitCondition sleepCond;
-  volatile ThreadState state;
   SplitPoint* volatile splitPoint;
   volatile int activeSplitPoints;
+  volatile bool is_searching;
   volatile bool do_sleep;
   volatile bool do_terminate;
 

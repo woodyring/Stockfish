@@ -84,7 +84,7 @@ bool Thread::cutoff_occurred() const {
 
 bool Thread::is_available_to(int master) const {
 
-  if (state != AVAILABLE)
+  if (is_searching)
       return false;
 
   // Make a local copy to be sure doesn't become zero under our feet while
@@ -163,7 +163,7 @@ void ThreadsManager::init() {
   }
 
   // Initialize main thread's associated data
-  threads[0].state = Thread::SEARCHING;
+  threads[0].is_searching = true;
   threads[0].threadID = 0;
   set_size(1); // This makes all the threads but the main to go to sleep
 
@@ -171,7 +171,7 @@ void ThreadsManager::init() {
   // threads will go immediately to sleep.
   for (int i = 1; i < MAX_THREADS; i++)
   {
-      threads[i].state = Thread::AVAILABLE;
+      threads[i].is_searching = false;
       threads[i].threadID = i;
 
 #if defined(_MSC_VER) || defined(_WIN32) 
@@ -301,7 +301,7 @@ Value ThreadsManager::split(Position& pos, SearchStack* ss, Value alpha, Value b
       sp->is_slave[i] = false;
 
   // If we are here it means we are not available
-  assert(masterThread.state == Thread::SEARCHING);
+  assert(masterThread.is_searching);
 
   int workersCnt = 1; // At least the master is included
 
@@ -318,7 +318,7 @@ Value ThreadsManager::split(Position& pos, SearchStack* ss, Value alpha, Value b
           threads[i].splitPoint = sp;
 
           // This makes the slave to exit from idle_loop()
-          threads[i].state = Thread::SEARCHING;
+          threads[i].is_searching = true;
 
           if (useSleepingThreads)
               threads[i].wake_up();
@@ -333,23 +333,23 @@ Value ThreadsManager::split(Position& pos, SearchStack* ss, Value alpha, Value b
   masterThread.splitPoint = sp;
   masterThread.activeSplitPoints++;
 
-  // Everything is set up. The master thread enters the idle loop, from
-  // which it will instantly launch a search, because its state is
-  // Thread::WORKISWAITING. We send the split point as a second parameter to
-  // the idle loop, which means that the main thread will return from the idle
-  // loop when all threads have finished their work at this split point.
+  // Everything is set up. The master thread enters the idle loop, from which
+  // it will instantly launch a search, because its is_searching flag is set.
+  // We pass the split point as a parameter to the idle loop, which means that
+  // the thread will return from the idle loop when all slaves have finished
+  // their work at this split point.
   masterThread.idle_loop(sp);
 
   // In helpful master concept a master can help only a sub-tree, and
   // because here is all finished is not possible master is booked.
-  assert(masterThread.state == Thread::AVAILABLE);
+  assert(!masterThread.is_searching);
 
   // We have returned from the idle loop, which means that all threads are
   // finished. Note that changing state and decreasing activeSplitPoints is done
   // under lock protection to avoid a race with Thread::is_available_to().
   lock_grab(&threadsLock);
 
-  masterThread.state = Thread::SEARCHING;
+  masterThread.is_searching = true;
   masterThread.activeSplitPoints--;
 
   lock_release(&threadsLock);
