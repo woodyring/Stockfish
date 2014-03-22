@@ -752,7 +752,7 @@ void run_checkmate(int depth, uint64_t nodes, Position& pos)
             nodes /= 4;
         else {
             ++mated;
-            Rml[i].pv_score = -VALUE_INFINITE;
+            Rml[i].score = -VALUE_INFINITE;
             //Rml[i].non_pv_score = VALUE_MATED_IN_PLY_MAX;
             std::cout << "info string losing move " << i << "th "
                 << move_to_uci(Rml[i].pv[0],false)
@@ -835,7 +835,7 @@ namespace {
                 < std::max(Limits.maxTime,TimeMgr.maximum_time())*4/5) {
             run_checkmate(depth, next_checkmate, pos);
             next_checkmate *= 2;
-            if (Rml[0].pv_score <= VALUE_MATED_IN_PLY_MAX) {
+            if (Rml[0].score <= VALUE_MATED_IN_PLY_MAX) {
                 depth -= std::min(4, (int)depth/2);
                 alpha = Max(alpha - aspirationDelta*63, -VALUE_INFINITE);
                 beta  = Min(beta  + aspirationDelta*63,  VALUE_INFINITE);
@@ -1693,7 +1693,7 @@ split_point_start: // At split points actual search starts from here
                       && (!isPvMove || current_search_time() >= 5000))
                   cout << "info"
                       << depth_to_uci(depth)
-                      << score_to_uci(rm->pv_score, alpha, beta)
+                      << score_to_uci(rm->score, alpha, beta)
                       << speed_to_uci(pos.nodes_searched())
                       << pv_to_uci(&rm->pv[0], 0 + 1, false) << endl;
 #endif
