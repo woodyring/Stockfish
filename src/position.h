@@ -369,7 +369,7 @@ inline bool Position::square_is_empty(Square s) const {
 #ifdef GPSFISH
   return osl_state.pieceAt(s).isEmpty();
 #else
-  return piece_on(s) == PIECE_NONE;
+  return board[s] == PIECE_NONE;
 #endif
 }
 
@@ -387,7 +387,7 @@ inline Bitboard Position::occupied_squares() const {
 }
 
 inline Bitboard Position::empty_squares() const {
-  return ~occupied_squares();
+  return ~byTypeBB[0];
 }
 
 inline Bitboard Position::pieces(Color c) const {
@@ -478,7 +478,7 @@ inline bool Position::in_check() const {
 #ifdef GPSFISH
   return osl_state.inCheck();
 #else
-  return st->checkersBB != EmptyBoardBB;
+  return st->checkersBB != 0;
 #endif
 }
 
@@ -523,9 +523,8 @@ inline Value Position::non_pawn_material(Color c) const {
 
 inline bool Position::move_is_passed_pawn_push(Move m) const {
 
-  Color c = side_to_move();
-  return   piece_on(move_from(m)) == make_piece(c, PAWN)
-        && pawn_is_passed(c, move_to(m));
+  return   board[move_from(m)] == make_piece(sideToMove, PAWN)
+        && pawn_is_passed(sideToMove, move_to(m));
 }
 #endif
 
@@ -536,9 +535,9 @@ inline int Position::startpos_ply_counter() const {
 #ifndef GPSFISH
 inline bool Position::opposite_colored_bishops() const {
 
-  return   piece_count(WHITE, BISHOP) == 1
-        && piece_count(BLACK, BISHOP) == 1
-        && opposite_color_squares(piece_list(WHITE, BISHOP)[0], piece_list(BLACK, BISHOP)[0]);
+  return   pieceCount[WHITE][BISHOP] == 1
+        && pieceCount[BLACK][BISHOP] == 1
+        && opposite_colors(pieceList[WHITE][BISHOP][0], pieceList[BLACK][BISHOP][0]);
 }
 
 inline bool Position::has_pawn_on_7th(Color c) const {

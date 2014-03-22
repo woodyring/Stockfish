@@ -458,15 +458,6 @@ inline Color flip(Color c) {
 #endif
 }
 
-inline char piece_type_to_char(PieceType pt) {
-#ifdef GPSFISH
-  static const char ch[] = "  plnsbrGKPLNSBR";
-#else
-  static const char ch[] = " PNBRQK";
-#endif
-  return ch[pt];
-}
-
 inline Square make_square(File f, Rank r) {
 #ifdef GPSFISH
   return Square(f,r);
@@ -530,13 +521,11 @@ inline Rank relative_rank(Color c, Square s) {
 }
 
 #ifndef GPSFISH
-inline SquareColor square_color(Square s) {
+inline SquareColor color_of(Square s) {
   return SquareColor(int(rank_of(s) + s) & 1);
 }
-#endif
 
-#ifndef GPSFISH
-inline bool opposite_color_squares(Square s1, Square s2) {
+inline bool opposite_colors(Square s1, Square s2) {
   int s = s1 ^ s2;
   return ((s >> 3) ^ s) & 1;
 }
@@ -556,6 +545,10 @@ inline int square_distance(Square s1, Square s2) {
 }
 #endif
 
+inline char piece_type_to_char(PieceType pt) {
+  return " PNBRQK"[pt];
+}
+
 inline char file_to_char(File f) {
 #ifdef GPSFISH
   return char(int('a')+FILE_9-f);
@@ -570,7 +563,7 @@ inline char rank_to_char(Rank r) {
 
 inline const std::string square_to_string(Square s) {
   char ch[] = { file_to_char(file_of(s)), rank_to_char(rank_of(s)), 0 };
-  return std::string(ch);
+  return ch;
 }
 
 #ifndef GPSFISH
