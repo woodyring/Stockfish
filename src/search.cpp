@@ -204,7 +204,7 @@ namespace {
   Value DrawValue;
 #endif
   // Time management variables
-  bool StopOnPonderhit, FirstRootMove, StopRequest, QuitRequest, AspirationFailLow;
+  volatile bool StopOnPonderhit, FirstRootMove, StopRequest, QuitRequest, AspirationFailLow;
   TimeManager TimeMgr;
   SearchLimits Limits;
 
@@ -601,9 +601,10 @@ bool think(Position& pos, const SearchLimits& limits, Move searchMoves[]) {
 #endif
   }
 
-  // If we are pondering or in infinite search, we shouldn't print the best move
+  // When we reach max depth we arrive here even without a StopRequest, but if
+  // we are pondering or in infinite search, we shouldn't print the best move
   // before we are told to do so.
-  if (Limits.ponder || Limits.infinite)
+  if (!StopRequest && (Limits.ponder || Limits.infinite))
       wait_for_stop_or_ponderhit();
 
   // Could be MOVE_NONE when searching on a stalemate position
@@ -946,18 +947,18 @@ namespace {
 
 #if 0 //def GPSFISH
         // removed a6fc3d6ee501911375b29ebdb09638eb6789d091
-	if (! Limits.ponder
-	    && !StopRequest
-	    && depth >= 5
-	    && abs(bestValues[depth])     >= VALUE_MATE_IN_PLY_MAX
-	    && abs(bestValues[depth - 1]) >= VALUE_MATE_IN_PLY_MAX)
-	{
-	    StopRequest = true;
-	}
+        if (! Limits.ponder
+          && !StopRequest
+          && depth >= 5
+          && abs(bestValues[depth])     >= VALUE_MATE_IN_PLY_MAX
+          && abs(bestValues[depth - 1]) >= VALUE_MATE_IN_PLY_MAX)
+        {
+            StopRequest = true;
+        }
 #endif
 
-        // Check for some early stop condition
-        if (!StopRequest && Limits.useTimeManagement())
+        // Do we have time for the next iteration? Can we stop searching now?
+        if (!StopRequest && !StopOnPonderhit && Limits.useTimeManagement())
         {
             // Take in account some extra time if the best move has changed
             if (depth > 4 && depth < 50)
@@ -986,7 +987,7 @@ namespace {
             }
 
             // If we are allowed to ponder do not stop the search now but keep pondering
-            if (StopRequest && Limits.ponder)
+            if (StopRequest && Limits.ponder) // FIXME Limits.ponder is racy
             {
                 StopRequest = false;
                 StopOnPonderhit = true;
