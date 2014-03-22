@@ -281,7 +281,6 @@ private:
   bool move_is_legal(const Move m) const;
 
   // Helper functions for doing and undoing moves
-  void do_capture_move(Key& key, PieceType capture, Color them, Square to, bool ep);
 #ifndef GPSFISH
   template<bool Do> void do_castle_move(Move m);
 
