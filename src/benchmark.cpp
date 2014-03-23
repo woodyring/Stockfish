@@ -91,7 +91,6 @@ void benchmark(int argc, char* argv[]) {
   }
 #endif
 
-  vector<Move> searchMoves(1, MOVE_NONE);
   vector<string> fenList;
   Search::LimitsType limits;
   int64_t totalNodes;
@@ -159,7 +158,7 @@ void benchmark(int argc, char* argv[]) {
       }
       else
       {
-          Threads.start_thinking(pos, limits, searchMoves, false);
+          Threads.start_thinking(pos, limits, vector<Move>(), false);
           totalNodes += Search::RootPosition.nodes_searched();
       }
   }

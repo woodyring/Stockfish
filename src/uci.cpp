@@ -356,7 +356,6 @@ namespace {
     }
 #endif
 
-    searchMoves.push_back(MOVE_NONE);
     limits.time = time[pos.side_to_move()];
     limits.increment = inc[pos.side_to_move()];
 

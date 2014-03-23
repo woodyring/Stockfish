@@ -17,6 +17,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstring>
@@ -24,7 +25,6 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
-#include <algorithm>
 
 #include "book.h"
 #include "evaluate.h"
@@ -71,7 +71,7 @@ namespace Search {
 
   volatile SignalsType Signals;
   LimitsType Limits;
-  std::vector<Move> RootMoves;
+  std::vector<Move> SearchMoves;
   Position RootPosition;
 }
 
@@ -89,15 +89,21 @@ namespace {
   enum NodeType { Root, PV, NonPV, SplitPointRoot, SplitPointPV, SplitPointNonPV };
 
   // RootMove struct is used for moves at the root of the tree. For each root
-  // move, we store a score, a node count, and a PV (really a refutation
-  // in the case of moves which fail low). Score is normally set at
-  // -VALUE_INFINITE for all non-pv moves.
+  // move we store a score, a node count, and a PV (really a refutation in the
+  // case of moves which fail low). Score is normally set at -VALUE_INFINITE for
+  // all non-pv moves.
   struct RootMove {
 
-    // RootMove::operator<() is the comparison function used when
-    // sorting the moves. A move m1 is considered to be better
-    // than a move m2 if it has an higher score
+    RootMove(){}
+    RootMove(Move m) {
+      nodes = 0;
+      score = prevScore = -VALUE_INFINITE;
+      pv.push_back(m);
+      pv.push_back(MOVE_NONE);
+    }
+
     bool operator<(const RootMove& m) const { return score < m.score; }
+    bool operator==(const Move& m) const { return pv[0] == m; }
 
 #ifdef GPSFISH
     void extract_pv_from_tt_rec(Position& pos,int ply);
@@ -112,15 +118,6 @@ namespace {
     Value score;
     Value prevScore;
     std::vector<Move> pv;
-  };
-
-  // RootMoveList struct is mainly a std::vector of RootMove objects
-  struct RootMoveList : public std::vector<RootMove> {
-
-    void init(Position& pos, Move rootMoves[]);
-    RootMove* find(const Move& m, int startIndex = 0);
-
-    int bestMoveChanges;
   };
 
 
@@ -184,13 +181,14 @@ namespace {
 
   /// Namespace variables
 
-  RootMoveList Rml;
+  std::vector<RootMove> RootMoves;
   size_t MultiPV, UCIMultiPV, MultiPVIdx;
 
 #ifdef GPSFISH
   Value DrawValue;
 #endif
   TimeManager TimeMgr;
+  int BestMoveChanges;
   int SkillLevel;
   bool SkillLevelEnabled;
   History H;
@@ -198,7 +196,7 @@ namespace {
 
   /// Local functions
 
-  Move id_loop(Position& pos, Move rootMoves[], Move* ponderMove);
+  Move id_loop(Position& pos, Move* ponderMove);
 
   template <NodeType NT>
   Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth);
@@ -215,7 +213,6 @@ namespace {
   Value refine_eval(const TTEntry* tte, Value defaultEval, int ply);
   void update_history(const Position& pos, Move move, Depth depth, Move movesSearched[], int moveCount);
   void do_skill_level(Move* best, Move* ponder);
-
   int elapsed_time(bool reset = false);
   string score_to_uci(Value v, Value alpha = -VALUE_INFINITE, Value beta = VALUE_INFINITE);
   string speed_to_uci(int64_t nodes);
@@ -223,9 +220,9 @@ namespace {
   string pretty_pv(Position& pos, int depth, Value score, int time, Move pv[]);
   string depth_to_uci(Depth depth);
 
-  // MovePickerExt template class extends MovePicker and allows to choose at compile
-  // time the proper moves source according to the type of node. In the default case
-  // we simply create and use a standard MovePicker object.
+  // MovePickerExt class template extends MovePicker and allows to choose at
+  // compile time the proper moves source according to the type of node. In the
+  // default case we simply create and use a standard MovePicker object.
   template<bool SpNode> struct MovePickerExt : public MovePicker {
 
     MovePickerExt(const Position& p, Move ttm, Depth d, const History& h, Stack* ss, Value b)
@@ -251,17 +248,17 @@ namespace {
     return os << move_to_uci(m, chess960);
   }
 
-  // When formatting a move for std::cout we must know if we are in Chess960
-  // or not. To keep using the handy operator<<() on the move the trick is to
-  // embed this flag in the stream itself. Function-like named enum set960 is
-  // used as a custom manipulator and the stream internal general-purpose array,
-  // accessed through ios_base::iword(), is used to pass the flag to the move's
-  // operator<<() that will read it to properly format castling moves.
+  // When formatting a move for std::cout we must know if we are in Chess960 or
+  // not. To keep using the handy operator<<() on the move the trick is to embed
+  // this flag in the stream itself. Function-like named enum set960 is used as
+  // a custom manipulator and the stream internal general-purpose array, accessed
+  // through ios_base::iword(), is used to pass the flag to the move's operator<<
+  // that will read it to properly format castling moves.
   enum set960 {};
 
-  std::ostream& operator<< (std::ostream& os, const set960& f) {
+  std::ostream& operator<<(std::ostream& os, const set960& f) {
 
-    os.iword(0) = int(f);
+    os.iword(0) = f;
     return os;
   }
 #endif
@@ -470,7 +467,7 @@ void Search::think() {
   }
 
   UCIMultiPV = Options["MultiPV"].value<size_t>();
-  SkillLevel = Options["Skill Level"].value<size_t>();
+  SkillLevel = Options["Skill Level"].value<int>();
 
   // Do we have to play with skill handicap? In this case enable MultiPV that
   // we will use behind the scenes to retrieve a set of possible moves.
@@ -505,7 +502,7 @@ void Search::think() {
 
   // We're ready to start thinking. Call the iterative deepening loop function
   Move ponderMove = MOVE_NONE;
-  Move bestMove = id_loop(pos, &RootMoves[0], &ponderMove);
+  Move bestMove = id_loop(pos, &ponderMove);
 
   // Stop timer and send all the slaves to sleep, if not already sleeping
   Threads.set_timer(0);
@@ -657,19 +654,19 @@ void run_checkmate(int depth, uint64_t nodes, Position& pos)
     StateInfo st;
     nodes /= 16;
     int mated = 0;
-    for (size_t i=0; i<Rml.size() && nodes >= 1024 && !Signals.stop; ++i) {
+    for (size_t i=0; i<RootMoves.size() && nodes >= 1024 && !Signals.stop; ++i) {
         osl::Move win_move;
         TestCheckmate function(*solver, pos, win_move, nodes,
-                &Rml[i].pv[0], 0, (i==0) ? depth/2 : 1);
-        pos.do_undo_move(Rml[i].pv[0], st, function);
+                &RootMoves[i].pv[0], 0, (i==0) ? depth/2 : 1);
+        pos.do_undo_move(RootMoves[i].pv[0], st, function);
         if (! win_move.isNormal())
             nodes /= 4;
         else {
             ++mated;
-            Rml[i].score = -VALUE_INFINITE;
-            //Rml[i].non_pv_score = VALUE_MATED_IN_PLY_MAX;
+            RootMoves[i].score = -VALUE_INFINITE;
+            //RootMoves[i].non_pv_score = VALUE_MATED_IN_PLY_MAX;
             std::cout << "info string losing move " << i << "th "
-                << move_to_uci(Rml[i].pv[0],false)
+                << move_to_uci(RootMoves[i].pv[0],false)
                 << " by " << move_to_uci(win_move,false) << '\n';
         }
     }
@@ -683,7 +680,7 @@ namespace {
   // with increasing depth until the allocated thinking time has been consumed,
   // user stops the search, or the maximum search depth is reached.
 
-  Move id_loop(Position& pos, Move rootMoves[], Move* ponderMove) {
+  Move id_loop(Position& pos, Move* ponderMove) {
 
     Stack ss[PLY_MAX_PLUS_2];
     Value bestValues[PLY_MAX_PLUS_2];
@@ -704,6 +701,7 @@ namespace {
     memset(ss, 0, 4 * sizeof(Stack));
     TT.new_search();
     H.clear();
+    RootMoves.clear();
     *ponderMove = bestMove = skillBest = skillPonder = MOVE_NONE;
     depth = aspirationDelta = 0;
     bestValue = alpha = -VALUE_INFINITE, beta = VALUE_INFINITE;
@@ -719,10 +717,13 @@ namespace {
     *(pos.eval)=eval_t(pos.osl_state,false);
 #endif
 
-    Rml.init(pos, rootMoves);
+    for (MoveList<MV_LEGAL> ml(pos); !ml.end(); ++ml)
+        if (   SearchMoves.empty()
+            || std::count(SearchMoves.begin(), SearchMoves.end(), ml.move()))
+            RootMoves.push_back(RootMove(ml.move()));
 
     // Handle special case of searching on a mate/stalemate position
-    if (Rml.empty())
+    if (RootMoves.empty())
     {
         cout << "info" << depth_to_uci(DEPTH_ZERO)
 #ifdef GPSFISH
@@ -740,10 +741,10 @@ namespace {
     while (!Signals.stop && ++depth <= PLY_MAX && (!Limits.maxDepth || depth <= Limits.maxDepth))
     {
         // Save now last iteration's scores, before Rml moves are reordered
-        for (size_t i = 0; i < Rml.size(); i++)
-            Rml[i].prevScore = Rml[i].score;
+        for (size_t i = 0; i < RootMoves.size(); i++)
+            RootMoves[i].prevScore = RootMoves[i].score;
 
-        Rml.bestMoveChanges = 0;
+        BestMoveChanges = 0;
 
 #ifdef GPSFISH_DFPN
         if ((uint64_t)pos.nodes_searched() > next_checkmate
@@ -751,7 +752,7 @@ namespace {
                 < std::max(Limits.maxTime,TimeMgr.maximum_time())*4/5) {
             run_checkmate(depth, next_checkmate, pos);
             next_checkmate *= 2;
-            if (Rml[0].score <= VALUE_MATED_IN_PLY_MAX) {
+            if (RootMoves[0].score <= VALUE_MATED_IN_PLY_MAX) {
                 depth -= std::min(4, (int)depth/2);
                 alpha = std::max(alpha - aspirationDelta*63, -VALUE_INFINITE);
                 beta  = std::min(beta  + aspirationDelta*63,  VALUE_INFINITE);
@@ -760,10 +761,10 @@ namespace {
 #endif
 
         // MultiPV loop. We perform a full root search for each PV line
-        for (MultiPVIdx = 0; MultiPVIdx < std::min(MultiPV, Rml.size()); MultiPVIdx++)
+        for (MultiPVIdx = 0; MultiPVIdx < std::min(MultiPV, RootMoves.size()); MultiPVIdx++)
         {
             // Calculate dynamic aspiration window based on previous iterations
-            if (depth >= 5 && abs(Rml[MultiPVIdx].prevScore) < VALUE_KNOWN_WIN)
+            if (depth >= 5 && abs(RootMoves[MultiPVIdx].prevScore) < VALUE_KNOWN_WIN)
             {
                 int prevDelta1 = bestValues[depth - 1] - bestValues[depth - 2];
                 int prevDelta2 = bestValues[depth - 2] - bestValues[depth - 3];
@@ -771,8 +772,8 @@ namespace {
                 aspirationDelta = std::min(std::max(abs(prevDelta1) + abs(prevDelta2) / 2, 16), 24);
                 aspirationDelta = (aspirationDelta + 7) / 8 * 8; // Round to match grainSize
 
-                alpha = std::max(Rml[MultiPVIdx].prevScore - aspirationDelta, -VALUE_INFINITE);
-                beta  = std::min(Rml[MultiPVIdx].prevScore + aspirationDelta,  VALUE_INFINITE);
+                alpha = std::max(RootMoves[MultiPVIdx].prevScore - aspirationDelta, -VALUE_INFINITE);
+                beta  = std::min(RootMoves[MultiPVIdx].prevScore + aspirationDelta,  VALUE_INFINITE);
             }
             else
             {
@@ -793,19 +794,19 @@ namespace {
                 // we want to keep the same order for all the moves but the new
                 // PV that goes to the front. Note that in case of MultiPV search
                 // the already searched PV lines are preserved.
-                sort<RootMove>(Rml.begin() + MultiPVIdx, Rml.end());
+                sort<RootMove>(RootMoves.begin() + MultiPVIdx, RootMoves.end());
 
                 // In case we have found an exact score and we are going to leave
                 // the fail high/low loop then reorder the PV moves, otherwise
                 // leave the last PV move in its position so to be searched again.
                 // Of course this is needed only in MultiPV search.
                 if (MultiPVIdx && bestValue > alpha && bestValue < beta)
-                    sort<RootMove>(Rml.begin(), Rml.begin() + MultiPVIdx);
+                    sort<RootMove>(RootMoves.begin(), RootMoves.begin() + MultiPVIdx);
 
                 // Write PV back to transposition table in case the relevant entries
                 // have been overwritten during the search.
                 for (size_t i = 0; i <= MultiPVIdx; i++)
-                    Rml[i].insert_pv_in_tt(pos);
+                    RootMoves[i].insert_pv_in_tt(pos);
 
                 // If search has been stopped exit the aspiration window loop,
                 // note that sorting and writing PV back to TT is safe becuase
@@ -818,7 +819,7 @@ namespace {
                 // protocol requires to send all the PV lines also if are still
                 // to be searched and so refer to the previous search's score.
                 if ((bestValue > alpha && bestValue < beta) || elapsed_time() > 2000)
-                    for (size_t i = 0; i < std::min(UCIMultiPV, Rml.size()); i++)
+                    for (size_t i = 0; i < std::min(UCIMultiPV, RootMoves.size()); i++)
                     {
                         bool updated = (i <= MultiPVIdx);
 
@@ -826,13 +827,13 @@ namespace {
                             continue;
 
                         Depth d = (updated ? depth : depth - 1) * ONE_PLY;
-                        Value s = (updated ? Rml[i].score : Rml[i].prevScore);
+                        Value s = (updated ? RootMoves[i].score : RootMoves[i].prevScore);
 
                         cout << "info"
                              << depth_to_uci(d)
                              << (i == MultiPVIdx ? score_to_uci(s, alpha, beta) : score_to_uci(s))
                              << speed_to_uci(pos.nodes_searched())
-                             << pv_to_uci(&Rml[i].pv[0], i + 1, pos.is_chess960())
+                             << pv_to_uci(&RootMoves[i].pv[0], i + 1, pos.is_chess960())
                              << endl;
                     }
 
@@ -857,10 +858,10 @@ namespace {
             } while (abs(bestValue) < VALUE_KNOWN_WIN);
         }
 
-        bestMove = Rml[0].pv[0];
-        *ponderMove = Rml[0].pv[1];
+        bestMove = RootMoves[0].pv[0];
+        *ponderMove = RootMoves[0].pv[1];
         bestValues[depth] = bestValue;
-        bestMoveChanges[depth] = Rml.bestMoveChanges;
+        bestMoveChanges[depth] = BestMoveChanges;
 
         // Skills: Do we need to pick now the best and the ponder moves ?
         if (SkillLevelEnabled && depth == 1 + SkillLevel)
@@ -869,7 +870,7 @@ namespace {
         if (Options["Use Search Log"].value<bool>())
         {
             Log log(Options["Search Log Filename"].value<string>());
-            log << pretty_pv(pos, depth, bestValue, elapsed_time(), &Rml[0].pv[0]) << endl;
+            log << pretty_pv(pos, depth, bestValue, elapsed_time(), &RootMoves[0].pv[0]) << endl;
         }
 
         // Filter out startup noise when monitoring best move stability
@@ -1083,9 +1084,9 @@ namespace {
 
     tte = TT.probe(posKey);
 #ifdef GPSFISH
-    ttMove = RootNode ? Rml[MultiPVIdx].pv[0] : tte ? tte->move(pos) : MOVE_NONE;
+    ttMove = RootNode ? RootMoves[MultiPVIdx].pv[0] : tte ? tte->move(pos) : MOVE_NONE;
 #else
-    ttMove = RootNode ? Rml[MultiPVIdx].pv[0] : tte ? tte->move() : MOVE_NONE;
+    ttMove = RootNode ? RootMoves[MultiPVIdx].pv[0] : tte ? tte->move() : MOVE_NONE;
 #endif
 
     // At PV nodes we check for exact scores, while at non-PV nodes we check for
@@ -1369,7 +1370,7 @@ split_point_start: // At split points actual search starts from here
       // At root obey the "searchmoves" option and skip moves not listed in Root
       // Move List, as a consequence any illegal move is also skipped. In MultiPV
       // mode we also skip PV moves which have been already searched.
-      if (RootNode && !Rml.find(move, MultiPVIdx))
+      if (RootNode && !std::count(RootMoves.begin() + MultiPVIdx, RootMoves.end(), move))
           continue;
 
       // At PV and SpNode nodes we want all moves to be legal since the beginning
@@ -1593,20 +1594,21 @@ split_point_start: // At split points actual search starts from here
       // be trusted, and we don't update the best move and/or PV.
       if (RootNode && !Signals.stop)
       {
-          RootMove* rm = Rml.find(move);
-          rm->nodes += pos.nodes_searched() - nodes;
+          RootMove& rm = *std::find(RootMoves.begin(), RootMoves.end(), move);
+          rm.nodes += pos.nodes_searched() - nodes;
 
           // PV move or new best move ?
           if (isPvMove || value > alpha)
           {
-              rm->score = value;
-              rm->extract_pv_from_tt(pos);
+              rm.score = value;
+              rm.extract_pv_from_tt(pos);
 
               // We record how often the best move has been changed in each
               // iteration. This information is used for time management: When
               // the best move changes frequently, we allocate some more time.
               if (!isPvMove && MultiPV == 1)
-                  Rml.bestMoveChanges++;
+                  BestMoveChanges++;
+
 #if 0 //def GPSFISH
               if (depth >= 5*ONE_PLY
                       && (!isPvMove || current_search_time() >= 5000))
@@ -1622,7 +1624,7 @@ split_point_start: // At split points actual search starts from here
               // All other moves but the PV are set to the lowest value, this
               // is not a problem when sorting becuase sort is stable and move
               // position in the list is preserved, just the PV is pushed up.
-              rm->score = -VALUE_INFINITE;
+              rm.score = -VALUE_INFINITE;
 
       }
 
@@ -2366,23 +2368,23 @@ split_point_start: // At split points actual search starts from here
   string depth_to_uci(Depth depth) {
 
     std::stringstream s;
+    int selDepth = 0;
 
     // Retrieve max searched depth among threads
-    int selDepth = 0;
     for (int i = 0; i < Threads.size(); i++)
         if (Threads[i].maxPly > selDepth)
             selDepth = Threads[i].maxPly;
 
-     s << " depth " << depth / ONE_PLY << " seldepth " << selDepth;
+    s << " depth " << depth / ONE_PLY << " seldepth " << selDepth;
 
     return s.str();
   }
 
 
-  // pretty_pv() creates a human-readable string from a position and a PV.
-  // It is used to write search information to the log file (which is created
-  // when the UCI parameter "Use Search Log" is "true"). It uses the two helpers
-  // time_to_string() and score_to_string() to format time and score respectively.
+  // pretty_pv() creates a human-readable string from a position and a PV. It is
+  // used to write search information to the log file (which is created when the
+  // UCI parameter "Use Search Log" is "true"). It uses the two below helper to
+  // pretty format time and score respectively.
 
   string time_to_string(int millisecs) {
 
@@ -2398,7 +2400,8 @@ split_point_start: // At split points actual search starts from here
     if (hours)
         s << hours << ':';
 
-    s << std::setfill('0') << std::setw(2) << minutes << ':' << std::setw(2) << seconds;
+    s << std::setfill('0') << std::setw(2) << minutes << ':'
+                           << std::setw(2) << seconds;
     return s.str();
   }
 
@@ -2411,7 +2414,8 @@ split_point_start: // At split points actual search starts from here
     else if (v <= VALUE_MATED_IN_PLY_MAX)
         s << "-#" << (VALUE_MATE + v) / 2;
     else
-        s << std::setprecision(2) << std::fixed << std::showpos << float(v) / PawnValueMidgame;
+        s << std::setprecision(2) << std::fixed << std::showpos
+          << float(v) / PawnValueMidgame;
 
     return s.str();
   }
@@ -2420,16 +2424,13 @@ split_point_start: // At split points actual search starts from here
 
     const int64_t K = 1000;
     const int64_t M = 1000000;
-    const int startColumn = 28;
-    const size_t maxLength = 80 - startColumn;
 
     StateInfo state[PLY_MAX_PLUS_2], *st = state;
     Move* m = pv;
-    string san;
+    string san, padding;
+    size_t length;
     std::stringstream s;
-    size_t length = 0;
 
-    // First print depth, score, time and searched nodes...
 #ifdef GPSFISH
     s
 #else
@@ -2446,25 +2447,29 @@ split_point_start: // At split points actual search starts from here
     else
         s << std::setw(7) << pos.nodes_searched() / M << "M  ";
 
-    // ...then print the full PV line in short algebraic notation
+    padding = string(s.str().length(), ' ');
+    length = padding.length();
+
     while (*m != MOVE_NONE)
     {
         san = move_to_san(pos, *m);
-        length += san.length() + 1;
 
-        if (length > maxLength)
+        if (length + san.length() > 80)
         {
-            length = san.length() + 1;
-            s << "\n" + string(startColumn, ' ');
+            s << "\n" + padding;
+            length = padding.length();
         }
+
         s << san << ' ';
+        length += san.length() + 1;
 
         pos.do_move(*m++, *st++);
     }
 
     // Restore original position before to leave
 #ifndef GPSFISH
-    while (m != pv) pos.undo_move(*--m);
+    while (m != pv)
+        pos.undo_move(*--m);
 #endif
 
     return s.str();
@@ -2480,81 +2485,40 @@ split_point_start: // At split points actual search starts from here
 
     static RKISS rk;
 
-    // Rml list is already sorted by score in descending order
-    int s;
-    size_t size = std::min(MultiPV, Rml.size());
-    int max_s = -VALUE_INFINITE;
-    int max = Rml[0].score;
-    int var = std::min(max - Rml[size - 1].score, int(PawnValueMidgame));
-    int wk = 120 - 2 * SkillLevel;
-
-    // PRNG sequence should be non deterministic
+    // PRNG sequence should be not deterministic
     for (int i = abs(get_system_time() % 50); i > 0; i--)
         rk.rand<unsigned>();
 
-    // Choose best move. For each move's score we add two terms both dependent
-    // on wk, one deterministic and bigger for weaker moves, and one random,
+    // Rml list is already sorted by score in descending order
+    size_t size = std::min(MultiPV, RootMoves.size());
+    int variance = std::min(RootMoves[0].score - RootMoves[size - 1].score, PawnValueMidgame);
+    int weakness = 120 - 2 * SkillLevel;
+    int max_s = -VALUE_INFINITE;
+
+    // Choose best move. For each move score we add two terms both dependent on
+    // weakness, one deterministic and bigger for weaker moves, and one random,
     // then we choose the move with the resulting highest score.
     for (size_t i = 0; i < size; i++)
     {
-        s = Rml[i].score;
+        int s = RootMoves[i].score;
 
         // Don't allow crazy blunders even at very low skills
-        if (i > 0 && Rml[i-1].score > s + EasyMoveMargin)
+        if (i > 0 && RootMoves[i-1].score > s + EasyMoveMargin)
             break;
 
-        // This is our magical formula
-        s += ((max - s) * wk + var * (rk.rand<unsigned>() % wk)) / 128;
+        // This is our magic formula
+        s += (  weakness * int(RootMoves[0].score - s)
+              + variance * (rk.rand<unsigned>() % weakness)) / 128;
 
         if (s > max_s)
         {
             max_s = s;
-            *best = Rml[i].pv[0];
-            *ponder = Rml[i].pv[1];
+            *best = RootMoves[i].pv[0];
+            *ponder = RootMoves[i].pv[1];
         }
     }
   }
 
-
-  // RootMove and RootMoveList method's definitions
-
-  void RootMoveList::init(Position& pos, Move rootMoves[]) {
-
-    Move* sm;
-    bestMoveChanges = 0;
-    clear();
-
-    // Generate all legal moves and add them to RootMoveList
-    for (MoveList<MV_LEGAL> ml(pos); !ml.end(); ++ml)
-    {
-        // If we have a rootMoves[] list then verify the move
-        // is in the list before to add it.
-#ifdef GPSFISH
-        for (sm = rootMoves; *sm!=MOVE_NONE && *sm != ml.move(); sm++) {}
-#else
-        for (sm = rootMoves; *sm && *sm != ml.move(); sm++) {}
-#endif
-
-        if (sm != rootMoves && *sm != ml.move())
-            continue;
-
-        RootMove rm;
-        rm.pv.push_back(ml.move());
-        rm.pv.push_back(MOVE_NONE);
-        rm.score = rm.prevScore = -VALUE_INFINITE;
-        rm.nodes = 0;
-        push_back(rm);
-    }
-  }
-
-  RootMove* RootMoveList::find(const Move& m, int startIndex) {
-
-    for (size_t i = startIndex; i < size(); i++)
-        if ((*this)[i].pv[0] == m)
-            return &(*this)[i];
-
-    return NULL;
-  }
 
 #ifdef GPSFISH
   void RootMove::extract_pv_from_tt_rec(Position& pos,int ply) {
