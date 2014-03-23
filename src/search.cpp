@@ -67,12 +67,6 @@ using std::string;
 # define GPSFISH_DFPN
 #endif
 
-using std::cout;
-using std::endl;
-using std::string;
-using Search::Signals;
-using Search::Limits;
-
 namespace Search {
 
   volatile SignalsType Signals;
@@ -80,6 +74,11 @@ namespace Search {
   std::vector<Move> RootMoves;
   Position RootPosition;
 }
+
+using std::cout;
+using std::endl;
+using std::string;
+using namespace Search;
 
 namespace {
 
@@ -228,10 +227,10 @@ namespace {
   Move id_loop(Position& pos, Move rootMoves[], Move* ponderMove);
 
   template <NodeType NT>
-  Value search(Position& pos, SearchStack* ss, Value alpha, Value beta, Depth depth);
+  Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth);
 
   template <NodeType NT>
-  Value qsearch(Position& pos, SearchStack* ss, Value alpha, Value beta, Depth depth);
+  Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth);
 
   bool check_is_dangerous(Position &pos, Move move, Value futilityBase, Value beta, Value *bValue);
   bool connected_moves(const Position& pos, Move m1, Move m2);
@@ -255,14 +254,14 @@ namespace {
   // we simply create and use a standard MovePicker object.
   template<bool SpNode> struct MovePickerExt : public MovePicker {
 
-    MovePickerExt(const Position& p, Move ttm, Depth d, const History& h, SearchStack* ss, Value b)
+    MovePickerExt(const Position& p, Move ttm, Depth d, const History& h, Stack* ss, Value b)
                   : MovePicker(p, ttm, d, h, ss, b) {}
   };
 
   // In case of a SpNode we use split point's shared MovePicker object as moves source
   template<> struct MovePickerExt<true> : public MovePicker {
 
-    MovePickerExt(const Position& p, Move ttm, Depth d, const History& h, SearchStack* ss, Value b)
+    MovePickerExt(const Position& p, Move ttm, Depth d, const History& h, Stack* ss, Value b)
                   : MovePicker(p, ttm, d, h, ss, b), mp(ss->sp->mp) {}
 
     Move get_next_move() { return mp->get_next_move(); }
@@ -746,7 +745,7 @@ namespace {
 
   Move id_loop(Position& pos, Move rootMoves[], Move* ponderMove) {
 
-    SearchStack ss[PLY_MAX_PLUS_2];
+    Stack ss[PLY_MAX_PLUS_2];
     Value bestValues[PLY_MAX_PLUS_2];
     int bestMoveChanges[PLY_MAX_PLUS_2];
 #ifdef GPSFISH
@@ -763,7 +762,7 @@ namespace {
     bool bestMoveNeverChanged = true;
 
     // Initialize stuff before a new search
-    memset(ss, 0, 4 * sizeof(SearchStack));
+    memset(ss, 0, 4 * sizeof(Stack));
     TT.new_search();
     H.clear();
     *ponderMove = bestMove = skillBest = skillPonder = MOVE_NONE;
@@ -1016,7 +1015,7 @@ namespace {
   // here: This is taken care of after we return from the split point.
 
   template <NodeType NT>
-  Value search(Position& pos, SearchStack* ss, Value alpha, Value beta, Depth depth) {
+  Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth) {
 
     const bool PvNode   = (NT == PV || NT == Root || NT == SplitPointPV || NT == SplitPointRoot);
     const bool SpNode   = (NT == SplitPointPV || NT == SplitPointNonPV || NT == SplitPointRoot);
@@ -1778,7 +1777,7 @@ split_point_start: // At split points actual search starts from here
   // less than ONE_PLY).
 
   template <NodeType NT>
-  Value qsearch(Position& pos, SearchStack* ss, Value alpha, Value beta, Depth depth) {
+  Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth) {
 
     const bool PvNode = (NT == PV);
 
@@ -2817,12 +2816,12 @@ void Thread::idle_loop(SplitPoint* sp) {
               ss_base[i].currentMove=(tsp->ss-ply+i)->currentMove;
           SearchStack *ss= &ss_base[ply-1];
 #else
-          SearchStack ss[PLY_MAX_PLUS_2];
+          Stack ss[PLY_MAX_PLUS_2];
           SplitPoint* tsp = splitPoint;
           Position pos(*tsp->pos, threadID);
 #endif
 
-          memcpy(ss, tsp->ss - 1, 4 * sizeof(SearchStack));
+          memcpy(ss, tsp->ss - 1, 4 * sizeof(Stack));
           (ss+1)->sp = tsp;
 
 #ifdef GPSFISH
