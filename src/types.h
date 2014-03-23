@@ -328,10 +328,6 @@ enum Rank {
 #endif
 };
 
-enum SquareColor {
-  DARK, LIGHT
-};
-
 enum ScaleFactor {
   SCALE_FACTOR_DRAW   = 0,
   SCALE_FACTOR_NORMAL = 64,
@@ -567,10 +563,6 @@ inline Rank relative_rank(Color c, Square s) {
 }
 
 #ifndef GPSFISH
-inline SquareColor color_of(Square s) {
-  return SquareColor(int(rank_of(s) + s) & 1);
-}
-
 inline bool opposite_colors(Square s1, Square s2) {
   int s = s1 ^ s2;
   return ((s >> 3) ^ s) & 1;
