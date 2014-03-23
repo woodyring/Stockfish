@@ -184,23 +184,15 @@ namespace {
 
   /// Namespace variables
 
-  // Root move list
   RootMoveList Rml;
-
-  // MultiPV mode
   size_t MultiPV, UCIMultiPV, MultiPVIdx;
 
 #ifdef GPSFISH
   Value DrawValue;
 #endif
-  // Time management variables
   TimeManager TimeMgr;
-
-  // Skill level adjustment
   int SkillLevel;
   bool SkillLevelEnabled;
-
-  // History table
   History H;
 
 
@@ -396,15 +388,12 @@ int64_t Search::perft(Position& pos, Depth depth) {
   StateInfo st;
   int64_t sum = 0;
 
-  // Generate all legal moves
   MoveList<MV_LEGAL> ml(pos);
 
-  // If we are at the last ply we don't need to do and undo
-  // the moves, just to count them.
+  // At the last ply just return the number of moves (leaf nodes)
   if (depth <= ONE_PLY)
       return ml.size();
 
-  // Loop through all legal moves
 #ifndef GPSFISH
   CheckInfo ci(pos);
 #endif
@@ -438,9 +427,8 @@ void Search::think() {
   static Book book; // Defined static to initialize the PRNG only once
 
   Position& pos = RootPosition;
-
-  // Reset elapsed search time
   elapsed_time(true);
+  TimeMgr.init(Limits, pos.startpos_ply_counter());
 
 #ifndef GPSFISH
   // Set output stream mode: normal or chess960. Castling notation is different
@@ -448,7 +436,6 @@ void Search::think() {
 #endif
 
 
-  // Look for a book move
   if (Options["OwnBook"].value<bool>())
   {
 #ifndef GPSFISH
@@ -475,9 +462,7 @@ void Search::think() {
   read_evaluation_uci_options(pos.side_to_move());
   Threads.read_uci_options();
 
-  // Set a new TT size if changed
   TT.set_size(Options["Hash"].value<int>());
-
   if (Options["Clear Hash"].value<bool>())
   {
       Options["Clear Hash"].set_value("false");
@@ -492,7 +477,6 @@ void Search::think() {
   SkillLevelEnabled = (SkillLevel < 20);
   MultiPV = (SkillLevelEnabled ? std::max(UCIMultiPV, (size_t)4) : UCIMultiPV);
 
-  // Write current search header to log file
   if (Options["Use Search Log"].value<bool>())
   {
       Log log(Options["Search Log Filename"].value<string>());
@@ -514,8 +498,6 @@ void Search::think() {
 
   // Set best timer interval to avoid lagging under time pressure. Timer is
   // used to check for remaining available thinking time.
-   TimeMgr.init(Limits, pos.startpos_ply_counter());
-
   if (TimeMgr.available_time())
       Threads.set_timer(std::min(100, std::max(TimeMgr.available_time() / 8, 20)));
   else
@@ -525,13 +507,10 @@ void Search::think() {
   Move ponderMove = MOVE_NONE;
   Move bestMove = id_loop(pos, &RootMoves[0], &ponderMove);
 
-  // Stop timer, no need to check for available time any more
+  // Stop timer and send all the slaves to sleep, if not already sleeping
   Threads.set_timer(0);
-
-  // This makes all the slave threads to go to sleep, if not already sleeping
   Threads.set_size(1);
 
-  // Write current search final statistics to log file
   if (Options["Use Search Log"].value<bool>())
   {
       int e = elapsed_time();
@@ -722,7 +701,6 @@ namespace {
     Move bestMove, skillBest, skillPonder;
     bool bestMoveNeverChanged = true;
 
-    // Initialize stuff before a new search
     memset(ss, 0, 4 * sizeof(Stack));
     TT.new_search();
     H.clear();
@@ -741,7 +719,6 @@ namespace {
     *(pos.eval)=eval_t(pos.osl_state,false);
 #endif
 
-    // Moves to search are verified and copied
     Rml.init(pos, rootMoves);
 
     // Handle special case of searching on a mate/stalemate position
@@ -880,7 +857,6 @@ namespace {
             } while (abs(bestValue) < VALUE_KNOWN_WIN);
         }
 
-        // Collect info about search result
         bestMove = Rml[0].pv[0];
         *ponderMove = Rml[0].pv[1];
         bestValues[depth] = bestValue;
@@ -1355,7 +1331,6 @@ namespace {
 
 split_point_start: // At split points actual search starts from here
 
-    // Initialize a MovePicker object for the current position
     MovePickerExt<SpNode> mp(pos, ttMove, depth, H, ss, PvNode ? -VALUE_INFINITE : beta);
     CheckInfo ci(pos);
     ss->bestMove = MOVE_NONE;
@@ -1365,9 +1340,9 @@ split_point_start: // At split points actual search starts from here
                            && depth >= SingularExtensionDepth[PvNode]
                            && ttMove != MOVE_NONE
 #ifdef GPSFISH
-                           && excludedMove==MOVE_NONE // Do not allow recursive singular extension search
+                           && excludedMove==MOVE_NONE // Recursive singular search is not allowed
 #else
-                           && !excludedMove // Do not allow recursive singular extension search
+                           && !excludedMove // Recursive singular search is not allowed
 #endif
                            && (tte->type() & VALUE_TYPE_LOWER)
                            && tte->depth() >= depth - 3 * ONE_PLY;
@@ -1421,10 +1396,8 @@ split_point_start: // At split points actual search starts from here
           // This is used by time management
           Signals.firstRootMove = (moveCount == 1);
 
-          // Save the current node count before the move is searched
           nodes = pos.nodes_searched();
 
-          // For long searches send current move info to GUI
 #ifndef GPSFISH
           if (pos.thread() == 0 && elapsed_time() > 2000)
               cout << "info" << depth_to_uci(depth)
@@ -1620,14 +1593,12 @@ split_point_start: // At split points actual search starts from here
       // be trusted, and we don't update the best move and/or PV.
       if (RootNode && !Signals.stop)
       {
-          // Remember searched nodes counts for this move
           RootMove* rm = Rml.find(move);
           rm->nodes += pos.nodes_searched() - nodes;
 
           // PV move or new best move ?
           if (isPvMove || value > alpha)
           {
-              // Update PV
               rm->score = value;
               rm->extract_pv_from_tt(pos);
 
@@ -1653,7 +1624,7 @@ split_point_start: // At split points actual search starts from here
               // position in the list is preserved, just the PV is pushed up.
               rm->score = -VALUE_INFINITE;
 
-      } // RootNode
+      }
 
       if (value > bestValue)
       {
@@ -1698,7 +1669,7 @@ split_point_start: // At split points actual search starts from here
         return excludedMove ? oldAlpha : inCheck ? value_mated_in(ss->ply) : VALUE_DRAW;
 #endif
 
-    // We have pruned all the moves, so return a fail-low score
+    // If we have pruned all the moves without searching return a fail-low score
     if (bestValue == -VALUE_INFINITE)
     {
         assert(!playedMoveCount);
@@ -1707,8 +1678,7 @@ split_point_start: // At split points actual search starts from here
     }
 
     // Step 21. Update tables
-    // If the search is not aborted, update the transposition table,
-    // history counters, and killer moves.
+    // Update transposition table entry, history and killers
     if (!SpNode && !Signals.stop && !thread.cutoff_occurred())
     {
         move = bestValue <= oldAlpha ? MOVE_NONE : ss->bestMove;
@@ -1742,6 +1712,7 @@ split_point_start: // At split points actual search starts from here
 
     return bestValue;
   }
+
 
   // qsearch() is the quiescence search function, which is called by the main
   // search function when the remaining depth is zero (or, to be more precise,
@@ -1844,7 +1815,6 @@ split_point_start: // At split points actual search starts from here
         if (PvNode && bestValue > alpha)
             alpha = bestValue;
 
-        // Futility pruning parameters, not needed when in check
         futilityBase = ss->eval + evalMargin + FutilityMarginQS;
 #ifndef GPSFISH
         enoughMaterial = pos.non_pawn_material(pos.side_to_move()) > RookValueMidgame;
@@ -1946,7 +1916,6 @@ split_point_start: // At split points actual search starts from here
       if (!pos.pl_move_is_legal(move, ci.pinned))
           continue;
 
-      // Update current move
       ss->currentMove = move;
 
       // Make and search the move
@@ -2242,8 +2211,8 @@ split_point_start: // At split points actual search starts from here
   }
 
 
-  // can_return_tt() returns true if a transposition table score
-  // can be used to cut-off at a given point in search.
+  // can_return_tt() returns true if a transposition table score can be used to
+  // cut-off at a given point in search.
 
   bool can_return_tt(const TTEntry* tte, Depth depth, Value beta, int ply) {
 
@@ -2258,8 +2227,8 @@ split_point_start: // At split points actual search starts from here
   }
 
 
-  // refine_eval() returns the transposition table score if
-  // possible otherwise falls back on static position evaluation.
+  // refine_eval() returns the transposition table score if possible, otherwise
+  // falls back on static position evaluation.
 
   Value refine_eval(const TTEntry* tte, Value defaultEval, int ply) {
 
@@ -2275,8 +2244,8 @@ split_point_start: // At split points actual search starts from here
   }
 
 
-  // update_history() registers a good move that produced a beta-cutoff
-  // in history and marks as failures all the other moves of that ply.
+  // update_history() registers a good move that produced a beta-cutoff in
+  // history and marks as failures all the other moves of that ply.
 
   void update_history(const Position& pos, Move move, Depth depth,
                       Move movesSearched[], int moveCount) {
@@ -2409,6 +2378,12 @@ split_point_start: // At split points actual search starts from here
     return s.str();
   }
 
+
+  // pretty_pv() creates a human-readable string from a position and a PV.
+  // It is used to write search information to the log file (which is created
+  // when the UCI parameter "Use Search Log" is "true"). It uses the two helpers
+  // time_to_string() and score_to_string() to format time and score respectively.
+
   string time_to_string(int millisecs) {
 
     const int MSecMinute = 1000 * 60;
@@ -2440,11 +2415,6 @@ split_point_start: // At split points actual search starts from here
 
     return s.str();
   }
-
-
-  // pretty_pv() creates a human-readable string from a position and a PV.
-  // It is used to write search information to the log file (which is created
-  // when the UCI parameter "Use Search Log" is "true").
 
   string pretty_pv(Position& pos, int depth, Value value, int time, Move pv[]) {
 
@@ -2546,7 +2516,7 @@ split_point_start: // At split points actual search starts from here
   }
 
 
-  /// RootMove and RootMoveList method's definitions
+  // RootMove and RootMoveList method's definitions
 
   void RootMoveList::init(Position& pos, Move rootMoves[]) {
 
@@ -2728,9 +2698,9 @@ split_point_start: // At split points actual search starts from here
 } // namespace
 
 
-// Thread::idle_loop() is where the thread is parked when it has no work to do.
-// The parameter 'sp', if non-NULL, is a pointer to an active SplitPoint object
-// for which the thread is the master.
+/// Thread::idle_loop() is where the thread is parked when it has no work to do.
+/// The parameter 'sp', if non-NULL, is a pointer to an active SplitPoint object
+/// for which the thread is the master.
 
 void Thread::idle_loop(SplitPoint* sp) {
 
@@ -2744,7 +2714,6 @@ void Thread::idle_loop(SplitPoint* sp) {
       {
           assert((!sp && threadID) || Threads.use_sleeping_threads());
 
-          // Slave thread should exit as soon as do_terminate flag raises
           if (do_terminate)
           {
               assert(!sp);
@@ -2900,15 +2869,16 @@ void show_tree(Position &pos){
     show_tree_rec(pos);
 }
 
-// do_timer_event() is called by the timer thread when the timer triggers
+/// do_timer_event() is called by the timer thread when the timer triggers. It
+/// is used to print debug info and, more important, to detect when we are out of
+/// available time and so stop the search.
 
 void do_timer_event() {
 
   static int lastInfoTime;
   int e = elapsed_time();
 
-  // Print debug information every one second
-  if (!lastInfoTime || get_system_time() - lastInfoTime >= 1000)
+  if (get_system_time() - lastInfoTime >= 1000 || !lastInfoTime)
   {
       lastInfoTime = get_system_time();
 
@@ -2916,7 +2886,6 @@ void do_timer_event() {
       dbg_print_hit_rate();
   }
 
-  // Should we stop the search?
   if (Limits.ponder)
       return;
 
