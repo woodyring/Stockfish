@@ -551,7 +551,7 @@ struct CheckmateSolver
             hasCheckmateMove(state, osl::HashKey(state), path, nodes,
                     checkmate_move, Move(), &pv);
         if (result.isCheckmateSuccess()) {
-            TT.store(pos.key(), value_mate_in(pv.size()),
+            TT.store(pos.key(), mate_in(pv.size()),
                     VALUE_TYPE_EXACT, CheckmateDepth, checkmate_move,
                     VALUE_NONE, VALUE_NONE);
             return checkmate_move;
@@ -673,7 +673,7 @@ namespace {
     {
         cout << "info depth 0"
 #ifdef GPSFISH
-             << score_to_uci(pos.in_check() ? value_mated_in(1) : VALUE_DRAW) << endl;
+             << score_to_uci(pos.in_check() ? mated_in(1) : VALUE_DRAW) << endl;
 #else
              << score_to_uci(pos.in_check() ? -VALUE_MATE : VALUE_DRAW) << endl;
 #endif
@@ -903,7 +903,7 @@ namespace {
 
 #ifdef GPSFISH
     if(can_capture_king(pos)){
-      return value_mate_in(0);
+      return mate_in(0);
     }
 #endif
     refinedValue = bestValue = value = -VALUE_INFINITE;
@@ -937,9 +937,9 @@ namespace {
         return value_draw(pos);
 
     if(repeat_check<0) 
-        return value_mated_in(ss->ply+1);
+        return mated_in(ss->ply+1);
     else if(repeat_check>0) 
-        return value_mate_in(ss->ply);
+        return mate_in(ss->ply);
 #endif
     // Step 2. Check for aborted search and immediate draw
     if ((   Signals.stop
@@ -950,18 +950,18 @@ namespace {
 #ifdef GPSFISH
     if ( !Root ){
         if(repeat_check<0) 
-            return value_mated_in(ss->ply);
+            return mated_in(ss->ply);
         else if(repeat_check>0) 
-            return value_mate_in(ss->ply);
+            return mate_in(ss->ply);
         else if(osl::EnterKing::canDeclareWin(pos.osl_state)) 
-            return value_mate_in(ss->ply+1);
+            return mate_in(ss->ply+1);
     }
     if (!ss->checkmateTested) {
         ss->checkmateTested = true;
         if(!pos.osl_state.inCheck()
                 && ImmediateCheckmate::hasCheckmateMove
                 (pos.side_to_move(),pos.osl_state,ss->bestMove)) {
-            return value_mate_in(ss->ply);
+            return mate_in(ss->ply);
         }
 #  ifdef GPSFISH_CHECKMATE3
         if ((! (ss-1)->currentMove.isNormal()
@@ -973,7 +973,7 @@ namespace {
                 osl::checkmate::FixedDepthSearcher solver(pos.osl_state);
                 if (solver.hasCheckmateMoveOfTurn(2,ss->bestMove)
                         .isCheckmateSuccess()) {
-                    return value_mate_in(ss->ply+2);;
+                    return mate_in(ss->ply+2);;
                 }
             }
         }
@@ -981,11 +981,16 @@ namespace {
     }
 #endif
 
-    // Step 3. Mate distance pruning
+    // Step 3. Mate distance pruning. Even if we mate at the next move our score
+    // would be at best mate_in(ss->ply+1), but if alpha is already bigger because
+    // a shorter mate was found upward in the tree then there is no need to search
+    // further, we will never beat current alpha. Same logic but with reversed signs
+    // applies also in the opposite condition of being mated instead of giving mate,
+    // in this case return a fail-high score.
     if (!RootNode)
     {
-        alpha = std::max(value_mated_in(ss->ply), alpha);
-        beta = std::min(value_mate_in(ss->ply+1), beta);
+        alpha = std::max(mated_in(ss->ply), alpha);
+        beta = std::min(mate_in(ss->ply+1), beta);
         if (alpha >= beta)
             return alpha;
     }
@@ -1582,9 +1587,9 @@ split_point_start: // At split points actual search starts from here
     // If we are in a singular extension search then return a fail low score.
     if (!moveCount)
 #ifdef GPSFISH
-        return excludedMove!=MOVE_NONE ? oldAlpha : (inCheck ? (move_is_pawn_drop((ss-1)->currentMove) ? value_mate_in(ss->ply) : value_mated_in(ss->ply) ): VALUE_DRAW);
+        return excludedMove!=MOVE_NONE ? oldAlpha : (inCheck ? (move_is_pawn_drop((ss-1)->currentMove) ? mate_in(ss->ply) : mated_in(ss->ply) ): VALUE_DRAW);
 #else
-        return excludedMove ? oldAlpha : inCheck ? value_mated_in(ss->ply) : VALUE_DRAW;
+        return excludedMove ? oldAlpha : inCheck ? mated_in(ss->ply) : VALUE_DRAW;
 #endif
 
     // If we have pruned all the moves without searching return a fail-low score
@@ -1680,12 +1685,12 @@ split_point_start: // At split points actual search starts from here
 
 #ifdef GPSFISH
     if(can_capture_king(pos)){
-        return value_mate_in(0);
+        return mate_in(0);
     }
     if(!pos.osl_state.inCheck()
             && ImmediateCheckmate::hasCheckmateMove
             (pos.side_to_move(),pos.osl_state,ss->bestMove)) {
-        return value_mate_in(ss->ply); 
+        return mate_in(ss->ply); 
     }
 #endif
 
@@ -1892,7 +1897,7 @@ split_point_start: // At split points actual search starts from here
         if (in_danger) {
             osl::checkmate::FixedDepthSearcher solver(pos.osl_state);
             if (solver.hasCheckmateMoveOfTurn(2,(ss)->bestMove).isCheckmateSuccess()) {
-                return value_mate_in(ss->ply+2);;
+                return mate_in(ss->ply+2);;
             }
         }
     }
@@ -1902,9 +1907,9 @@ split_point_start: // At split points actual search starts from here
     // and no legal moves were found, it is checkmate.
     if (inCheck && bestValue == -VALUE_INFINITE)
 #ifdef GPSFISH
-        return (move_is_pawn_drop((ss-1)->currentMove) ? value_mate_in(ss->ply) : value_mated_in(ss->ply));
+        return (move_is_pawn_drop((ss-1)->currentMove) ? mate_in(ss->ply) : mated_in(ss->ply));
 #else
-        return value_mated_in(ss->ply);
+        return mated_in(ss->ply);
 #endif
 
     // Update transposition table
