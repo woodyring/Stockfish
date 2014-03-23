@@ -20,9 +20,9 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <cstdio>
 #include <cstring>
 #include <iomanip>
+#include <iostream>
 #include <sstream>
 #include <vector>
 
@@ -76,6 +76,8 @@ namespace Search {
 }
 
 using std::string;
+using std::cout;
+using std::endl;
 using namespace Search;
 
 namespace {
@@ -454,7 +456,7 @@ void Search::think() {
           << " time: "        << Limits.time
           << " increment: "   << Limits.increment
           << " moves to go: " << Limits.movesToGo
-          << std::endl;
+          << endl;
   }
 
   for (int i = 0; i < Threads.size(); i++)
@@ -495,7 +497,7 @@ void Search::think() {
 #else
       pos.do_move(RootMoves[0].pv[0], st);
 #endif
-      log << "\nPonder move: " << move_to_san(pos, RootMoves[0].pv[1]) << std::endl;
+      log << "\nPonder move: " << move_to_san(pos, RootMoves[0].pv[1]) << endl;
 #ifdef GPSFISH
       } );
 #else
@@ -512,9 +514,8 @@ finish:
       Threads.wait_for_stop_or_ponderhit();
 
   // Best move could be MOVE_NONE when searching on a stalemate position
-  printf("bestmove %s ponder %s\n",
-         move_to_uci(RootMoves[0].pv[0], Chess960).c_str(),
-         move_to_uci(RootMoves[0].pv[1], Chess960).c_str());
+  cout << "bestmove " << move_to_uci(RootMoves[0].pv[0], Chess960)
+       << " ponder "  << move_to_uci(RootMoves[0].pv[1], Chess960) << endl;
 }
 
 #ifdef GPSFISH_DFPN
@@ -670,11 +671,11 @@ namespace {
     // Handle the special case of a mate/stalemate position
     if (RootMoves.empty())
     {
-        printf("info depth 0%s\n",
+        cout << "info depth 0"
 #ifdef GPSFISH
-               score_to_uci(pos.in_check() ? value_mated_in(1) : VALUE_DRAW).c_str());
+             << score_to_uci(pos.in_check() ? value_mated_in(1) : VALUE_DRAW) << endl;
 #else
-               score_to_uci(pos.in_check() ? -VALUE_MATE : VALUE_DRAW).c_str());
+             << score_to_uci(pos.in_check() ? -VALUE_MATE : VALUE_DRAW) << endl;
 #endif
 
         RootMoves.push_back(MOVE_NONE);
@@ -753,7 +754,7 @@ namespace {
 
                 // If search has been stopped exit the aspiration window loop.
                 // Sorting and writing PV back to TT is safe becuase RootMoves
-                // is still valid, although refers to  previous iteration.
+                // is still valid, although refers to previous iteration.
                 if (Signals.stop)
                     break;
 
@@ -1316,8 +1317,9 @@ split_point_start: // At split points actual search starts from here
 
 #ifndef GPSFISH
           if (pos.thread() == 0 && elapsed_time() > 2000)
-              printf("info depth %i currmove %s currmovenumber %i\n", depth / ONE_PLY,
-                     move_to_uci(move, Chess960).c_str(), moveCount + PVIdx);
+              cout << "info depth " << depth / ONE_PLY
+                   << " currmove " << move_to_uci(move, Chess960)
+                   << " currmovenumber " << moveCount + PVIdx << endl;
 #endif
       }
 
@@ -2055,8 +2057,8 @@ split_point_start: // At split points actual search starts from here
 
 
   // value_to_tt() adjusts a mate score from "plies to mate from the root" to
-  // "plies to mate from the current ply".  Non-mate scores are unchanged.
-  // The function is called before storing a value to the transposition table.
+  // "plies to mate from the current ply". Non-mate scores are unchanged. The
+  // function is called before storing a value to the transposition table.
 
   Value value_to_tt(Value v, int ply) {
 
@@ -2222,7 +2224,6 @@ split_point_start: // At split points actual search starts from here
 
     int t = elapsed_time();
     int selDepth = 0;
-    std::stringstream s;
 
     for (int i = 0; i < Threads.size(); i++)
         if (Threads[i].maxPly > selDepth)
@@ -2237,24 +2238,23 @@ split_point_start: // At split points actual search starts from here
 
         int d = (updated ? depth : depth - 1);
         Value v = (updated ? RootMoves[i].score : RootMoves[i].prevScore);
-
-        s << "info depth " << d
-          << " seldepth " << selDepth
-          << (i == PVIdx ? score_to_uci(v, alpha, beta) : score_to_uci(v))
-          << " nodes " << pos.nodes_searched()
-          << " nps " << (t > 0 ? pos.nodes_searched() * 1000 / t : 0)
-#ifdef GPSFISH
-          << " time " << (t > 0 ? t : 1)
-          << " pv";
-#else
-          << " time " << t
-          << " multipv " << i + 1 << " pv";
-#endif
+        std::stringstream s;
 
         for (int j = 0; RootMoves[i].pv[j] != MOVE_NONE; j++)
             s <<  " " << move_to_uci(RootMoves[i].pv[j], Chess960);
 
-        printf("%s\n", s.str().c_str()); // Much faster than std::cout
+        cout << "info depth " << d
+             << " seldepth " << selDepth
+             << (i == PVIdx ? score_to_uci(v, alpha, beta) : score_to_uci(v))
+             << " nodes " << pos.nodes_searched()
+             << " nps " << (t > 0 ? pos.nodes_searched() * 1000 / t : 0)
+#ifdef GPSFISH
+             << " time " << (t > 0 ? t : 1)
+#else
+             << " time " << t
+             << " multipv " << i + 1
+#endif
+             << " pv" << s.str() << endl;
     }
   }
 
@@ -2346,7 +2346,7 @@ split_point_start: // At split points actual search starts from here
 #endif
 
     Log l(Options["Search Log Filename"].value<string>());
-    l << s.str() << std::endl;
+    l << s.str() << endl;
   }
 
 
@@ -2677,9 +2677,8 @@ void do_checkmate(Position& pos, int mateTime){
         double elapsed = start.elapsedSeconds();
         double memory = osl::OslConfig::memoryUseRatio();
         uint64_t node_count = dfpn.nodeCount();
-        printf("info time %d nodes %I64u nps %d hashfull %d\n",
-                static_cast<int>(elapsed*1000),total+node_count,
-                static_cast<int>(node_count/elapsed),static_cast<int>(memory*1000));
+        cout << "info time " << static_cast<int>(elapsed*1000) << "nodes " << total+node_count
+             << "nps %d " << static_cast<int>(node_count/elapsed) << "hashfull " << static_cast<int>(memory*1000) << endl;
         //poll(pos);
         if (result.isFinal() || elapsed >= seconds || memory > 0.9 || Signals.stop)
             break;
@@ -2690,18 +2689,17 @@ void do_checkmate(Position& pos, int mateTime){
         scale = std::max(std::min(16.0, scale), 0.1);
     }
     if (! result.isFinal()) {
-        printf("checkmate timeout\n");
+        cout << "checkmate timeout\n";
         return;
     }
     if (! result.isCheckmateSuccess()) {
-        printf("checkmate nomate\n");
+        cout << "checkmate nomate\n";
         return;
     }
     std::string msg = "checkmate";
     for (size_t i=0; i<pv.size(); ++i)
         msg += " " + move_to_uci(pv[i],false);
-    printf("%s\n",msg.c_str());
-    fflush(stdout);
+    cout << msg << endl;
 }
 #endif
 
