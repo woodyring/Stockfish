@@ -17,6 +17,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <cstdio>
 #include <iostream>
 #include <string>
 
@@ -84,6 +85,9 @@ int setup_network(int *pargc, char* argv[]) {
 #endif
 
 int main(int argc, char* argv[]) {
+
+  // Disable output buffering: printf() does not work correctly otherwise
+  setvbuf(stdout, NULL, _IONBF, 0);
 
 #if defined(GPSFISH) && !defined(_WIN32)
   setup_network(argc,argv);
