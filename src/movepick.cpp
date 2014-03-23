@@ -255,7 +255,7 @@ void MovePicker::score_captures() {
   {
       m = cur->move;
       cur->score =  PieceValueMidgame[pos.piece_on(to_sq(m))]
-                  - type_of(pos.piece_on(from_sq(m)));
+                  - type_of(pos.piece_moved(m));
 
       if (is_promotion(m))
 #ifdef GPSFISH
@@ -303,15 +303,15 @@ void MovePicker::score_evasions() {
       else if (pos.is_capture(m))
           cur->score =  PieceValueMidgame[pos.piece_on(to_sq(m))]
 #ifdef GPSFISH
-                      - type_value_of_piece_on(pos.piece_on(from_sq(m))) + History::MaxValue; // XXX : why
+                      - type_value_of_piece_on(pos.piece_moved(m)) + History::MaxValue; // XXX : why
 #else
-                      - type_of(pos.piece_on(from_sq(m))) + History::MaxValue;
+                      - type_of(pos.piece_moved(m)) + History::MaxValue;
 #endif
       else
 #ifdef GPSFISH
           cur->score = H.value(m.ptypeO(), to_sq(m));
 #else
-          cur->score = H.value(pos.piece_on(from_sq(m)), to_sq(m));
+          cur->score = H.value(pos.piece_moved(m), to_sq(m));
 #endif
   }
 }

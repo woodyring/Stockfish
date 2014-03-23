@@ -120,6 +120,7 @@ public:
 
   // The piece on a given square
   Piece piece_on(Square s) const;
+  Piece piece_moved(Move m) const;
   bool square_is_empty(Square s) const;
 
   // Side to move
@@ -360,6 +361,14 @@ inline Piece Position::piece_on(Square s) const {
 #endif
 }
 
+inline Piece Position::piece_moved(Move m) const {
+#ifdef GPSFISH
+  //return m.ptypeO(); //XXX should be better?
+  return piece_on(from_sq(m));
+#else
+  return board[from_sq(m)];
+#endif
+}
 
 inline bool Position::square_is_empty(Square s) const {
 #ifdef GPSFISH
