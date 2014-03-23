@@ -134,7 +134,7 @@ OptionsMap::OptionsMap() {
   o["Emergency Base Time"]         = UCIOption(20000, 0, 30000);
   o["Emergency Move Time"]         = UCIOption(1000, 0, 5000);
 #else
-  o["Emergency Move Horizon"]      = UCIOption(40, 0, 50);
+  o["Emergency Move Horizon"]      = UCIOption(30, 0, 50);
   o["Emergency Base Time"]         = UCIOption(200, 0, 30000);
   o["Emergency Move Time"]         = UCIOption(70, 0, 5000);
 
