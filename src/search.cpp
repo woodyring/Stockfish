@@ -24,7 +24,6 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
-#include <vector>
 
 #include "book.h"
 #include "evaluate.h"
@@ -71,7 +70,7 @@ namespace Search {
 
   volatile SignalsType Signals;
   LimitsType Limits;
-  std::set<Move> SearchMoves;
+  std::vector<RootMove> RootMoves;
   Position RootPosition;
 }
 
@@ -87,39 +86,6 @@ namespace {
 
   // Different node types, used as template parameter
   enum NodeType { Root, PV, NonPV, SplitPointRoot, SplitPointPV, SplitPointNonPV };
-
-  // RootMove struct is used for moves at the root of the tree. For each root
-  // move we store a score, a node count, and a PV (really a refutation in the
-  // case of moves which fail low). Score is normally set at -VALUE_INFINITE for
-  // all non-pv moves.
-  struct RootMove {
-
-    RootMove(){}
-    RootMove(Move m) {
-      score = prevScore = -VALUE_INFINITE;
-      pv.push_back(m);
-      pv.push_back(MOVE_NONE);
-    }
-
-    bool operator<(const RootMove& m) const { return score < m.score; }
-    bool operator==(const Move& m) const { return pv[0] == m; }
-
-#ifdef GPSFISH
-    void extract_pv_from_tt_rec(Position& pos,int ply);
-#endif
-    void extract_pv_from_tt(Position& pos);
-#ifdef GPSFISH
-    void insert_pv_in_tt_rec(Position& pos,int ply);
-#endif
-    void insert_pv_in_tt(Position& pos);
-
-    Value score;
-    Value prevScore;
-    std::vector<Move> pv;
-  };
-
-
-  /// Constants
 
   // Lookup table to check if a Piece is a slider and its access function
 #ifndef GPSFISH
@@ -172,17 +138,14 @@ namespace {
     return (Depth) Reductions[PvNode][std::min(int(d) / ONE_PLY, 63)][std::min(mn, 63)];
   }
 
-  // Easy move margin. An easy move candidate must be at least this much
-  // better than the second best move.
+  // Easy move margin. An easy move candidate must be at least this much better
+  // than the second best move.
   const Value EasyMoveMargin = Value(0x150);
 
   // This is the minimum interval in msec between two check_time() calls
   const int TimerResolution = 5;
 
 
-  /// Namespace variables
-
-  std::vector<RootMove> RootMoves;
   size_t MultiPV, UCIMultiPV, PVIdx;
 
 #ifdef GPSFISH
@@ -194,8 +157,6 @@ namespace {
   bool SkillLevelEnabled, Chess960;
   History H;
 
-
-  /// Local functions
 
   template <NodeType NT>
   Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth);
@@ -403,13 +364,6 @@ void Search::think() {
   TimeMgr.init(Limits, pos.startpos_ply_counter());
   TT.new_search();
   H.clear();
-  RootMoves.clear();
-
-  // Populate RootMoves with all the legal moves (default) or, if a SearchMoves
-  // is given, with the subset of legal moves to search.
-  for (MoveList<MV_LEGAL> ml(pos); !ml.end(); ++ml)
-      if (SearchMoves.empty() || SearchMoves.count(ml.move()))
-          RootMoves.push_back(RootMove(ml.move()));
 
   if (RootMoves.empty())
   {
@@ -2385,147 +2339,143 @@ split_point_start: // At split points actual search starts from here
     return best;
   }
 
+} // namespace
+
+
+/// RootMove::extract_pv_from_tt() builds a PV by adding moves from the TT table.
+/// We consider also failing high nodes and not only VALUE_TYPE_EXACT nodes so
+/// to allow to always have a ponder move even when we fail high at root, and
+/// a long PV to print that is important for position analysis.
 
 #ifdef GPSFISH
-  void RootMove::extract_pv_from_tt_rec(Position& pos,int ply) {
-    TTEntry* tte;
+void RootMove::extract_pv_from_tt_rec(Position& pos,int ply) {
+  TTEntry* tte;
 
-    if (   (tte = TT.probe(pos.key())) != NULL
-           && tte->move(pos) != MOVE_NONE
-           && pos.is_pseudo_legal(tte->move(pos))
-           && pos.pl_move_is_legal(tte->move(pos), pos.pinned_pieces())
-           && ply < MAX_PLY
-           && (!pos.is_draw<false>() || ply < 2))
-    {
-        pv.push_back(tte->move(pos));
-        StateInfo st;
-        pos.do_undo_move(tte->move(pos),st,
-                [&](osl::Square){
-                assert(pos.is_ok());
-                extract_pv_from_tt_rec(pos,ply+1);
-                }
-                );
-    }
-
-    pv.push_back(MOVE_NONE);
+  if (   (tte = TT.probe(pos.key())) != NULL
+          && tte->move(pos) != MOVE_NONE
+          && pos.is_pseudo_legal(tte->move(pos))
+          && pos.pl_move_is_legal(tte->move(pos), pos.pinned_pieces())
+          && ply < MAX_PLY
+          && (!pos.is_draw<false>() || ply < 2))
+  {
+      pv.push_back(tte->move(pos));
+      StateInfo st;
+      pos.do_undo_move(tte->move(pos),st,
+              [&](osl::Square){
+              assert(pos.is_ok());
+              extract_pv_from_tt_rec(pos,ply+1);
+      } );
   }
+
+  pv.push_back(MOVE_NONE);
+}
 #endif
 
-  // extract_pv_from_tt() builds a PV by adding moves from the transposition table.
-  // We consider also failing high nodes and not only VALUE_TYPE_EXACT nodes. This
-  // allow to always have a ponder move even when we fail high at root and also a
-  // long PV to print that is important for position analysis.
-
-  void RootMove::extract_pv_from_tt(Position& pos) {
+void RootMove::extract_pv_from_tt(Position& pos) {
 
 #ifndef GPSFISH
-    StateInfo state[MAX_PLY_PLUS_2], *st = state;
-    TTEntry* tte;
-    int ply = 1;
+  StateInfo state[MAX_PLY_PLUS_2], *st = state;
+  TTEntry* tte;
+  int ply = 1;
 #endif
-    Move m = pv[0];
+  Move m = pv[0];
 
-    assert(m != MOVE_NONE && pos.is_pseudo_legal(m));
+  assert(m != MOVE_NONE && pos.is_pseudo_legal(m));
 
-    pv.clear();
-    pv.push_back(m);
-
+  pv.clear();
+  pv.push_back(m);
 #ifdef GPSFISH
     StateInfo st;
     pos.do_undo_move(pv[0],st,
 		     [&](osl::Square){
          assert(pos.is_ok());
          extract_pv_from_tt_rec(pos,1);
-         }
-         );
+    } );
 #else
-    pos.do_move(m, *st++);
+  pos.do_move(m, *st++);
 
-    while (   (tte = TT.probe(pos.key())) != NULL
-           && tte->move() != MOVE_NONE
-           && pos.is_pseudo_legal(tte->move())
-           && pos.pl_move_is_legal(tte->move(), pos.pinned_pieces())
-           && ply < MAX_PLY
-           && (!pos.is_draw<false>() || ply < 2))
-    {
-        pv.push_back(tte->move());
-        pos.do_move(tte->move(), *st++);
-        ply++;
-    }
-    pv.push_back(MOVE_NONE);
-
-    do pos.undo_move(pv[--ply]); while (ply);
-#endif
+  while (   (tte = TT.probe(pos.key())) != NULL
+         && tte->move() != MOVE_NONE
+         && pos.is_pseudo_legal(tte->move())
+         && pos.pl_move_is_legal(tte->move(), pos.pinned_pieces())
+         && ply < MAX_PLY
+         && (!pos.is_draw<false>() || ply < 2))
+  {
+      pv.push_back(tte->move());
+      pos.do_move(tte->move(), *st++);
+      ply++;
   }
+  pv.push_back(MOVE_NONE);
+
+  do pos.undo_move(pv[--ply]); while (ply);
+#endif
+}
+
+
+/// RootMove::insert_pv_in_tt() is called at the end of a search iteration, and
+/// inserts the PV back into the TT. This makes sure the old PV moves are searched
+/// first, even if the old TT entries have been overwritten.
 
 #ifdef GPSFISH
-  void RootMove::insert_pv_in_tt_rec(Position& pos,int ply) {
-    TTEntry* tte;
-    Key k;
-    Value v, m = VALUE_NONE;
-    k = pos.key();
-    tte = TT.probe(k);
+void RootMove::insert_pv_in_tt_rec(Position& pos,int ply) {
+  TTEntry* tte;
+  Key k;
+  Value v, m = VALUE_NONE;
+  k = pos.key();
+  tte = TT.probe(k);
 
-    // Don't overwrite existing correct entries
-    if (!tte || tte->move(pos) != pv[ply])
-    {
+  // Don't overwrite existing correct entries
+  if (!tte || tte->move(pos) != pv[ply])
+  {
       v = (pos.in_check() ? VALUE_NONE : evaluate(pos, m));
       TT.store(k, VALUE_NONE, VALUE_TYPE_NONE, DEPTH_NONE, pv[ply], v, m);
-    }
-    if(pv[ply+1]!=MOVE_NONE){
-        StateInfo st;
-        pos.do_undo_move(pv[ply],st,
-		       [&](osl::Square){
-           assert(pos.is_ok());
-           *(pos.eval+1)= *(pos.eval);
-           pos.eval++;
-           pos.eval->update(pos.osl_state,pv[ply]);
-           insert_pv_in_tt_rec(pos,ply+1);
-           --pos.eval;
-           }
-           );
-    }
   }
+  if(pv[ply+1]!=MOVE_NONE){
+      StateInfo st;
+      pos.do_undo_move(pv[ply],st,
+              [&](osl::Square){
+              assert(pos.is_ok());
+              *(pos.eval+1)= *(pos.eval);
+              pos.eval++;
+              pos.eval->update(pos.osl_state,pv[ply]);
+              insert_pv_in_tt_rec(pos,ply+1);
+              --pos.eval;
+      } );
+  }
+}
 #endif
 
-  // insert_pv_in_tt() is called at the end of a search iteration, and inserts
-  // the PV back into the TT. This makes sure the old PV moves are searched
-  // first, even if the old TT entries have been overwritten.
-
-  void RootMove::insert_pv_in_tt(Position& pos) {
-
-#ifndef GPSFISH
-    StateInfo state[MAX_PLY_PLUS_2], *st = state;
-    TTEntry* tte;
-    Key k;
-    Value v, m = VALUE_NONE;
-    int ply = 0;
-#endif
-
-    assert(pv[ply] != MOVE_NONE && pos.is_pseudo_legal(pv[ply]));
+void RootMove::insert_pv_in_tt(Position& pos) {
 
 #ifdef GPSFISH
-    insert_pv_in_tt_rec(pos,0);
+  insert_pv_in_tt_rec(pos,0);
 #else
-    do {
-        k = pos.key();
-        tte = TT.probe(k);
 
-        // Don't overwrite existing correct entries
-        if (!tte || tte->move() != pv[ply])
-        {
-            v = (pos.in_check() ? VALUE_NONE : evaluate(pos, m));
-            TT.store(k, VALUE_NONE, VALUE_TYPE_NONE, DEPTH_NONE, pv[ply], v, m);
-        }
-        pos.do_move(pv[ply], *st++);
+  StateInfo state[MAX_PLY_PLUS_2], *st = state;
+  TTEntry* tte;
+  Key k;
+  Value v, m = VALUE_NONE;
+  int ply = 0;
 
-    } while (pv[++ply] != MOVE_NONE);
+  assert(pv[ply] != MOVE_NONE && pos.is_pseudo_legal(pv[ply]));
 
-    do pos.undo_move(pv[--ply]); while (ply);
+  do {
+      k = pos.key();
+      tte = TT.probe(k);
+
+      // Don't overwrite existing correct entries
+      if (!tte || tte->move() != pv[ply])
+      {
+          v = (pos.in_check() ? VALUE_NONE : evaluate(pos, m));
+          TT.store(k, VALUE_NONE, VALUE_TYPE_NONE, DEPTH_NONE, pv[ply], v, m);
+      }
+      pos.do_move(pv[ply], *st++);
+
+  } while (pv[++ply] != MOVE_NONE);
+
+  do pos.undo_move(pv[--ply]); while (ply);
 #endif
-  }
-
-} // namespace
+}
 
 
 /// Thread::idle_loop() is where the thread is parked when it has no work to do.

@@ -19,7 +19,6 @@
 
 #include <fstream>
 #include <iostream>
-#include <set>
 #include <vector>
 
 #include "misc.h"
@@ -30,7 +29,6 @@
 #include "misc.h"
 
 using namespace std;
-using namespace Search;
 
 static const char* Defaults[] = {
 #ifdef GPSFISH
@@ -93,7 +91,7 @@ void benchmark(int argc, char* argv[]) {
 #endif
 
   vector<string> fens;
-  LimitsType limits;
+  Search::LimitsType limits;
   int time;
   int64_t nodes = 0;
 
@@ -147,14 +145,14 @@ void benchmark(int argc, char* argv[]) {
 
       if (valType == "perft")
       {
-          int64_t cnt = perft(pos, limits.maxDepth * ONE_PLY);
+          int64_t cnt = Search::perft(pos, limits.maxDepth * ONE_PLY);
           cerr << "\nPerft " << limits.maxDepth  << " leaf nodes: " << cnt << endl;
           nodes += cnt;
       }
       else
       {
-          Threads.start_thinking(pos, limits, set<Move>(), false);
-          nodes += RootPosition.nodes_searched();
+          Threads.start_thinking(pos, limits);
+          nodes += Search::RootPosition.nodes_searched();
       }
   }
 
