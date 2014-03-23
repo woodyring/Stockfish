@@ -91,10 +91,7 @@ void uci_loop() {
 #else
       if (token == "quit" || token == "stop")
 #endif
-      {
-          Search::Signals.stop = true;
-          Threads[0].wake_up(); // In case is waiting for stop or ponderhit
-      }
+          Threads.stop_thinking();
 
       else if (token == "ponderhit")
       {
@@ -104,9 +101,7 @@ void uci_loop() {
           Search::Limits.ponder = false;
 
           if (Search::Signals.stopOnPonderhit)
-              Search::Signals.stop = true;
-
-          Threads[0].wake_up(); // In case is waiting for stop or ponderhit
+              Threads.stop_thinking();
       }
 
       else if (token == "go")
