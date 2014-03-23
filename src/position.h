@@ -229,19 +229,15 @@ public:
   Score pst_delta(Piece piece, Square from, Square to) const;
 #endif
 
-  // Game termination checks
-  bool is_mate() const;
 #ifdef GPSFISH
   // if is_draw return false, and ret==-1 -> continous check by side_to_move
   // if is_draw return false, and ret==1  -> continous check by opposit_color
   bool is_draw(int& ret) const; 
 #endif
-  template<bool SkipRepetition> bool is_draw() const;
-
-  // Plies from start position to the beginning of search
-  int startpos_ply_counter() const;
 
   // Other properties of the position
+  template<bool SkipRepetition> bool is_draw() const;
+  int startpos_ply_counter() const;
   bool opposite_colored_bishops() const;
 #ifndef GPSFISH
   bool has_pawn_on_7th(Color c) const;

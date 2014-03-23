@@ -1788,7 +1788,7 @@ bool Position::is_draw() const {
       return true;
 
   // Draw by the 50 moves rule?
-  if (st->rule50 > 99 && !is_mate())
+  if (st->rule50 > 99 && (!in_check() || MoveList<MV_LEGAL>(*this).size()))
       return true;
 #endif
 
@@ -1823,17 +1823,6 @@ bool Position::is_draw() const {
 // Explicit template instantiations
 template bool Position::is_draw<false>() const;
 template bool Position::is_draw<true>() const;
-
-
-
-
-/// Position::is_mate() returns true or false depending on whether the
-/// side to move is checkmated.
-
-bool Position::is_mate() const {
-
-  return in_check() && !MoveList<MV_LEGAL>(*this).size();
-}
 
 
 /// Position::init() is a static member function which initializes at startup
