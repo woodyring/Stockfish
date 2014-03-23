@@ -239,7 +239,7 @@ namespace {
 #ifdef GPSFISH
     pos.from_fen(fen, false);
 #else
-    pos.from_fen(fen, Options["UCI_Chess960"].value<bool>());
+    pos.from_fen(fen, Options["UCI_Chess960"]);
 #endif
 
     // Parse move list (if any)
@@ -275,10 +275,14 @@ namespace {
     while (is >> token)
         value += string(" ", !value.empty()) + token;
 
-    if (Options.count(name))
-        Options[name] = (value.empty() ? "true" : value); // UCI buttons don't have "value"
-    else
+    if (!Options.count(name))
         cout << "No such option: " << name << endl;
+
+    else if (value.empty()) // UCI buttons don't have a value
+        Options[name] = true;
+
+    else
+        Options[name] = value;
   }
 
 
