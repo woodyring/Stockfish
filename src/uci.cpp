@@ -179,10 +179,10 @@ void uci_loop() {
           cout << "id name "     << engine_name()
                << "\nid author " << engine_authors()
 #ifdef GPSFISH
-               << Options.print_all()
+               << Options
                << "\nusiok"      << endl;
 #else
-               << "\n"           << Options.print_all()
+               << "\n"           << Options
                << "\nuciok"      << endl;
 #endif
 
@@ -275,8 +275,8 @@ namespace {
     while (is >> token)
         value += string(" ", !value.empty()) + token;
 
-    if (Options.find(name) != Options.end())
-        Options[name].set_value(value.empty() ? "true" : value); // UCI buttons don't have "value"
+    if (Options.count(name))
+        Options[name] = (value.empty() ? "true" : value); // UCI buttons don't have "value"
     else
         cout << "No such option: " << name << endl;
   }
