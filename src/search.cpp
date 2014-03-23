@@ -215,10 +215,8 @@ namespace {
   void do_skill_level(Move* best, Move* ponder);
   int elapsed_time(bool reset = false);
   string score_to_uci(Value v, Value alpha = -VALUE_INFINITE, Value beta = VALUE_INFINITE);
-  string speed_to_uci(int64_t nodes);
-  string pv_to_uci(const Move pv[], int pvNum, bool chess960);
-  string pretty_pv(Position& pos, int depth, Value score, int time, Move pv[]);
-  string depth_to_uci(Depth depth);
+  void pv_info_to_log(Position& pos, int depth, Value score, int time, Move pv[]);
+  void pv_info_to_uci(const Position& pos, int depth, Value alpha, Value beta);
 
   // MovePickerExt class template extends MovePicker and allows to choose at
   // compile time the proper moves source according to the type of node. In the
@@ -724,7 +722,7 @@ namespace {
     // Handle special case of searching on a mate/stalemate position
     if (RootMoves.empty())
     {
-        cout << "info" << depth_to_uci(DEPTH_ZERO)
+        cout << "info depth 0"
 #ifdef GPSFISH
              << score_to_uci(pos.in_check() ? value_mated_in(1) : VALUE_DRAW, alpha, beta) << endl;
 #else
@@ -762,7 +760,7 @@ namespace {
         // MultiPV loop. We perform a full root search for each PV line
         for (MultiPVIdx = 0; MultiPVIdx < std::min(MultiPV, RootMoves.size()); MultiPVIdx++)
         {
-            // Calculate dynamic aspiration window based on previous iteration
+            // Aspiration window
             if (depth >= 5 && abs(RootMoves[MultiPVIdx].prevScore) < VALUE_KNOWN_WIN)
             {
                 delta = Value(16);
@@ -809,27 +807,9 @@ namespace {
                     break;
 
                 // Send full PV info to GUI if we are going to leave the loop or
-                // if we have a fail high/low and we are deep in the search. UCI
-                // protocol requires to send all the PV lines also if are still
-                // to be searched and so refer to the previous search's score.
+                // if we have a fail high/low and we are deep in the search.
                 if ((bestValue > alpha && bestValue < beta) || elapsed_time() > 2000)
-                    for (size_t i = 0; i < std::min(UCIMultiPV, RootMoves.size()); i++)
-                    {
-                        bool updated = (i <= MultiPVIdx);
-
-                        if (depth == 1 && !updated)
-                            continue;
-
-                        Depth d = (updated ? depth : depth - 1) * ONE_PLY;
-                        Value s = (updated ? RootMoves[i].score : RootMoves[i].prevScore);
-
-                        cout << "info"
-                             << depth_to_uci(d)
-                             << (i == MultiPVIdx ? score_to_uci(s, alpha, beta) : score_to_uci(s))
-                             << speed_to_uci(pos.nodes_searched())
-                             << pv_to_uci(&RootMoves[i].pv[0], i + 1, pos.is_chess960())
-                             << endl;
-                    }
+                    pv_info_to_uci(pos, depth, alpha, beta);
 
                 // In case of failing high/low increase aspiration window and
                 // research, otherwise exit the fail high/low loop.
@@ -863,10 +843,7 @@ namespace {
             do_skill_level(&skillBest, &skillPonder);
 
         if (Options["Use Search Log"].value<bool>())
-        {
-            Log log(Options["Search Log Filename"].value<string>());
-            log << pretty_pv(pos, depth, bestValue, elapsed_time(), &RootMoves[0].pv[0]) << endl;
-        }
+             pv_info_to_log(pos, depth, bestValue, elapsed_time(), &RootMoves[0].pv[0]);
 
         // Filter out startup noise when monitoring best move stability
         if (depth > 2 && bestMoveChanges[depth])
@@ -1396,7 +1373,7 @@ split_point_start: // At split points actual search starts from here
 
 #ifndef GPSFISH
           if (pos.thread() == 0 && elapsed_time() > 2000)
-              cout << "info" << depth_to_uci(depth)
+              cout << "info depth " << depth / ONE_PLY
                    << " currmove " << move
                    << " currmovenumber " << moveCount + MultiPVIdx << endl;
 #endif
@@ -2313,73 +2290,58 @@ split_point_start: // At split points actual search starts from here
   }
 
 
-  // speed_to_uci() returns a string with time stats of current search suitable
-  // to be sent to UCI gui.
+  // pv_info_to_uci() sends search info to GUI. UCI protocol requires to send all
+  // the PV lines also if are still to be searched and so refer to the previous
+  // search score.
 
-  string speed_to_uci(int64_t nodes) {
+  void pv_info_to_uci(const Position& pos, int depth, Value alpha, Value beta) {
 
-    std::stringstream s;
     int t = elapsed_time();
-
-    s << " nodes " << nodes
-      << " nps " << (t > 0 ? int(nodes * 1000 / t) : 0)
-#ifdef GPSFISH
-      << " time "  << (t > 0 ? t : 1);
-#else
-      << " time "  << t;
-#endif
-
-    return s.str();
-  }
-
-
-  // pv_to_uci() returns a string with information on the current PV line
-  // formatted according to UCI specification.
-
-  string pv_to_uci(const Move pv[], int pvNum, bool chess960) {
-
-    std::stringstream s;
-
-#ifdef GPSFISH
-    s << " pv ";
-#else
-    s << " multipv " << pvNum << " pv " << set960(chess960);
-#endif
-
-    for ( ; *pv != MOVE_NONE; pv++)
-#ifdef GPSFISH
-        s << move_to_uci(*pv,false) << " ";
-#else
-        s << *pv << " ";
-#endif
-
-    return s.str();
-  }
-
-
-  // depth_to_uci() returns a string with information on the current depth and
-  // seldepth formatted according to UCI specification.
-
-  string depth_to_uci(Depth depth) {
-
-    std::stringstream s;
     int selDepth = 0;
 
-    // Retrieve max searched depth among threads
     for (int i = 0; i < Threads.size(); i++)
         if (Threads[i].maxPly > selDepth)
             selDepth = Threads[i].maxPly;
 
-    s << " depth " << depth / ONE_PLY << " seldepth " << selDepth;
+    for (size_t i = 0; i < std::min(UCIMultiPV, RootMoves.size()); i++)
+    {
+        bool updated = (i <= MultiPVIdx);
 
-    return s.str();
+        if (depth == 1 && !updated)
+            continue;
+
+        int d = (updated ? depth : depth - 1);
+        Value s = (updated ? RootMoves[i].score : RootMoves[i].prevScore);
+
+        cout << "info"
+             << " depth " << d
+             << " seldepth " << selDepth
+             << (i == MultiPVIdx ? score_to_uci(s, alpha, beta) : score_to_uci(s))
+             << " nodes " << pos.nodes_searched()
+             << " nps " << (t > 0 ? pos.nodes_searched() * 1000 / t : 0)
+#ifdef GPSFISH
+             << " time " << (t > 0 ? t : 1)
+             << " pv";
+#else
+             << " time " << t
+             << " multipv " << i + 1 << " pv";
+#endif
+
+        for (int j = 0; RootMoves[i].pv[j] != MOVE_NONE; j++)
+#ifdef GPSFISH
+            cout <<  " " << move_to_uci(RootMoves[i].pv[j],false);
+#else
+            cout <<  " " << RootMoves[i].pv[j];
+#endif
+
+        cout << endl;
+    }
   }
 
 
-  // pretty_pv() creates a human-readable string from a position and a PV. It is
-  // used to write search information to the log file (which is created when the
-  // UCI parameter "Use Search Log" is "true"). It uses the two below helper to
-  // pretty format time and score respectively.
+  // pv_info_to_log() writes human-readable search information to the log file
+  // (which is created when the UCI parameter "Use Search Log" is "true"). It
+  // uses the two below helpers to pretty format time and score respectively.
 
   string time_to_string(int millisecs) {
 
@@ -2415,7 +2377,7 @@ split_point_start: // At split points actual search starts from here
     return s.str();
   }
 
-  string pretty_pv(Position& pos, int depth, Value value, int time, Move pv[]) {
+  void pv_info_to_log(Position& pos, int depth, Value value, int time, Move pv[]) {
 
     const int64_t K = 1000;
     const int64_t M = 1000000;
@@ -2437,8 +2399,10 @@ split_point_start: // At split points actual search starts from here
 
     if (pos.nodes_searched() < M)
         s << std::setw(8) << pos.nodes_searched() / 1 << "  ";
+
     else if (pos.nodes_searched() < K * M)
         s << std::setw(7) << pos.nodes_searched() / K << "K  ";
+
     else
         s << std::setw(7) << pos.nodes_searched() / M << "M  ";
 
@@ -2461,13 +2425,13 @@ split_point_start: // At split points actual search starts from here
         pos.do_move(*m++, *st++);
     }
 
-    // Restore original position before to leave
 #ifndef GPSFISH
     while (m != pv)
         pos.undo_move(*--m);
 #endif
 
-    return s.str();
+    Log l(Options["Search Log Filename"].value<string>());
+    l << s.str() << endl;
   }
 
 
@@ -2631,7 +2595,7 @@ split_point_start: // At split points actual search starts from here
     int ply = 0;
 #endif
 
-    assert(pv[0] != MOVE_NONE && pos.is_pseudo_legal(pv[0]));
+    assert(pv[ply] != MOVE_NONE && pos.is_pseudo_legal(pv[ply]));
 
 #ifdef GPSFISH
     insert_pv_in_tt_rec(pos,0);
