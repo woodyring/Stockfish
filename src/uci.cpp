@@ -288,7 +288,7 @@ namespace {
 
     string token;
     Search::LimitsType limits;
-    std::vector<Move> searchMoves;
+    std::set<Move> searchMoves;
 
 #ifdef GPSFISH
     osl::CArray<int,2> time={{0,0}},inc={{0,0}};
@@ -330,7 +330,7 @@ namespace {
             is >> limits.maxTime;
         else if (token == "searchmoves")
             while (is >> token)
-                searchMoves.push_back(move_from_uci(pos, token));
+                searchMoves.insert(move_from_uci(pos, token));
     }
 
 #if 0 //def GPSFISH
