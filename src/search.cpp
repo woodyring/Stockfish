@@ -692,8 +692,8 @@ namespace {
 	;
     eval_t *es=(eval_t *)&es_base[0];
 #endif
-    int depth, delta;
-    Value bestValue, alpha, beta;
+    int depth;
+    Value bestValue, alpha, beta, delta;
     Move bestMove, skillBest, skillPonder;
     bool bestMoveNeverChanged = true;
 
@@ -702,8 +702,8 @@ namespace {
     H.clear();
     RootMoves.clear();
     *ponderMove = bestMove = skillBest = skillPonder = MOVE_NONE;
-    depth = delta = 0;
-    bestValue = alpha = -VALUE_INFINITE, beta = VALUE_INFINITE;
+    depth = 0;
+    bestValue = alpha = -VALUE_INFINITE, beta = delta = VALUE_INFINITE;
 
 #ifdef GPSFISH
     ss->currentMove = osl::Move::PASS(pos.side_to_move()); // Hack to skip update_gains
@@ -763,16 +763,11 @@ namespace {
         for (MultiPVIdx = 0; MultiPVIdx < std::min(MultiPV, RootMoves.size()); MultiPVIdx++)
         {
             // Calculate dynamic aspiration window based on previous iteration
-            if (depth >= 5 && abs(RootMoves[MultiPVIdx].score) < VALUE_KNOWN_WIN)
+            if (depth >= 5 && abs(RootMoves[MultiPVIdx].prevScore) < VALUE_KNOWN_WIN)
             {
-                delta = abs(RootMoves[MultiPVIdx].score - RootMoves[MultiPVIdx].prevScore);
-                delta = std::min(std::max(delta, 16), 24);
-                delta = (delta + 7) / 8 * 8; // Round to match grainSize
-
-                alpha = RootMoves[MultiPVIdx].score - delta;
-                beta  = RootMoves[MultiPVIdx].score + delta;
-
-                assert(alpha > -VALUE_INFINITE && beta < VALUE_INFINITE);
+                delta = Value(16);
+                alpha = RootMoves[MultiPVIdx].prevScore - delta;
+                beta  = RootMoves[MultiPVIdx].prevScore + delta;
             }
             else
             {
@@ -840,7 +835,7 @@ namespace {
                 // research, otherwise exit the fail high/low loop.
                 if (bestValue >= beta)
                 {
-                    beta = std::min(beta + delta, VALUE_INFINITE);
+                    beta += delta;
                     delta += delta / 2;
                 }
                 else if (bestValue <= alpha)
@@ -848,11 +843,13 @@ namespace {
                     Signals.failedLowAtRoot = true;
                     Signals.stopOnPonderhit = false;
 
-                    alpha = std::max(alpha - delta, -VALUE_INFINITE);
+                    alpha -= delta;
                     delta += delta / 2;
                 }
                 else
                     break;
+
+                assert(alpha >= -VALUE_INFINITE && beta <= VALUE_INFINITE);
 
             } while (abs(bestValue) < VALUE_KNOWN_WIN);
         }
