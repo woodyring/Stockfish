@@ -85,7 +85,7 @@ static size_t get_memory()
 #endif
 
 /// OptionsMap c'tor initializes the UCI options to their hard coded default
-/// values and initializes the default value of "Threads" and "Minimum Split Depth"
+/// values and initializes the default value of "Threads" and "Min Split Depth"
 /// parameters according to the number of CPU cores detected.
 
 OptionsMap::OptionsMap() {
