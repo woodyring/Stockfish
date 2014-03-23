@@ -39,8 +39,12 @@ typedef pthread_cond_t WaitCondition;
 
 #else
 
+#ifndef NOMINMAX 
 #define NOMINMAX // disable macros min() and max()
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
 #undef NOMINMAX

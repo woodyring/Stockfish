@@ -26,9 +26,11 @@
 #if defined(_MSC_VER) || defined(_WIN32)
 
 // Disable some silly and noisy warning from MSVC compiler
+#if defined(_MSC_VER)
 #pragma warning(disable: 4800) // Forcing value to bool 'true' or 'false'
 #pragma warning(disable: 4127) // Conditional expression is constant
 #pragma warning(disable: 4146) // Unary minus operator applied to unsigned type
+#endif
 
 // MSVC does not support <inttypes.h>
 typedef   signed __int8    int8_t;
