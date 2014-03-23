@@ -301,7 +301,8 @@ void MovePicker::score_evasions() {
       if ((seeScore = pos.see_sign(m)) < 0)
           cur->score = seeScore - History::MaxValue; // Be sure we are at the bottom
       else if (pos.is_capture(m))
-#if 0 //def GPSFISH
+          cur->score =  PieceValueMidgame[pos.piece_on(move_to(m))]
+#ifdef GPSFISH
                       - type_value_of_piece_on(pos.piece_on(move_from(m))) + History::MaxValue; // XXX : why
 #else
                       - type_of(pos.piece_on(move_from(m))) + History::MaxValue;

@@ -364,7 +364,7 @@ inline bool Position::square_is_empty(Square s) const {
 #ifdef GPSFISH
   return osl_state.pieceAt(s).isEmpty();
 #else
-  return board[s] == PIECE_NONE;
+  return board[s] == NO_PIECE;
 #endif
 }
 
