@@ -33,8 +33,8 @@ void Position::do_undo_move(Move m, StateInfo& newSt,F const& f){
 
   Color us = side_to_move();
   Color them = flip(us);
-  Square from = move_from(m);
-  Square to = move_to(m);
+  Square from = from_sq(m);
+  Square to = to_sq(m);
 
   PieceType pt=m.ptype();
   osl::Ptype capture = m.capturePtype();
