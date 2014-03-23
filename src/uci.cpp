@@ -171,8 +171,7 @@ void uci_loop() {
 #else
       else if (token == "uci")
 #endif
-          cout << "id name "     << engine_name()
-               << "\nid author " << engine_authors()
+          cout << "id name "     << engine_info(true)
 #ifdef GPSFISH
                << Options
                << "\nusiok"      << endl;
