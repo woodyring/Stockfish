@@ -7,11 +7,7 @@ Book::Book() {}
 
 Book::~Book() {}
 
-void Book::open(const std::string& fileName){}
-
-void Book::close(){}
-
-Move Book::probe(const Position& pos, bool findBestMove)
+Move Book::probe(const Position& pos, const std::string& fName, bool pickBest)
 {
     const BookInMemory& book = BookInMemory::instance();
     osl::hash::HashKey key(pos.osl_state);
@@ -21,7 +17,7 @@ Move Book::probe(const Position& pos, bool findBestMove)
 
     if(moves.empty()) return MOVE_NONE;
 
-    if(findBestMove)
+    if(pickBest)
         return moves[0];
     else
         return moves[osl::time_seeded_random()%moves.size()];
