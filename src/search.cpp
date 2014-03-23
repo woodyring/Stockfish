@@ -450,17 +450,12 @@ void Search::think() {
 #endif
 
       Move bookMove = book.probe(pos, Options["Best Book Move"].value<bool>());
-      if (bookMove != MOVE_NONE)
-      {
-          if (!Signals.stop && (Limits.ponder || Limits.infinite))
-              Threads.wait_for_stop_or_ponderhit();
 
-#ifdef GPSFISH
-          cout << "bestmove " << move_to_uci(bookMove,false) << endl;
-#else
-          cout << "bestmove " << bookMove << endl;
-#endif
-          return;
+      if (   bookMove != MOVE_NONE
+          && std::count(RootMoves.begin(), RootMoves.end(), bookMove))
+      {
+          std::swap(RootMoves[0], *std::find(RootMoves.begin(), RootMoves.end(), bookMove));
+          goto finish;
       }
   }
 
@@ -540,6 +535,8 @@ void Search::think() {
       pos.undo_move(RootMoves[0].pv[0]);
 #endif
   }
+
+finish:
 
   // When we reach max depth we arrive here even without a StopRequest, but if
   // we are pondering or in infinite search, we shouldn't print the best move
