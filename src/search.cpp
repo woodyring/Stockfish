@@ -784,7 +784,7 @@ namespace {
     Rml.init(pos, rootMoves);
 
     // Handle special case of searching on a mate/stalemate position
-    if (!Rml.size())
+    if (Rml.empty())
     {
         cout << "info" << depth_to_uci(DEPTH_ZERO)
 #ifdef GPSFISH
