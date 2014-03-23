@@ -44,7 +44,7 @@ class History {
 public:
   void clear();
   Value value(Piece p, Square to) const;
-  void update(Piece p, Square to, Value bonus);
+  void add(Piece p, Square to, Value bonus);
   Value gain(Piece p, Square to) const;
   void update_gain(Piece p, Square to, Value g);
 
@@ -74,7 +74,7 @@ inline Value History::value(Piece p, Square to) const {
   return VALUE_HISTORY(p,to);
 }
 
-inline void History::update(Piece p, Square to, Value bonus) {
+inline void History::add(Piece p, Square to, Value bonus) {
   if (abs(VALUE_HISTORY(p,to) + bonus) < MaxValue) VALUE_HISTORY(p,to) += bonus;
 }
 
