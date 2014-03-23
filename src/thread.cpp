@@ -182,9 +182,9 @@ void ThreadsManager::init() {
 
 #if defined(_MSC_VER) || defined(_WIN32) 
 #if defined(GPSFISH)
-      threads[i].handle = CreateThread(NULL, 1024*1024*16, start_routine, (LPVOID)&threads[i], 0, NULL);
+      threads[i].handle = CreateThread(NULL, 1024*1024*16, start_routine, &threads[i], 0, NULL);
 #else
-      threads[i].handle = CreateThread(NULL, 0, start_routine, (LPVOID)&threads[i], 0, NULL);
+      threads[i].handle = CreateThread(NULL, 0, start_routine, &threads[i], 0, NULL);
 #endif
       bool ok = (threads[i].handle != NULL);
 #else
@@ -192,9 +192,9 @@ void ThreadsManager::init() {
       pthread_attr_t attr  ;
       pthread_attr_init(&attr);
       pthread_attr_setstacksize(&attr,1024*1024*4);
-      bool ok = !pthread_create(&threads[i].handle, &attr, start_routine, (void*)&threads[i]);
+      bool ok = !pthread_create(&threads[i].handle, &attr, start_routine, &threads[i]);
 #else
-      bool ok = !pthread_create(&threads[i].handle, NULL, start_routine, (void*)&threads[i]);
+      bool ok = !pthread_create(&threads[i].handle, NULL, start_routine, &threads[i]);
 #endif
 #endif
 
