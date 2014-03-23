@@ -112,7 +112,7 @@ OptionsMap::OptionsMap() {
   o["Min Split Depth"]             = UCIOption(msd, 4, 7);
   o["Max Threads per Split Point"] = UCIOption(5, 4, 8);
   o["Threads"]                     = UCIOption(cpus, 1, MAX_THREADS);
-  o["Use Sleeping Threads"]        = UCIOption(true);
+  o["Use Sleeping Threads"]        = UCIOption(false);
 
 #ifdef GPSFISH
   o["Hash"]                        = UCIOption(get_memory(), 4, 8192);
@@ -134,7 +134,7 @@ OptionsMap::OptionsMap() {
   o["Emergency Base Time"]         = UCIOption(20000, 0, 30000);
   o["Emergency Move Time"]         = UCIOption(1000, 0, 5000);
 #else
-  o["Emergency Move Horizon"]      = UCIOption(30, 0, 50);
+  o["Emergency Move Horizon"]      = UCIOption(40, 0, 50);
   o["Emergency Base Time"]         = UCIOption(200, 0, 30000);
   o["Emergency Move Time"]         = UCIOption(70, 0, 5000);
 
