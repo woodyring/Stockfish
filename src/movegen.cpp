@@ -29,19 +29,19 @@
 #include "osl/move_generator/drop.tcc"
 #include "osl/move_action/notKingOpenFilter.h"
 #include "osl/player.h"
-#else
-#include "bitcount.h"
 #endif
+
 #include "movegen.h"
 #include "position.h"
 
 #ifndef GPSFISH
 /// Simple macro to wrap a very common while loop, no facny, no flexibility,
 /// hardcoded names 'mlist' and 'from'.
-#define SERIALIZE_MOVES(b) while (b) (*mlist++).move = make_move(from, pop_1st_bit(&b))
+#define SERIALIZE(b) while (b) (*mlist++).move = make_move(from, pop_1st_bit(&b))
 
 /// Version used for pawns, where the 'from' square is given as a delta from the 'to' square
-#define SERIALIZE_MOVES_D(b, d) while (b) { to = pop_1st_bit(&b); (*mlist++).move = make_move(to + (d), to); }
+#define SERIALIZE_PAWNS(b, d) while (b) { Square to = pop_1st_bit(&b); \
+                                         (*mlist++).move = make_move(to + (d), to); }
 #endif
 
 namespace {
@@ -114,11 +114,9 @@ namespace {
 
     const Bitboard TFileABB = (   Delta == DELTA_NE
                                || Delta == DELTA_SE ? FileABB : FileHBB);
-    Bitboard b;
-    Square to;
 
-    b = move_pawns<Delta>(pawns) & target & ~TFileABB;
-    SERIALIZE_MOVES_D(b, -Delta);
+    Bitboard b = move_pawns<Delta>(pawns) & target & ~TFileABB;
+    SERIALIZE_PAWNS(b, -Delta);
     return mlist;
   }
 
@@ -128,17 +126,15 @@ namespace {
 
     const Bitboard TFileABB = (   Delta == DELTA_NE
                                || Delta == DELTA_SE ? FileABB : FileHBB);
-    Bitboard b;
-    Square to;
 
-    b = move_pawns<Delta>(pawnsOn7) & target;
+    Bitboard b = move_pawns<Delta>(pawnsOn7) & target;
 
     if (Delta != DELTA_N && Delta != DELTA_S)
         b &= ~TFileABB;
 
     while (b)
     {
-        to = pop_1st_bit(&b);
+        Square to = pop_1st_bit(&b);
 
         if (Type == MV_CAPTURE || Type == MV_EVASION || Type == MV_NON_EVASION)
             (*mlist++).move = make_promotion(to - Delta, to, QUEEN);
@@ -152,9 +148,8 @@ namespace {
 
         // Knight-promotion is the only one that can give a check (direct or
         // discovered) not already included in the queen-promotion.
-        if (   Type == MV_NON_CAPTURE_CHECK
-            && bit_is_set(StepAttacksBB[W_KNIGHT][to], ksq))
-                (*mlist++).move = make_promotion(to - Delta, to, KNIGHT);
+        if (Type == MV_NON_CAPTURE_CHECK && bit_is_set(StepAttacksBB[W_KNIGHT][to], ksq))
+            (*mlist++).move = make_promotion(to - Delta, to, KNIGHT);
         else
             (void)ksq; // Silence a warning under MSVC
     }
@@ -174,12 +169,10 @@ namespace {
     const Square   RIGHT    = (Us == WHITE ? DELTA_NE : DELTA_SW);
     const Square   LEFT     = (Us == WHITE ? DELTA_NW : DELTA_SE);
 
-    Square to;
     Bitboard b1, b2, dc1, dc2, emptySquares;
 
-    Bitboard pawns       = pos.pieces(PAWN, Us);
-    Bitboard pawnsOn7    = pawns &  TRank7BB;
-    Bitboard pawnsNotOn7 = pawns & ~TRank7BB;
+    Bitboard pawnsOn7    = pos.pieces(PAWN, Us) &  TRank7BB;
+    Bitboard pawnsNotOn7 = pos.pieces(PAWN, Us) & ~TRank7BB;
 
     Bitboard enemies = (Type == MV_EVASION ? pos.pieces(Them) & target:
                         Type == MV_CAPTURE ? target : pos.pieces(Them));
@@ -218,8 +211,8 @@ namespace {
             }
         }
 
-        SERIALIZE_MOVES_D(b1, -UP);
-        SERIALIZE_MOVES_D(b2, -UP -UP);
+        SERIALIZE_PAWNS(b1, -UP);
+        SERIALIZE_PAWNS(b2, -UP -UP);
     }
 
     // Promotions and underpromotions
@@ -290,7 +283,7 @@ namespace {
             continue;
 
         b = pos.attacks_from<Pt>(from) & checkSqs;
-        SERIALIZE_MOVES(b);
+        SERIALIZE(b);
 
     } while ((from = *pl++) != SQ_NONE);
 
@@ -301,8 +294,8 @@ namespace {
   template<>
   FORCE_INLINE MoveStack* generate_direct_checks<PAWN>(const Position& p, MoveStack* m, Color us, Bitboard dc, Square ksq) {
 
-    return (us == WHITE ? generate_pawn_moves<WHITE, MV_NON_CAPTURE_CHECK>(p, m, dc, ksq)
-                        : generate_pawn_moves<BLACK, MV_NON_CAPTURE_CHECK>(p, m, dc, ksq));
+    return us == WHITE ? generate_pawn_moves<WHITE, MV_NON_CAPTURE_CHECK>(p, m, dc, ksq)
+                       : generate_pawn_moves<BLACK, MV_NON_CAPTURE_CHECK>(p, m, dc, ksq);
   }
 
 
@@ -310,8 +303,8 @@ namespace {
   FORCE_INLINE MoveStack* generate_piece_moves(const Position& p, MoveStack* m, Color us, Bitboard t) {
 
     assert(Pt == PAWN);
-    return (us == WHITE ? generate_pawn_moves<WHITE, Type>(p, m, t, SQ_NONE)
-                        : generate_pawn_moves<BLACK, Type>(p, m, t, SQ_NONE));
+    return us == WHITE ? generate_pawn_moves<WHITE, Type>(p, m, t, SQ_NONE)
+                       : generate_pawn_moves<BLACK, Type>(p, m, t, SQ_NONE);
   }
 
 
@@ -327,7 +320,7 @@ namespace {
         do {
             from = *pl;
             b = pos.attacks_from<Pt>(from) & target;
-            SERIALIZE_MOVES(b);
+            SERIALIZE(b);
         } while (*++pl != SQ_NONE);
     }
     return mlist;
@@ -337,11 +330,9 @@ namespace {
   template<>
   FORCE_INLINE MoveStack* generate_piece_moves<KING>(const Position& pos, MoveStack* mlist, Color us, Bitboard target) {
 
-    Bitboard b;
     Square from = pos.king_square(us);
-
-    b = pos.attacks_from<KING>(from) & target;
-    SERIALIZE_MOVES(b);
+    Bitboard b = pos.attacks_from<KING>(from) & target;
+    SERIALIZE(b);
     return mlist;
   }
 #endif
@@ -430,7 +421,6 @@ MoveStack* generate<MV_NON_CAPTURE_CHECK>(const Position& pos, MoveStack* mlist)
 
   assert(pos.piece_on(ksq) == make_piece(flip(us), KING));
 
-  // Discovered non-capture checks
   b = dc = pos.discovered_check_candidates();
 
   while (b)
@@ -446,10 +436,9 @@ MoveStack* generate<MV_NON_CAPTURE_CHECK>(const Position& pos, MoveStack* mlist)
      if (pt == KING)
          b &= ~QueenPseudoAttacks[ksq];
 
-     SERIALIZE_MOVES(b);
+     SERIALIZE(b);
   }
 
-  // Direct non-capture checks
   mlist = generate_direct_checks<PAWN>(pos, mlist, us, dc, ksq);
   mlist = generate_direct_checks<KNIGHT>(pos, mlist, us, dc, ksq);
   mlist = generate_direct_checks<BISHOP>(pos, mlist, us, dc, ksq);
@@ -476,9 +465,8 @@ MoveStack* generate<MV_EVASION>(const Position& pos, MoveStack* mlist) {
   assert(pos.piece_on(ksq) == make_piece(us, KING));
   assert(checkers);
 
-  // Find squares attacked by slider checkers, we will remove
-  // them from the king evasions set so to early skip known
-  // illegal moves and avoid an useless legality check later.
+  // Find squares attacked by slider checkers, we will remove them from the king
+  // evasions set so to skip known illegal moves and avoid to do legality check later.
   b = checkers;
   do
   {
@@ -511,14 +499,13 @@ MoveStack* generate<MV_EVASION>(const Position& pos, MoveStack* mlist) {
   // Generate evasions for king, capture and non capture moves
   b = pos.attacks_from<KING>(ksq) & ~pos.pieces(us) & ~sliderAttacks;
   from = ksq;
-  SERIALIZE_MOVES(b);
+  SERIALIZE(b);
 
-  // Generate evasions for other pieces only if not double check
+  // Generate evasions for other pieces only if not under a double check
   if (checkersCnt > 1)
       return mlist;
 
-  // Find squares where a blocking evasion or a capture of the
-  // checker piece is possible.
+  // Target for blocking evasions or captures of the checking piece
   target = squares_between(checksq, ksq) | checkers;
 
   mlist = generate_piece_moves<PAWN, MV_EVASION>(pos, mlist, us, target);
@@ -530,7 +517,7 @@ MoveStack* generate<MV_EVASION>(const Position& pos, MoveStack* mlist) {
 #endif
 
 
-/// generate<MV_LEGAL> generates all legal moves in the current position
+/// generate<MV_LEGAL> generates all the legal moves in the given position
 
 template<>
 MoveStack* generate<MV_LEGAL>(const Position& pos, MoveStack* mlist) {
@@ -540,8 +527,6 @@ MoveStack* generate<MV_LEGAL>(const Position& pos, MoveStack* mlist) {
 
   last = pos.in_check() ? generate<MV_EVASION>(pos, mlist)
                         : generate<MV_NON_EVASION>(pos, mlist);
-
-  // Remove illegal moves from the list
   while (cur != last)
       if (!pos.pl_move_is_legal(cur->move, pinned))
           cur->move = (--last)->move;
