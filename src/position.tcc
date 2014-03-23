@@ -32,7 +32,7 @@ void Position::do_undo_move(Move m, StateInfo& newSt,F const& f){
 
 
   Color us = side_to_move();
-  Color them = flip(us);
+  Color them = ~us;
   Square from = from_sq(m);
   Square to = to_sq(m);
 

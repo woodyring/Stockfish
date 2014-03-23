@@ -406,6 +406,23 @@ inline Value type_value_of_piece_on(Piece p) {
 }
 #endif
 
+inline Color operator~(Color c) {
+#ifdef GPSFISH
+  return alt(c);
+#else
+  return Color(c ^ 1);
+#endif
+}
+
+inline Square operator~(Square s) {
+#ifdef GPSFISH
+  // For shogi, do rotate180 instead of flipping
+  return s.rotate180();
+#else
+  return Square(s ^ 56);
+#endif
+}
+
 inline Value mate_in(int ply) {
   return VALUE_MATE - ply;
 }
@@ -438,14 +455,6 @@ inline Color color_of(Piece p) {
 #endif
 }
 
-inline Color flip(Color c) {
-#ifdef GPSFISH
-  return alt(c);
-#else
-  return Color(c ^ 1);
-#endif
-}
-
 inline Square make_square(File f, Rank r) {
 #ifdef GPSFISH
   return Square(f,r);
@@ -467,15 +476,6 @@ inline Rank rank_of(Square s) {
   return Rank(s.y());
 #else
   return Rank(s >> 3);
-#endif
-}
-
-inline Square flip(Square s) {
-#ifdef GPSFISH
-  // For shogi, do rotate180 instead of flipping
-  return s.rotate180();
-#else
-  return Square(s ^ 56);
 #endif
 }
 

@@ -508,7 +508,7 @@ inline Bitboard Position::pinned_pieces() const {
 
 #ifndef GPSFISH
 inline bool Position::pawn_is_passed(Color c, Square s) const {
-  return !(pieces(PAWN, flip(c)) & passed_pawn_mask(c, s));
+  return !(pieces(PAWN, ~c) & passed_pawn_mask(c, s));
 }
 #endif
 
