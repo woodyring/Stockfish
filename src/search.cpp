@@ -96,7 +96,6 @@ namespace {
 
     RootMove(){}
     RootMove(Move m) {
-      nodes = 0;
       score = prevScore = -VALUE_INFINITE;
       pv.push_back(m);
       pv.push_back(MOVE_NONE);
@@ -114,7 +113,6 @@ namespace {
 #endif
     void insert_pv_in_tt(Position& pos);
 
-    int64_t nodes;
     Value score;
     Value prevScore;
     std::vector<Move> pv;
@@ -883,7 +881,6 @@ namespace {
     assert(pos.thread() >= 0 && pos.thread() < Threads.size());
 
     Move movesSearched[MAX_MOVES];
-    int64_t nodes;
     StateInfo st;
     const TTEntry *tte;
     Key posKey;
@@ -1318,7 +1315,6 @@ split_point_start: // At split points actual search starts from here
       if (RootNode)
       {
           Signals.firstRootMove = (moveCount == 1);
-          nodes = pos.nodes_searched();
 
 #ifndef GPSFISH
           if (pos.thread() == 0 && elapsed_time() > 2000)
@@ -1516,7 +1512,6 @@ split_point_start: // At split points actual search starts from here
       if (RootNode && !Signals.stop)
       {
           RootMove& rm = *find(RootMoves.begin(), RootMoves.end(), move);
-          rm.nodes += pos.nodes_searched() - nodes;
 
           // PV move or new best move ?
           if (isPvMove || value > alpha)
