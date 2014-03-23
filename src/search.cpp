@@ -668,10 +668,10 @@ namespace {
     *(pos.eval)=eval_t(pos.osl_state,false);
 #endif
 
-    // Handle the special case of a mate/stalemate position
+    // Handle the special case of a mated/stalemate position
     if (RootMoves.empty())
     {
-        cout << "info depth 0"
+        cout << "info depth 0 score "
 #ifdef GPSFISH
              << score_to_uci(pos.in_check() ? mated_in(1) : VALUE_DRAW) << endl;
 #else
@@ -2204,15 +2204,15 @@ split_point_start: // At split points actual search starts from here
     std::stringstream s;
 
 #ifdef GPSFISH
-    if (abs(v) < VALUE_MATE - PLY_MAX * ONE_PLY)
-        s << " score cp " << int(v) * 100 / 200;
+    if (abs(v) < VALUE_MATE_IN_PLY_MAX)
+        s << "cp " << int(v) * 100 / 200;
     else
-        s << " score mate " << int(v);
+        s << "mate " << int(v);
 #else
-    if (abs(v) < VALUE_MATE - PLY_MAX * ONE_PLY)
-        s << " score cp " << int(v) * 100 / int(PawnValueMidgame); // Scale to centipawns
+    if (abs(v) < VALUE_MATE_IN_PLY_MAX)
+        s << "cp " << v * 100 / int(PawnValueMidgame);
     else
-        s << " score mate " << (v > 0 ? VALUE_MATE - v + 1 : -VALUE_MATE - v) / 2;
+        s << "mate " << (v > 0 ? VALUE_MATE - v + 1 : -VALUE_MATE - v) / 2;
 
     s << (v >= beta ? " lowerbound" : v <= alpha ? " upperbound" : "");
 #endif
@@ -2250,7 +2250,7 @@ split_point_start: // At split points actual search starts from here
 
         cout << "info depth " << d
              << " seldepth " << selDepth
-             << (i == PVIdx ? score_to_uci(v, alpha, beta) : score_to_uci(v))
+             << " score " << (i == PVIdx ? score_to_uci(v, alpha, beta) : score_to_uci(v))
              << " nodes " << pos.nodes_searched()
              << " nps " << (t > 0 ? pos.nodes_searched() * 1000 / t : 0)
 #ifdef GPSFISH
