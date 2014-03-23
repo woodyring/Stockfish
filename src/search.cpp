@@ -354,12 +354,12 @@ void Search::init() {
 int64_t Search::perft(Position& pos, Depth depth) {
 
   StateInfo st;
-  int64_t sum = 0;
+  int64_t cnt = 0;
 
   MoveList<MV_LEGAL> ml(pos);
 
   // At the last ply just return the number of moves (leaf nodes)
-  if (depth <= ONE_PLY)
+  if (depth == ONE_PLY)
       return ml.size();
 
 #ifndef GPSFISH
@@ -374,15 +374,14 @@ int64_t Search::perft(Position& pos, Depth depth) {
 #else
       pos.do_move(ml.move(), st, ci, pos.move_gives_check(ml.move(), ci));
 #endif
-      sum += perft(pos, depth - ONE_PLY);
+      cnt += perft(pos, depth - ONE_PLY);
 #ifdef GPSFISH
-      }
-      );
+      } );
 #else
       pos.undo_move(ml.move());
 #endif
   }
-  return sum;
+  return cnt;
 }
 
 

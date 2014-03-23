@@ -21,6 +21,7 @@
 #include <iostream>
 #include <vector>
 
+#include "misc.h"
 #include "position.h"
 #include "search.h"
 #include "thread.h"
@@ -28,6 +29,7 @@
 #include "misc.h"
 
 using namespace std;
+using namespace Search;
 
 static const char* Defaults[] = {
 #ifdef GPSFISH
@@ -49,8 +51,7 @@ static const char* Defaults[] = {
 "1n1g4l/1ks1g4/ppppps1p1/5p3/4P3P/2PB1G2L/1P1P1P1P1/6+r2/1N2K4 b BGSN2L3Prsnp 1",
 "4k4/1sG1g4/lpPpp1+L2/2p1s3N/3P4r/1R5pp/3bPGPP1/6K2/6SNL b B2NL4Pgs3p 1",
 "ln6+B/1Sk5l/2ps5/pg2g2pp/1NNp3N1/PK2PP+b1P/4S4/7R1/L7L w RGS7Pg2p 1",
-"3g3+B1/1Rs2+P3/3kp2p1/Nppp2p1p/pn2L2N1/2P5P/LP1PP4/PG1+r5/KG7 b SLPbg2snl2p 1",
-""
+"3g3+B1/1Rs2+P3/3kp2p1/Nppp2p1p/pn2L2N1/2P5P/LP1PP4/PG1+r5/KG7 b SLPbg2snl2p 1"
 #else
   "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
   "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 10",
@@ -67,8 +68,7 @@ static const char* Defaults[] = {
   "3r1rk1/p5pp/bpp1pp2/8/q1PP1P2/b3P3/P2NQRPP/1R2B1K1 b - - 6 22",
   "r1q2rk1/2p1bppp/2Pp4/p6b/Q1PNp3/4B3/PP1R1PPP/2K4R w - - 2 18",
   "4k2r/1pb2ppp/1p2p3/1R1p4/3P4/2r1PN2/P4PPP/1R4K1 b - - 3 22",
-  "3q2k1/pb3p1p/4pbp1/2r5/PpN2N2/1P2P2P/5PP1/Q2R2K1 b - - 4 26",
-  ""
+  "3q2k1/pb3p1p/4pbp1/2r5/PpN2N2/1P2P2P/5PP1/Q2R2K1 b - - 4 26"
 #endif
 };
 
@@ -91,10 +91,10 @@ void benchmark(int argc, char* argv[]) {
   }
 #endif
 
-  vector<string> fenList;
-  Search::LimitsType limits;
-  int64_t totalNodes;
+  vector<string> fens;
+  LimitsType limits;
   int time;
+  int64_t nodes = 0;
 
   // Assign default values to missing arguments
   string ttSize  = argc > 2 ? argv[2] : "128";
@@ -103,70 +103,64 @@ void benchmark(int argc, char* argv[]) {
   string fenFile = argc > 5 ? argv[5] : "default";
   string valType = argc > 6 ? argv[6] : "depth";
 
-  Options["Hash"] = ttSize;
+  Options["Hash"]    = ttSize;
   Options["Threads"] = threads;
   Options["OwnBook"] = false;
 
-  // Search should be limited by nodes, time or depth ?
-  if (valType == "nodes")
-      limits.maxNodes = atoi(valStr.c_str());
-  else if (valType == "time")
+  if (valType == "time")
       limits.maxTime = 1000 * atoi(valStr.c_str()); // maxTime is in ms
+
+  else if (valType == "nodes")
+      limits.maxNodes = atoi(valStr.c_str());
+
   else
       limits.maxDepth = atoi(valStr.c_str());
 
-  // Do we need to load positions from a given FEN file?
-  if (fenFile == "default")
-      for (int i = 0; *Defaults[i]; i++)
-          fenList.push_back(Defaults[i]);
-  else
+  if (fenFile != "default")
   {
       string fen;
-      ifstream f(fenFile.c_str());
+      ifstream file(fenFile.c_str());
 
-      if (!f.is_open())
+      if (!file.is_open())
       {
           cerr << "Unable to open file " << fenFile << endl;
           exit(EXIT_FAILURE);
       }
 
-      while (getline(f, fen))
+      while (getline(file, fen))
           if (!fen.empty())
-              fenList.push_back(fen);
+              fens.push_back(fen);
 
-      f.close();
+      file.close();
   }
+  else
+      fens.assign(Defaults, Defaults + 16);
 
-  // Ok, let's start the benchmark !
-  totalNodes = 0;
   time = system_time();
 
-  for (size_t i = 0; i < fenList.size(); i++)
+  for (size_t i = 0; i < fens.size(); i++)
   {
-      Position pos(fenList[i], false, 0);
+      Position pos(fens[i], false, 0);
 
-      cerr << "\nBench position: " << i + 1 << '/' << fenList.size() << endl;
+      cerr << "\nPosition: " << i + 1 << '/' << fens.size() << endl;
 
       if (valType == "perft")
       {
-          int64_t cnt = Search::perft(pos, limits.maxDepth * ONE_PLY);
-
-          cerr << "\nPerft " << limits.maxDepth
-               << " nodes counted: " << cnt << endl;
-
-          totalNodes += cnt;
+          int64_t cnt = perft(pos, limits.maxDepth * ONE_PLY);
+          cerr << "\nPerft " << limits.maxDepth  << " leaf nodes: " << cnt << endl;
+          nodes += cnt;
       }
       else
       {
           Threads.start_thinking(pos, limits, vector<Move>(), false);
-          totalNodes += Search::RootPosition.nodes_searched();
+          nodes += RootPosition.nodes_searched();
       }
   }
 
   time = system_time() - time;
 
-  cerr << "\n==============================="
+  cerr << "\n==========================="
        << "\nTotal time (ms) : " << time
-       << "\nNodes searched  : " << totalNodes
-       << "\nNodes/second    : " << (int)(totalNodes / (time / 1000.0)) << endl;
+       << "\nNodes searched  : " << nodes
+       << "\nNodes/second    : " << int(nodes / (time / 1000.0)) << endl;
 }
