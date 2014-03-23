@@ -18,8 +18,6 @@
 */
 
 #include <algorithm>
-#include <cctype>
-#include <iostream>
 #include <sstream>
 #ifdef GPSFISH
 #  include <fstream>
@@ -35,8 +33,6 @@
 #include "ucioption.h"
 
 using std::string;
-using std::cout;
-using std::endl;
 
 OptionsMap Options; // Global object
 
