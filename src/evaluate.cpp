@@ -428,7 +428,6 @@ namespace {
   template<Color Us>
   void init_eval_info(const Position& pos, EvalInfo& ei) {
 
-    const BitCountType Max15 = HasPopCnt ? CNT_POPCNT : Is64Bit ? CNT64_MAX15 : CNT32_MAX15;
     const Color Them = (Us == WHITE ? BLACK : WHITE);
 
     Bitboard b = ei.attackedBy[Them][KING] = pos.attacks_from<KING>(pos.king_square(Them));
@@ -440,7 +439,7 @@ namespace {
     {
         ei.kingRing[Them] = (b | (Us == WHITE ? b >> 8 : b << 8));
         b &= ei.attackedBy[Us][PAWN];
-        ei.kingAttackersCount[Us] = b ? count_1s<Max15>(b) / 2 : 0;
+        ei.kingAttackersCount[Us] = b ? popcount<Max15>(b) / 2 : 0;
         ei.kingAdjacentZoneAttacksCount[Us] = ei.kingAttackersWeight[Us] = 0;
     } else
         ei.kingRing[Them] = ei.kingAttackersCount[Us] = 0;
@@ -484,8 +483,6 @@ namespace {
     File f;
     Score score = SCORE_ZERO;
 
-    const BitCountType Full  = HasPopCnt ? CNT_POPCNT : Is64Bit ? CNT64 : CNT32;
-    const BitCountType Max15 = HasPopCnt ? CNT_POPCNT : Is64Bit ? CNT64_MAX15 : CNT32_MAX15;
     const Color Them = (Us == WHITE ? BLACK : WHITE);
     const Square* pl = pos.piece_list(Us, Piece);
 
@@ -513,12 +510,12 @@ namespace {
             ei.kingAttackersWeight[Us] += KingAttackWeights[Piece];
             Bitboard bb = (b & ei.attackedBy[Them][KING]);
             if (bb)
-                ei.kingAdjacentZoneAttacksCount[Us] += count_1s<Max15>(bb);
+                ei.kingAdjacentZoneAttacksCount[Us] += popcount<Max15>(bb);
         }
 
         // Mobility
-        mob = (Piece != QUEEN ? count_1s<Max15>(b & mobilityArea)
-                              : count_1s<Full >(b & mobilityArea));
+        mob = (Piece != QUEEN ? popcount<Max15>(b & mobilityArea)
+                              : popcount<Full >(b & mobilityArea));
 
         mobility += MobilityBonus[Piece][mob];
 
@@ -673,7 +670,6 @@ namespace {
   template<Color Us, bool Trace>
   Score evaluate_king(const Position& pos, EvalInfo& ei, Value margins[]) {
 
-    const BitCountType Max15 = HasPopCnt ? CNT_POPCNT : Is64Bit ? CNT64_MAX15 : CNT32_MAX15;
     const Color Them = (Us == WHITE ? BLACK : WHITE);
 
     Bitboard undefended, b, b1, b2, safe;
@@ -701,7 +697,7 @@ namespace {
         // attacked and undefended squares around our king, the square of the
         // king, and the quality of the pawn shelter.
         attackUnits =  std::min(25, (ei.kingAttackersCount[Them] * ei.kingAttackersWeight[Them]) / 2)
-                     + 3 * (ei.kingAdjacentZoneAttacksCount[Them] + count_1s<Max15>(undefended))
+                     + 3 * (ei.kingAdjacentZoneAttacksCount[Them] + popcount<Max15>(undefended))
                      + InitKingDanger[relative_square(Us, ksq)]
                      - mg_value(ei.pi->king_shelter<Us>(pos, ksq)) / 32;
 
@@ -715,7 +711,7 @@ namespace {
                   | ei.attackedBy[Them][BISHOP] | ei.attackedBy[Them][ROOK]);
             if (b)
                 attackUnits +=  QueenContactCheckBonus
-                              * count_1s<Max15>(b)
+                              * popcount<Max15>(b)
                               * (Them == pos.side_to_move() ? 2 : 1);
         }
 
@@ -733,7 +729,7 @@ namespace {
                   | ei.attackedBy[Them][BISHOP] | ei.attackedBy[Them][QUEEN]);
             if (b)
                 attackUnits +=  RookContactCheckBonus
-                              * count_1s<Max15>(b)
+                              * popcount<Max15>(b)
                               * (Them == pos.side_to_move() ? 2 : 1);
         }
 
@@ -746,22 +742,22 @@ namespace {
         // Enemy queen safe checks
         b = (b1 | b2) & ei.attackedBy[Them][QUEEN];
         if (b)
-            attackUnits += QueenCheckBonus * count_1s<Max15>(b);
+            attackUnits += QueenCheckBonus * popcount<Max15>(b);
 
         // Enemy rooks safe checks
         b = b1 & ei.attackedBy[Them][ROOK];
         if (b)
-            attackUnits += RookCheckBonus * count_1s<Max15>(b);
+            attackUnits += RookCheckBonus * popcount<Max15>(b);
 
         // Enemy bishops safe checks
         b = b2 & ei.attackedBy[Them][BISHOP];
         if (b)
-            attackUnits += BishopCheckBonus * count_1s<Max15>(b);
+            attackUnits += BishopCheckBonus * popcount<Max15>(b);
 
         // Enemy knights safe checks
         b = pos.attacks_from<KNIGHT>(ksq) & ei.attackedBy[Them][KNIGHT] & safe;
         if (b)
-            attackUnits += KnightCheckBonus * count_1s<Max15>(b);
+            attackUnits += KnightCheckBonus * popcount<Max15>(b);
 
         // To index KingDangerTable[] attackUnits must be in [0, 99] range
         attackUnits = std::min(99, std::max(0, attackUnits));
@@ -885,8 +881,6 @@ namespace {
 
   Score evaluate_unstoppable_pawns(const Position& pos, EvalInfo& ei) {
 
-    const BitCountType Max15 = HasPopCnt ? CNT_POPCNT : Is64Bit ? CNT64_MAX15 : CNT32_MAX15;
-
     Bitboard b, b2, blockers, supporters, queeningPath, candidates;
     Square s, blockSq, queeningSquare;
     Color c, winnerSide, loserSide;
@@ -924,7 +918,7 @@ namespace {
             assert((queeningPath & pos.occupied_squares()) == (queeningPath & pos.pieces(c)));
 
             // Add moves needed to free the path from friendly pieces and retest condition
-            movesToGo += count_1s<Max15>(queeningPath & pos.pieces(c));
+            movesToGo += popcount<Max15>(queeningPath & pos.pieces(c));
 
             if (movesToGo >= oppMovesToGo && !pathDefended)
                 continue;
@@ -1052,7 +1046,6 @@ namespace {
   template<Color Us>
   int evaluate_space(const Position& pos, EvalInfo& ei) {
 
-    const BitCountType Max15 = HasPopCnt ? CNT_POPCNT : Is64Bit ? CNT64_MAX15 : CNT32_MAX15;
     const Color Them = (Us == WHITE ? BLACK : WHITE);
 
     // Find the safe squares for our pieces inside the area defined by
@@ -1068,7 +1061,7 @@ namespace {
     behind |= (Us == WHITE ? behind >>  8 : behind <<  8);
     behind |= (Us == WHITE ? behind >> 16 : behind << 16);
 
-    return count_1s<Max15>(safe) + count_1s<Max15>(behind & safe);
+    return popcount<Max15>(safe) + popcount<Max15>(behind & safe);
   }
 
 
