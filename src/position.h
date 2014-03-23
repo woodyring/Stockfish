@@ -49,6 +49,7 @@ struct CheckInfo {
 #ifndef GPSFISH
   Bitboard checkSq[8];
 #endif
+  Square ksq;
 };
 
 
