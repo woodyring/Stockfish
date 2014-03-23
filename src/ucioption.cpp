@@ -112,7 +112,7 @@ OptionsMap::OptionsMap() {
   o["Min Split Depth"]             = UCIOption(msd, 4, 7);
   o["Max Threads per Split Point"] = UCIOption(5, 4, 8);
   o["Threads"]                     = UCIOption(cpus, 1, MAX_THREADS);
-  o["Use Sleeping Threads"]        = UCIOption(true);
+  o["Use Sleeping Threads"]        = UCIOption(false);
 
 #ifdef GPSFISH
   o["Hash"]                        = UCIOption(get_memory(), 4, 8192);
