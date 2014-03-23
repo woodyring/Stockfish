@@ -28,9 +28,12 @@
 #include <iostream>
 
 #include "book.h"
+#include "misc.h"
+
 #ifdef GPSFISH
 #include "book_gps.h"
 #else
+
 #include "movegen.h"
 
 using namespace std;

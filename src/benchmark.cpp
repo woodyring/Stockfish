@@ -25,10 +25,11 @@
 #include "search.h"
 #include "thread.h"
 #include "ucioption.h"
+#include "misc.h"
 
 using namespace std;
 
-static const string Defaults[] = {
+static const char* Defaults[] = {
 #ifdef GPSFISH
 "kng4nl/lsg2r3/pppppsbpp/5pp2/7P1/2P1P1PS1/PP1PSP2P/1BK1G2R1/LN1G3NL w - 1",
 "l6nl/1r3sgk1/2np1gspp/2pbppp2/pp1P4P/2P1P1PP1/PPSG1P2L/1KGB1S2R/LN5N1 w - 1",
@@ -90,7 +91,7 @@ void benchmark(int argc, char* argv[]) {
   }
 #endif
 
-  std::vector<Move> searchMoves(1, MOVE_NONE);
+  vector<Move> searchMoves(1, MOVE_NONE);
   vector<string> fenList;
   Search::LimitsType limits;
   int64_t totalNodes;
@@ -116,7 +117,10 @@ void benchmark(int argc, char* argv[]) {
       limits.maxDepth = atoi(valStr.c_str());
 
   // Do we need to load positions from a given FEN file?
-  if (fenFile != "default")
+  if (fenFile == "default")
+      for (int i = 0; *Defaults[i]; i++)
+          fenList.push_back(Defaults[i]);
+  else
   {
       string fen;
       ifstream f(fenFile.c_str());
@@ -133,9 +137,6 @@ void benchmark(int argc, char* argv[]) {
 
       f.close();
   }
-  else // Load default positions
-      for (int i = 0; !Defaults[i].empty(); i++)
-          fenList.push_back(Defaults[i]);
 
   // Ok, let's start the benchmark !
   totalNodes = 0;

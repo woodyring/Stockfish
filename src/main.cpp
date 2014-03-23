@@ -36,6 +36,7 @@
 #endif
 #include <cstring>
 #endif
+#include "misc.h"
 
 using namespace std;
 

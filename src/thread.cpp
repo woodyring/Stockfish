@@ -22,6 +22,7 @@
 #include "search.h"
 #include "thread.h"
 #include "ucioption.h"
+#include "misc.h"
 
 ThreadsManager Threads; // Global object
 

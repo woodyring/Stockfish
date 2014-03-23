@@ -61,8 +61,7 @@ namespace {
   template<PieceType Pt>
   inline MoveStack* generate_discovered_checks(const Position& pos, MoveStack* mlist, Square from) {
 
-    assert(Pt != QUEEN);
-    assert(Pt != PAWN);
+    assert(Pt != QUEEN && Pt != PAWN);
 
     Bitboard b = pos.attacks_from<Pt>(from) & pos.empty_squares();
 
@@ -76,8 +75,7 @@ namespace {
   template<PieceType Pt>
   inline MoveStack* generate_direct_checks(const Position& pos, MoveStack* mlist, Color us,
                                            Bitboard dc, Square ksq) {
-    assert(Pt != KING);
-    assert(Pt != PAWN);
+    assert(Pt != KING && Pt != PAWN);
 
     Bitboard checkSqs, b;
     Square from;
@@ -230,7 +228,7 @@ template MoveStack* generate<MV_EVASION>(const Position& pos, MoveStack* mlist);
 #endif
 
 #ifndef GPSFISH
-/// generate_non_capture_checks() generates all pseudo-legal non-captures and knight
+/// generate<MV_NON_CAPTURE_CHECK> generates all pseudo-legal non-captures and knight
 /// underpromotions that give check. Returns a pointer to the end of the move list.
 template<>
 MoveStack* generate<MV_NON_CAPTURE_CHECK>(const Position& pos, MoveStack* mlist) {
@@ -270,8 +268,8 @@ MoveStack* generate<MV_NON_CAPTURE_CHECK>(const Position& pos, MoveStack* mlist)
 }
 
 
-/// generate_evasions() generates all pseudo-legal check evasions when
-/// the side to move is in check. Returns a pointer to the end of the move list.
+/// generate<MV_EVASION> generates all pseudo-legal check evasions when the side
+/// to move is in check. Returns a pointer to the end of the move list.
 template<>
 MoveStack* generate<MV_EVASION>(const Position& pos, MoveStack* mlist) {
 

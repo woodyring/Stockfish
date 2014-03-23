@@ -31,23 +31,23 @@ typedef osl::eval::ml::OpenMidEndingEval eval_t;
 #endif
 
 #include <cassert>
-#include "move.h"
 #include "types.h"
 
 
 /// The checkInfo struct is initialized at c'tor time and keeps info used
 /// to detect if a move gives check.
+class Position;
 
 struct CheckInfo {
 
-    explicit CheckInfo(const Position&);
+  explicit CheckInfo(const Position&);
 
 #ifndef GPSFISH
-    Bitboard dcCandidates;
+  Bitboard dcCandidates;
 #endif
-    Bitboard pinned;
+  Bitboard pinned;
 #ifndef GPSFISH
-    Bitboard checkSq[8];
+  Bitboard checkSq[8];
 #endif
 };
 
@@ -56,7 +56,6 @@ struct CheckInfo {
 /// object to its previous state when we retract a move. Whenever a move
 /// is made on the board (by calling Position::do_move), an StateInfo object
 /// must be passed as a parameter.
-class Position;
 
 struct StateInfo {
 #ifdef GPSFISH

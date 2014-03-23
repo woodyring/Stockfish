@@ -22,12 +22,13 @@
 
 #include <iostream>
 
-#include "move.h"
 #ifdef GPSFISH
 #include "osl/squareCompressor.h"
 using osl::SquareCompressor;
 #include "position.h"
 #endif
+
+#include "misc.h"
 #include "types.h"
 
 
