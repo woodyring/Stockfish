@@ -535,7 +535,7 @@ struct CheckmateSolver
         if (tte && tte->type() == VALUE_TYPE_EXACT
                 && tte->depth() >= CheckmateDepth) {
             Value v = value_from_tt(tte->value(), 0);
-            if (v >= VALUE_MATE_IN_PLY_MAX || v < VALUE_MATED_IN_PLY_MAX)
+            if (v >= VALUE_MATE_IN_MAX_PLY || v < VALUE_MATED_IN_MAX_PLY)
                 return Move();		// mate or mated
         }
 
@@ -619,7 +619,7 @@ void run_checkmate(int depth, uint64_t nodes, Position& pos)
         else {
             ++mated;
             RootMoves[i].score = -VALUE_INFINITE;
-            //RootMoves[i].non_pv_score = VALUE_MATED_IN_PLY_MAX;
+            //RootMoves[i].non_pv_score = VALUE_MATED_IN_MAX_PLY;
             std::cout << "info string losing move " << i << "th "
                 << move_to_uci(RootMoves[i].pv[0],false)
                 << " by " << move_to_uci(win_move,false) << '\n';
@@ -637,15 +637,16 @@ namespace {
 
   void id_loop(Position& pos) {
 
-    Stack ss[PLY_MAX_PLUS_2];
+    Stack ss[MAX_PLY_PLUS_2];
 #ifdef GPSFISH
-    uint64_t es_base[(PLY_MAX_PLUS_2*sizeof(eval_t)+sizeof(uint64_t)-1)/sizeof(uint64_t)]
+    uint64_t es_base[(MAX_PLY_PLUS_2*sizeof(eval_t)+sizeof(uint64_t)-1)/sizeof(uint64_t)]
 #ifdef __GNUC__
       __attribute__((aligned(16)))
 #endif
 	;
     eval_t *es=(eval_t *)&es_base[0];
 #endif
+
     int depth, prevBestMoveChanges;
     Value bestValue, alpha, beta, delta;
     bool bestMoveNeverChanged = true;
@@ -682,7 +683,7 @@ namespace {
     uint64_t next_checkmate = 1<<18;
 #endif
     // Iterative deepening loop until requested to stop or target depth reached
-    while (!Signals.stop && ++depth <= PLY_MAX && (!Limits.maxDepth || depth <= Limits.maxDepth))
+    while (!Signals.stop && ++depth <= MAX_PLY && (!Limits.maxDepth || depth <= Limits.maxDepth))
     {
         // Save last iteration's scores before first PV line is searched and all
         // the move scores but the (new) PV are set to -VALUE_INFINITE.
@@ -698,7 +699,7 @@ namespace {
                 < std::max(Limits.maxTime,TimeMgr.maximum_time())*4/5) {
             run_checkmate(depth, next_checkmate, pos);
             next_checkmate *= 2;
-            if (RootMoves[0].score <= VALUE_MATED_IN_PLY_MAX) {
+            if (RootMoves[0].score <= VALUE_MATED_IN_MAX_PLY) {
                 depth -= std::min(4, (int)depth/2);
                 alpha = std::max(alpha - delta*63, -VALUE_INFINITE);
                 beta  = std::min(beta  + delta*63,  VALUE_INFINITE);
@@ -799,8 +800,8 @@ namespace {
         if (! Limits.ponder
           && !Signals.stop
           && depth >= 5
-          && abs(bestValues[depth])     >= VALUE_MATE_IN_PLY_MAX
-          && abs(bestValues[depth - 1]) >= VALUE_MATE_IN_PLY_MAX)
+          && abs(bestValues[depth])     >= VALUE_MATE_IN_MAX_PLY
+          && abs(bestValues[depth - 1]) >= VALUE_MATE_IN_MAX_PLY)
         {
             Signals.stop = true;
         }
@@ -929,7 +930,7 @@ namespace {
 
     // Check for an instant draw or maximum ply reached
 #ifdef GPSFISH
-    if (Signals.stop || ss->ply > PLY_MAX || pos.is_draw(repeat_check))
+    if (Signals.stop || ss->ply > MAX_PLY || pos.is_draw(repeat_check))
         return value_draw(pos);
 
     if(repeat_check<0) 
@@ -940,7 +941,7 @@ namespace {
     // Step 2. Check for aborted search and immediate draw
     if ((   Signals.stop
          || pos.is_draw<false>()
-         || ss->ply > PLY_MAX) && !RootNode)
+         || ss->ply > MAX_PLY) && !RootNode)
         return VALUE_DRAW;
 
 #ifdef GPSFISH
@@ -1074,7 +1075,7 @@ namespace {
         && !inCheck
         &&  refinedValue + razor_margin(depth) < beta
         &&  ttMove == MOVE_NONE
-        &&  abs(beta) < VALUE_MATE_IN_PLY_MAX
+        &&  abs(beta) < VALUE_MATE_IN_MAX_PLY
 #ifndef GPSFISH
         && !pos.has_pawn_on_7th(pos.side_to_move())
 #endif
@@ -1096,7 +1097,7 @@ namespace {
         &&  depth < RazorDepth
         && !inCheck
         &&  refinedValue - futility_margin(depth, 0) >= beta
-        &&  abs(beta) < VALUE_MATE_IN_PLY_MAX
+        &&  abs(beta) < VALUE_MATE_IN_MAX_PLY
 #ifndef GPSFISH
         &&  pos.non_pawn_material(pos.side_to_move())
 #endif
@@ -1109,7 +1110,7 @@ namespace {
         &&  depth > ONE_PLY
         && !inCheck
         &&  refinedValue >= beta
-        &&  abs(beta) < VALUE_MATE_IN_PLY_MAX
+        &&  abs(beta) < VALUE_MATE_IN_MAX_PLY
 #ifdef GPSFISH
       )
 #else
@@ -1153,7 +1154,7 @@ namespace {
         if (nullValue >= beta)
         {
             // Do not return unproven mate scores
-            if (nullValue >= VALUE_MATE_IN_PLY_MAX)
+            if (nullValue >= VALUE_MATE_IN_MAX_PLY)
                 nullValue = beta;
 
             if (depth < 6 * ONE_PLY)
@@ -1194,7 +1195,7 @@ namespace {
         && !inCheck
         && !ss->skipNullMove
         &&  excludedMove == MOVE_NONE
-        &&  abs(beta) < VALUE_MATE_IN_PLY_MAX)
+        &&  abs(beta) < VALUE_MATE_IN_MAX_PLY)
     {
         Value rbeta = beta + 200;
         Depth rdepth = depth - ONE_PLY - 3 * ONE_PLY;
@@ -1372,7 +1373,7 @@ split_point_start: // At split points actual search starts from here
           && !dangerous
           &&  move != ttMove
           && !is_castle(move)
-          && (bestValue > VALUE_MATED_IN_PLY_MAX || bestValue == -VALUE_INFINITE))
+          && (bestValue > VALUE_MATED_IN_MAX_PLY || bestValue == -VALUE_INFINITE))
       {
           // Move count based pruning
           if (   moveCount >= futility_move_count(depth)
@@ -1674,7 +1675,7 @@ split_point_start: // At split points actual search starts from here
     ss->ply = (ss-1)->ply + 1;
 
     // Check for an instant draw or maximum ply reached
-    if (pos.is_draw<true>() || ss->ply > PLY_MAX)
+    if (pos.is_draw<true>() || ss->ply > MAX_PLY)
         return VALUE_DRAW;
 
 #ifdef GPSFISH
@@ -1807,7 +1808,7 @@ split_point_start: // At split points actual search starts from here
       // Detect non-capture evasions that are candidate to be pruned
       evasionPrunable =   !PvNode
                        && inCheck
-                       && bestValue > VALUE_MATED_IN_PLY_MAX
+                       && bestValue > VALUE_MATED_IN_MAX_PLY
                        && !pos.is_capture(move)
 #ifndef GPSFISH
                        && !pos.can_castle(pos.side_to_move())
@@ -2060,10 +2061,10 @@ split_point_start: // At split points actual search starts from here
 
   Value value_to_tt(Value v, int ply) {
 
-    if (v >= VALUE_MATE_IN_PLY_MAX)
+    if (v >= VALUE_MATE_IN_MAX_PLY)
       return v + ply;
 
-    if (v <= VALUE_MATED_IN_PLY_MAX)
+    if (v <= VALUE_MATED_IN_MAX_PLY)
       return v - ply;
 
     return v;
@@ -2076,10 +2077,10 @@ split_point_start: // At split points actual search starts from here
 
   Value value_from_tt(Value v, int ply) {
 
-    if (v >= VALUE_MATE_IN_PLY_MAX)
+    if (v >= VALUE_MATE_IN_MAX_PLY)
       return v - ply;
 
-    if (v <= VALUE_MATED_IN_PLY_MAX)
+    if (v <= VALUE_MATED_IN_MAX_PLY)
       return v + ply;
 
     return v;
@@ -2147,8 +2148,8 @@ split_point_start: // At split points actual search starts from here
     Value v = value_from_tt(tte->value(), ply);
 
     return   (   tte->depth() >= depth
-              || v >= std::max(VALUE_MATE_IN_PLY_MAX, beta)
-              || v < std::min(VALUE_MATED_IN_PLY_MAX, beta))
+              || v >= std::max(VALUE_MATE_IN_MAX_PLY, beta)
+              || v < std::min(VALUE_MATED_IN_MAX_PLY, beta))
 
           && (   ((tte->type() & VALUE_TYPE_LOWER) && v >= beta)
               || ((tte->type() & VALUE_TYPE_UPPER) && v < beta));
@@ -2198,12 +2199,12 @@ split_point_start: // At split points actual search starts from here
     std::stringstream s;
 
 #ifdef GPSFISH
-    if (abs(v) < VALUE_MATE_IN_PLY_MAX)
+    if (abs(v) < VALUE_MATE_IN_MAX_PLY)
         s << "cp " << int(v) * 100 / 200;
     else
         s << "mate " << int(v);
 #else
-    if (abs(v) < VALUE_MATE_IN_PLY_MAX)
+    if (abs(v) < VALUE_MATE_IN_MAX_PLY)
         s << "cp " << v * 100 / int(PawnValueMidgame);
     else
         s << "mate " << (v > 0 ? VALUE_MATE - v + 1 : -VALUE_MATE - v) / 2;
@@ -2285,9 +2286,9 @@ split_point_start: // At split points actual search starts from here
 
     std::stringstream s;
 
-    if (v >= VALUE_MATE_IN_PLY_MAX)
+    if (v >= VALUE_MATE_IN_MAX_PLY)
         s << "#" << (VALUE_MATE - v + 1) / 2;
-    else if (v <= VALUE_MATED_IN_PLY_MAX)
+    else if (v <= VALUE_MATED_IN_MAX_PLY)
         s << "-#" << (VALUE_MATE + v) / 2;
     else
         s << std::setprecision(2) << std::fixed << std::showpos
@@ -2301,7 +2302,7 @@ split_point_start: // At split points actual search starts from here
     const int64_t K = 1000;
     const int64_t M = 1000000;
 
-    StateInfo state[PLY_MAX_PLUS_2], *st = state;
+    StateInfo state[MAX_PLY_PLUS_2], *st = state;
     Move* m = pv;
     string san, padding;
     size_t length;
@@ -2402,7 +2403,7 @@ split_point_start: // At split points actual search starts from here
            && tte->move(pos) != MOVE_NONE
            && pos.is_pseudo_legal(tte->move(pos))
            && pos.pl_move_is_legal(tte->move(pos), pos.pinned_pieces())
-           && ply < PLY_MAX
+           && ply < MAX_PLY
            && (!pos.is_draw<false>() || ply < 2))
     {
         pv.push_back(tte->move(pos));
@@ -2427,7 +2428,7 @@ split_point_start: // At split points actual search starts from here
   void RootMove::extract_pv_from_tt(Position& pos) {
 
 #ifndef GPSFISH
-    StateInfo state[PLY_MAX_PLUS_2], *st = state;
+    StateInfo state[MAX_PLY_PLUS_2], *st = state;
     TTEntry* tte;
     int ply = 1;
 #endif
@@ -2453,7 +2454,7 @@ split_point_start: // At split points actual search starts from here
            && tte->move() != MOVE_NONE
            && pos.is_pseudo_legal(tte->move())
            && pos.pl_move_is_legal(tte->move(), pos.pinned_pieces())
-           && ply < PLY_MAX
+           && ply < MAX_PLY
            && (!pos.is_draw<false>() || ply < 2))
     {
         pv.push_back(tte->move());
@@ -2503,7 +2504,7 @@ split_point_start: // At split points actual search starts from here
   void RootMove::insert_pv_in_tt(Position& pos) {
 
 #ifndef GPSFISH
-    StateInfo state[PLY_MAX_PLUS_2], *st = state;
+    StateInfo state[MAX_PLY_PLUS_2], *st = state;
     TTEntry* tte;
     Key k;
     Value v, m = VALUE_NONE;
@@ -2585,16 +2586,16 @@ void Thread::idle_loop(SplitPoint* sp) {
 
           // Copy split point position and search stack and call search()
 #ifdef MOVE_STACK_REJECTIONS
-          SearchStack ss_base[PLY_MAX_PLUS_2];
+          SearchStack ss_base[MAX_PLY_PLUS_2];
           SplitPoint* tsp = threads[threadID].splitPoint;
           Position pos(*tsp->pos, threadID);
           int ply=tsp->ss->ply;
-          assert(0< ply && ply+3<PLY_MAX_PLUS_2);
+          assert(0< ply && ply+3<MAX_PLY_PLUS_2);
           for(int i=0;i<ply-1;i++)
               ss_base[i].currentMove=(tsp->ss-ply+i)->currentMove;
           SearchStack *ss= &ss_base[ply-1];
 #else
-          Stack ss[PLY_MAX_PLUS_2];
+          Stack ss[MAX_PLY_PLUS_2];
           SplitPoint* tsp = splitPoint;
           Position pos(*tsp->pos, threadID);
 #endif
@@ -2603,7 +2604,7 @@ void Thread::idle_loop(SplitPoint* sp) {
           (ss+1)->sp = tsp;
 
 #ifdef GPSFISH
-          uint64_t es_base[(PLY_MAX_PLUS_2*sizeof(eval_t)+sizeof(uint64_t)-1)/sizeof(uint64_t)];
+          uint64_t es_base[(MAX_PLY_PLUS_2*sizeof(eval_t)+sizeof(uint64_t)-1)/sizeof(uint64_t)];
           eval_t *es=(eval_t *)&es_base[0];
           assert(tsp->pos->eval);
           es[0]= *(tsp->pos->eval);
