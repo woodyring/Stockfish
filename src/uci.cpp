@@ -157,11 +157,11 @@ void uci_loop() {
 
       else if (token == "key")
 #ifdef GPSFISH
-          cout << "key: " << hex     << pos.get_key() << endl;
+          cout << "key: " << hex     << pos.key() << endl;
 #else
-          cout << "key: " << hex     << pos.get_key()
-               << "\nmaterial key: " << pos.get_material_key()
-               << "\npawn key: "     << pos.get_pawn_key() << endl;
+          cout << "key: " << hex     << pos.key()
+               << "\nmaterial key: " << pos.material_key()
+               << "\npawn key: "     << pos.pawn_key() << endl;
 #endif
 
 #ifdef GPSFISH
@@ -374,11 +374,11 @@ namespace {
     if (!(is >> depth))
         return;
 
-    time = get_system_time();
+    time = system_time();
 
     int64_t n = Search::perft(pos, depth * ONE_PLY);
 
-    time = get_system_time() - time;
+    time = system_time() - time;
 
     std::cout << "\nNodes " << n
               << "\nTime (ms) " << time

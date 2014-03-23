@@ -215,11 +215,11 @@ public:
   int see_sign(Move m) const;
 
   // Accessing hash keys
-  Key get_key() const;
-  Key get_exclusion_key() const;
+  Key key() const;
+  Key exclusion_key() const;
 #ifndef GPSFISH
-  Key get_pawn_key() const;
-  Key get_material_key() const;
+  Key pawn_key() const;
+  Key material_key() const;
 
   // Incremental evaluation
   Score value() const;
@@ -506,20 +506,20 @@ inline bool Position::pawn_is_passed(Color c, Square s) const {
 }
 #endif
 
-inline Key Position::get_key() const {
+inline Key Position::key() const {
   return st->key;
 }
 
-inline Key Position::get_exclusion_key() const {
+inline Key Position::exclusion_key() const {
   return st->key ^ zobExclusion;
 }
 
 #ifndef GPSFISH
-inline Key Position::get_pawn_key() const {
+inline Key Position::pawn_key() const {
   return st->pawnKey;
 }
 
-inline Key Position::get_material_key() const {
+inline Key Position::material_key() const {
   return st->materialKey;
 }
 

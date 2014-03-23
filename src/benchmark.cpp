@@ -139,7 +139,7 @@ void benchmark(int argc, char* argv[]) {
 
   // Ok, let's start the benchmark !
   totalNodes = 0;
-  time = get_system_time();
+  time = system_time();
 
   for (size_t i = 0; i < fenList.size(); i++)
   {
@@ -163,7 +163,7 @@ void benchmark(int argc, char* argv[]) {
       }
   }
 
-  time = get_system_time() - time;
+  time = system_time() - time;
 
   cerr << "\n==============================="
        << "\nTotal time (ms) : " << time
