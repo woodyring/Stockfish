@@ -274,7 +274,7 @@ private:
   void clear();
   void put_piece(Piece p, Square s);
 #ifndef GPSFISH
-  void set_castle_right(Square ksq, Square rsq);
+  void set_castle_right(Color c, Square rsq);
 #endif
   bool move_is_legal(const Move m) const;
 
