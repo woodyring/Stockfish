@@ -238,7 +238,7 @@ enum Depth {
   DEPTH_ZERO          =  0 * ONE_PLY,
   DEPTH_QS_CHECKS     = -1 * ONE_PLY,
   DEPTH_QS_NO_CHECKS  = -2 * ONE_PLY,
-  DEPTH_QS_RECAPTURES = -4 * ONE_PLY,
+  DEPTH_QS_RECAPTURES = -5 * ONE_PLY,
 
   DEPTH_NONE = -127 * ONE_PLY
 };
@@ -388,7 +388,7 @@ const Value QueenValueEndgame  = Value(0x9FE);
 extern const Value PieceValueMidgame[osl::PTYPE_SIZE];
 extern const Value PieceValueEndgame[osl::PTYPE_SIZE];
 #else
-extern const Value PieceValueMidgame[17];
+extern const Value PieceValueMidgame[17]; // Indexed by Piece or PieceType
 extern const Value PieceValueEndgame[17];
 extern int SquareDistance[64][64];
 #endif
