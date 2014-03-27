@@ -2581,9 +2581,6 @@ void Thread::idle_loop(SplitPoint* sp_master) {
               Threads[master].wake_up();
       }
   }
-  // In helpful master concept a master can help only a sub-tree of its split
-  // point, and because here is all finished is not possible master is booked.
-  assert(!is_searching);
 }
 
 #ifdef GPSFISHONE
