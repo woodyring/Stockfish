@@ -20,9 +20,10 @@
 #if !defined(HISTORY_H_INCLUDED)
 #define HISTORY_H_INCLUDED
 
-#include "types.h"
-#include <cstring>
 #include <algorithm>
+#include <cstring>
+
+#include "types.h"
 
 #ifdef GPSFISH
 #define VALUE_HISTORY(p,to) (history[ptypeOIndex(p)][to.index()])
