@@ -40,17 +40,14 @@
 #endif
 
 #include <algorithm>
-#include <cassert>
-#include <cstdio>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 
-#ifndef GPSFISH
-#include "bitcount.h"
-#else
+#ifdef GPSFISH
 # include "gpsshogi/revision.h"
 #endif
+
 #include "misc.h"
 #include "thread.h"
 

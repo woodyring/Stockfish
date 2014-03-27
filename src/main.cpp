@@ -23,7 +23,7 @@
 #ifndef GPSFISH
 #include "bitboard.h"
 #endif
-#include "misc.h"
+
 #include "position.h"
 #include "search.h"
 #include "thread.h"
@@ -35,6 +35,8 @@
 #endif
 #include <cstring>
 #endif
+
+#include "misc.h"
 
 
 using namespace std;
