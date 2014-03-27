@@ -863,19 +863,25 @@ namespace {
         thread.maxPly = ss->ply;
 
     // Step 1. Initialize node
-    if (!SpNode)
+    if (SpNode)
+    {
+        tte = NULL;
+        ttMove = excludedMove = MOVE_NONE;
+        sp = ss->sp;
+        threatMove = sp->threatMove;
+        bestValue = sp->bestValue;
+        moveCount = sp->moveCount; // Lock must be held here
+
+        assert(bestValue > -VALUE_INFINITE && moveCount > 0);
+
+        goto split_point_start;
+    }
+    else
     {
         ss->currentMove = ss->bestMove = threatMove = (ss+1)->excludedMove = MOVE_NONE;
         (ss+1)->skipNullMove = false; (ss+1)->reduction = DEPTH_ZERO;
         (ss+2)->killers[0] = (ss+2)->killers[1] = MOVE_NONE;
-    }
-    else
-    {
-        sp = ss->sp;
-        tte = NULL;
-        ttMove = excludedMove = MOVE_NONE;
-        threatMove = sp->threatMove;
-        goto split_point_start;
+
     }
 
     // Check for an instant draw or maximum ply reached
@@ -1223,14 +1229,6 @@ split_point_start: // At split points actual search starts from here
 #endif
                            && (tte->type() & VALUE_TYPE_LOWER)
                            && tte->depth() >= depth - 3 * ONE_PLY;
-    if (SpNode)
-    {
-        lock_grab(sp->lock);
-        bestValue = sp->bestValue;
-        moveCount = sp->moveCount;
-
-        assert(bestValue > -VALUE_INFINITE && moveCount > 0);
-    }
 
     // Step 11. Loop through moves
     // Loop through all pseudo-legal moves until no moves remain or a beta cutoff occurs
@@ -1263,9 +1261,9 @@ split_point_start: // At split points actual search starts from here
           moveCount++;
 #ifdef MOVE_STACK_REJECTIONS
       if(!Root && move_stack_rejections_probe(move,pos,ss,alpha)) {
-	if (SpNode)
-	  lock_grab(&(sp->lock));
-	continue;
+          if (SpNode)
+              lock_grab(&(sp->lock));
+          continue;
       }
 #endif      
 
@@ -1583,14 +1581,6 @@ split_point_start: // At split points actual search starts from here
                 H.add(pos.piece_moved(m), to_sq(m), -bonus);
             }
         }
-    }
-
-    if (SpNode)
-    {
-        // Here we have the lock still grabbed
-        sp->is_slave[pos.thread()] = false;
-        sp->nodes += pos.nodes_searched();
-        lock_release(sp->lock);
     }
 
     assert(bestValue > -VALUE_INFINITE && bestValue < VALUE_INFINITE);
@@ -2490,24 +2480,24 @@ void RootMove::insert_pv_in_tt(Position& pos) {
 
 
 /// Thread::idle_loop() is where the thread is parked when it has no work to do.
-/// The parameter 'sp', if non-NULL, is a pointer to an active SplitPoint object
-/// for which the thread is the master.
+/// The parameter 'master_sp', if non-NULL, is a pointer to an active SplitPoint
+/// object for which the thread is the master.
 
-void Thread::idle_loop(SplitPoint* sp) {
+void Thread::idle_loop(SplitPoint* sp_master) {
 
-  while (true)
+  // If this thread is the master of a split point and all slaves have
+  // finished their work at this split point, return from the idle loop.
+  while (!sp_master || sp_master->slavesMask)
   {
       // If we are not searching, wait for a condition to be signaled
       // instead of wasting CPU time polling for work.
       while (   do_sleep
-             || do_terminate
-             || (Threads.use_sleeping_threads() && !is_searching))
+             || do_exit
+             || (!is_searching && Threads.use_sleeping_threads()))
       {
-          assert((!sp && threadID) || Threads.use_sleeping_threads());
-
-          if (do_terminate)
+          if (do_exit)
           {
-              assert(!sp);
+              assert(!sp_master);
               return;
           }
 
@@ -2515,7 +2505,7 @@ void Thread::idle_loop(SplitPoint* sp) {
           lock_grab(sleepLock);
 
           // If we are master and all slaves have finished don't go to sleep
-          if (sp && Threads.split_point_finished(sp))
+          if (sp_master && !sp_master->slavesMask)
           {
               lock_release(sleepLock);
               break;
@@ -2534,7 +2524,7 @@ void Thread::idle_loop(SplitPoint* sp) {
       // If this thread has been assigned work, launch a search
       if (is_searching)
       {
-          assert(!do_terminate);
+          assert(!do_sleep && !do_exit);
 
           // Copy split point position and search stack and call search()
 #ifdef MOVE_STACK_REJECTIONS
@@ -2548,51 +2538,47 @@ void Thread::idle_loop(SplitPoint* sp) {
           SearchStack *ss= &ss_base[ply-1];
 #else
           Stack ss[MAX_PLY_PLUS_2];
-          SplitPoint* tsp = splitPoint;
-          Position pos(*tsp->pos, threadID);
+          SplitPoint* sp = splitPoint;
+          Position pos(*sp->pos, threadID);
 #endif
 
-          memcpy(ss, tsp->ss - 1, 4 * sizeof(Stack));
-          (ss+1)->sp = tsp;
+          memcpy(ss, sp->ss - 1, 4 * sizeof(Stack));
+          (ss+1)->sp = sp;
 
 #ifdef GPSFISH
           uint64_t es_base[(MAX_PLY_PLUS_2*sizeof(eval_t)+sizeof(uint64_t)-1)/sizeof(uint64_t)];
           eval_t *es=(eval_t *)&es_base[0];
-          assert(tsp->pos->eval);
-          es[0]= *(tsp->pos->eval);
+          assert(sp->pos->eval);
+          es[0]= *(sp->pos->eval);
           pos.eval= &es[0];
 #endif
 
-          if (tsp->nodeType == Root)
-              search<SplitPointRoot>(pos, ss+1, tsp->alpha, tsp->beta, tsp->depth);
-          else if (tsp->nodeType == PV)
-              search<SplitPointPV>(pos, ss+1, tsp->alpha, tsp->beta, tsp->depth);
-          else if (tsp->nodeType == NonPV)
-              search<SplitPointNonPV>(pos, ss+1, tsp->alpha, tsp->beta, tsp->depth);
+          lock_grab(sp->lock);
+
+          if (sp->nodeType == Root)
+              search<SplitPointRoot>(pos, ss+1, sp->alpha, sp->beta, sp->depth);
+          else if (sp->nodeType == PV)
+              search<SplitPointPV>(pos, ss+1, sp->alpha, sp->beta, sp->depth);
+          else if (sp->nodeType == NonPV)
+              search<SplitPointNonPV>(pos, ss+1, sp->alpha, sp->beta, sp->depth);
           else
               assert(false);
 
           assert(is_searching);
+
+          // We return from search with lock held
+          sp->slavesMask &= ~(1ULL << threadID);
+          sp->nodes += pos.nodes_searched();
+          lock_release(sp->lock);
 
           is_searching = false;
 
           // Wake up master thread so to allow it to return from the idle loop in
           // case we are the last slave of the split point.
           if (   Threads.use_sleeping_threads()
-              && threadID != tsp->master
-              && !Threads[tsp->master].is_searching)
-              Threads[tsp->master].wake_up();
-      }
-
-      // If this thread is the master of a split point and all slaves have
-      // finished their work at this split point, return from the idle loop.
-      if (sp && Threads.split_point_finished(sp))
-      {
-          // Because sp->is_slave[] is reset under lock protection,
-          // be sure sp->lock has been released before to return.
-          lock_grab(sp->lock);
-          lock_release(sp->lock);
-          return;
+              && threadID != sp->master
+              && !Threads[sp->master].is_searching)
+              Threads[sp->master].wake_up();
       }
   }
 }
