@@ -170,7 +170,7 @@ namespace {
     // Single and double pawn pushes, no promotions
     if (Type != MV_CAPTURE)
     {
-        emptySquares = (Type == MV_QUIET ? target : pos.empty_squares());
+        emptySquares = (Type == MV_QUIET ? target : ~pos.occupied_squares());
 
         b1 = move_pawns<UP>(pawnsNotOn7)   & emptySquares;
         b2 = move_pawns<UP>(b1 & TRank3BB) & emptySquares;
@@ -208,7 +208,7 @@ namespace {
     if (pawnsOn7 && (Type != MV_EVASION || (target & TRank8BB)))
     {
         if (Type == MV_CAPTURE)
-            emptySquares = pos.empty_squares();
+            emptySquares = ~pos.occupied_squares();
 
         if (Type == MV_EVASION)
             emptySquares &= target;
@@ -261,7 +261,7 @@ namespace {
 
     if (*pl != SQ_NONE)
     {
-        target = ci.checkSq[Pt] & pos.empty_squares(); // Non capture checks only
+        target = ci.checkSq[Pt] & ~pos.occupied_squares(); // Non capture checks only
 
         do {
             from = *pl;
@@ -349,10 +349,10 @@ MoveStack* generate(const Position& pos, MoveStack* mlist) {
       target = pos.pieces(~us);
 
   else if (Type == MV_QUIET)
-      target = pos.empty_squares();
+      target = ~pos.occupied_squares();
 
   else if (Type == MV_NON_EVASION)
-      target = pos.pieces(~us) | pos.empty_squares();
+      target = pos.pieces(~us) | ~pos.occupied_squares();
 
   mlist = (us == WHITE ? generate_pawn_moves<WHITE, Type>(pos, mlist, target)
                        : generate_pawn_moves<BLACK, Type>(pos, mlist, target));
@@ -402,7 +402,7 @@ MoveStack* generate<MV_QUIET_CHECK>(const Position& pos, MoveStack* mlist) {
      if (pt == PAWN)
          continue; // Will be generated togheter with direct checks
 
-     Bitboard b = pos.attacks_from(Piece(pt), from) & pos.empty_squares();
+     Bitboard b = pos.attacks_from(Piece(pt), from) & ~pos.occupied_squares();
 
      if (pt == KING)
          b &= ~PseudoAttacks[QUEEN][ci.ksq];
