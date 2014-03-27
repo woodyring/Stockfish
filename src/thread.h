@@ -34,7 +34,7 @@
 #include "search.h"
 
 const int MAX_THREADS = 32;
-const int MAX_ACTIVE_SPLIT_POINTS = 8;
+const int MAX_SPLITPOINTS_PER_THREAD = 8;
 
 struct SplitPoint {
 
@@ -77,7 +77,7 @@ struct Thread {
   void timer_loop();
   void wait_for_stop_or_ponderhit();
 
-  SplitPoint splitPoints[MAX_ACTIVE_SPLIT_POINTS];
+  SplitPoint splitPoints[MAX_SPLITPOINTS_PER_THREAD];
 #ifndef GPSFISH
   MaterialInfoTable materialTable;
   PawnInfoTable pawnTable;
@@ -87,8 +87,8 @@ struct Thread {
   Lock sleepLock;
   WaitCondition sleepCond;
   ThreadHandle handle;
-  SplitPoint* volatile splitPoint;
-  volatile int activeSplitPoints;
+  SplitPoint* volatile curSplitPoint;
+  volatile int splitPointsCnt;
   volatile bool is_searching;
   volatile bool do_sleep;
   volatile bool do_exit;

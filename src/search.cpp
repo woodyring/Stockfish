@@ -2531,7 +2531,7 @@ void Thread::idle_loop(SplitPoint* sp_master) {
               ss_base[i].currentMove=(tsp->ss-ply+i)->currentMove;
           SearchStack *ss= &ss_base[ply-1];
 #else
-          SplitPoint* sp = splitPoint;
+          SplitPoint* sp = curSplitPoint;
 
           lock_release(Threads.splitLock);
 
