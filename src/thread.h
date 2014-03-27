@@ -38,9 +38,9 @@ const int MAX_SPLITPOINTS_PER_THREAD = 8;
 
 struct SplitPoint {
 
-  // Const data after splitPoint has been setup
-  SplitPoint* parent;
+  // Const data after split point has been setup
   const Position* pos;
+  const Search::Stack* ss;
   Depth depth;
   Value beta;
   int nodeType;
@@ -49,7 +49,8 @@ struct SplitPoint {
 
   // Const pointers to shared data
   MovePicker* mp;
-  Search::Stack* ss;
+  SplitPoint* parent;
+
 
   // Shared data
   Lock lock;
@@ -57,6 +58,7 @@ struct SplitPoint {
   volatile int64_t nodes;
   volatile Value alpha;
   volatile Value bestValue;
+  volatile Move bestMove;
   volatile int moveCount;
   volatile bool cutoff;
 };
@@ -122,7 +124,7 @@ public:
                       const std::set<Move>& = std::set<Move>(), bool async = false);
 
   template <bool Fake>
-  Value split(Position& pos, Search::Stack* ss, Value alpha, Value beta, Value bestValue,
+  Value split(Position& pos, Search::Stack* ss, Value alpha, Value beta, Value bestValue, Move* bestMove,
               Depth depth, Move threatMove, int moveCount, MovePicker* mp, int nodeType);
 private:
   friend struct Thread;

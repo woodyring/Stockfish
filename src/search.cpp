@@ -830,7 +830,7 @@ namespace {
     StateInfo st;
     const TTEntry *tte;
     Key posKey;
-    Move ttMove, move, excludedMove, threatMove;
+    Move ttMove, move, excludedMove, bestMove, threatMove;
     Depth ext, newDepth;
     Bound bt;
     Value bestValue, value, oldAlpha;
@@ -864,6 +864,7 @@ namespace {
         tte = NULL;
         ttMove = excludedMove = MOVE_NONE;
         sp = ss->sp;
+        bestMove = sp->bestMove;
         threatMove = sp->threatMove;
         bestValue = sp->bestValue;
         moveCount = sp->moveCount; // Lock must be held here
@@ -874,7 +875,7 @@ namespace {
     }
     else
     {
-        ss->currentMove = ss->bestMove = threatMove = (ss+1)->excludedMove = MOVE_NONE;
+        ss->currentMove = threatMove = (ss+1)->excludedMove = bestMove = MOVE_NONE;
         (ss+1)->skipNullMove = false; (ss+1)->reduction = DEPTH_ZERO;
         (ss+2)->killers[0] = (ss+2)->killers[1] = MOVE_NONE;
 
@@ -913,7 +914,7 @@ namespace {
         ss->checkmateTested = true;
         if(!pos.osl_state.inCheck()
                 && ImmediateCheckmate::hasCheckmateMove
-                (pos.side_to_move(),pos.osl_state,ss->bestMove)) {
+                (pos.side_to_move(),pos.osl_state,bestMove)) {
             return mate_in(ss->ply);
         }
 #  ifdef GPSFISH_CHECKMATE3
@@ -924,7 +925,7 @@ namespace {
             bool in_danger = king8.dropCandidate() | king8.moveCandidate2();
             if (in_danger) {
                 osl::checkmate::FixedDepthSearcher solver(pos.osl_state);
-                if (solver.hasCheckmateMoveOfTurn(2,ss->bestMove)
+                if (solver.hasCheckmateMoveOfTurn(2,bestMove)
                         .isCheckmateSuccess()) {
                     return mate_in(ss->ply+2);;
                 }
@@ -973,16 +974,16 @@ namespace {
                                     : can_return_tt(tte, depth, beta, ss->ply)))
     {
         TT.refresh(tte);
-        ss->bestMove = move = ttMove; // Can be MOVE_NONE
+        ss->currentMove = ttMove; // Can be MOVE_NONE
         value = value_from_tt(tte->value(), ss->ply);
 
         if (   value >= beta
-            && move
-            && !pos.is_capture_or_promotion(move)
-            && move != ss->killers[0])
+            && ttMove
+            && !pos.is_capture_or_promotion(ttMove)
+            && ttMove != ss->killers[0])
         {
             ss->killers[1] = ss->killers[0];
-            ss->killers[0] = move;
+            ss->killers[0] = ttMove;
         }
         return value;
     }
@@ -1132,7 +1133,7 @@ namespace {
             // move which was reduced. If a connection is found, return a fail
             // low score (which will cause the reduced move to fail high in the
             // parent node, which will trigger a re-search with full depth).
-            threatMove = (ss+1)->bestMove;
+            threatMove = (ss+1)->currentMove;
 
             if (   depth < ThreatDepth
                 && (ss-1)->reduction
@@ -1158,6 +1159,7 @@ namespace {
 
         assert(rdepth >= ONE_PLY);
         assert((ss-1)->currentMove != MOVE_NONE);
+        assert((ss-1)->currentMove != MOVE_NULL);
 
         MovePicker mp(pos, ttMove, H, pos.captured_piece_type());
         CheckInfo ci(pos);
@@ -1212,7 +1214,6 @@ split_point_start: // At split points actual search starts from here
 
     MovePickerExt<SpNode> mp(pos, ttMove, depth, H, ss, PvNode ? -VALUE_INFINITE : beta);
     CheckInfo ci(pos);
-    ss->bestMove = MOVE_NONE;
     futilityBase = ss->eval + ss->evalMargin;
     singularExtensionNode =   !RootNode
                            && !SpNode
@@ -1308,7 +1309,6 @@ split_point_start: // At split points actual search starts from here
               value = search<NonPV>(pos, ss, rBeta - 1, rBeta, depth / 2);
               ss->skipNullMove = false;
               ss->excludedMove = MOVE_NONE;
-              ss->bestMove = MOVE_NONE;
               if (value < rBeta)
                   ext = ONE_PLY;
           }
@@ -1497,7 +1497,7 @@ split_point_start: // At split points actual search starts from here
       if (value > bestValue)
       {
           bestValue = value;
-          ss->bestMove = move;
+          bestMove = move;
 
           if (   PvNode
               && value > alpha
@@ -1507,7 +1507,7 @@ split_point_start: // At split points actual search starts from here
           if (SpNode && !thread.cutoff_occurred())
           {
               sp->bestValue = value;
-              sp->ss->bestMove = move;
+              sp->bestMove = move;
               sp->alpha = alpha;
 
               if (value >= beta)
@@ -1522,8 +1522,8 @@ split_point_start: // At split points actual search starts from here
           && Threads.available_slave_exists(pos.thread())
           && !Signals.stop
           && !thread.cutoff_occurred())
-          bestValue = Threads.split<FakeSplit>(pos, ss, alpha, beta, bestValue, depth,
-                                               threatMove, moveCount, &mp, NT);
+          bestValue = Threads.split<FakeSplit>(pos, ss, alpha, beta, bestValue, &bestMove,
+                                               depth, threatMove, moveCount, &mp, NT);
     }
 
     // Step 20. Check for mate and stalemate
@@ -1544,14 +1544,14 @@ split_point_start: // At split points actual search starts from here
     {
         assert(!playedMoveCount);
 
-        bestValue = alpha;
+        bestValue = oldAlpha;
     }
 
     // Step 21. Update tables
     // Update transposition table entry, killers and history
     if (!SpNode && !Signals.stop && !thread.cutoff_occurred())
     {
-        move = bestValue <= oldAlpha ? MOVE_NONE : ss->bestMove;
+        move = bestValue <= oldAlpha ? MOVE_NONE : bestMove;
         bt   = bestValue <= oldAlpha ? BOUND_UPPER
              : bestValue >= beta ? BOUND_LOWER : BOUND_EXACT;
 
@@ -1603,7 +1603,7 @@ split_point_start: // At split points actual search starts from here
     assert(pos.thread() >= 0 && pos.thread() < Threads.size());
 
     StateInfo st;
-    Move ttMove, move;
+    Move ttMove, move, bestMove;
     Value bestValue, value, evalMargin, futilityValue, futilityBase;
 #ifdef GPSFISH
     bool inCheck, givesCheck, evasionPrunable;
@@ -1615,7 +1615,7 @@ split_point_start: // At split points actual search starts from here
     Bound bt;
     Value oldAlpha = alpha;
 
-    ss->bestMove = ss->currentMove = MOVE_NONE;
+    ss->currentMove = bestMove = MOVE_NONE;
     ss->ply = (ss-1)->ply + 1;
 
     // Check for an instant draw or maximum ply reached
@@ -1628,7 +1628,7 @@ split_point_start: // At split points actual search starts from here
     }
     if(!pos.osl_state.inCheck()
             && ImmediateCheckmate::hasCheckmateMove
-            (pos.side_to_move(),pos.osl_state,ss->bestMove)) {
+            (pos.side_to_move(),pos.osl_state,bestMove)) {
         return mate_in(ss->ply); 
     }
 #endif
@@ -1650,7 +1650,7 @@ split_point_start: // At split points actual search starts from here
 
     if (!PvNode && tte && can_return_tt(tte, ttDepth, beta, ss->ply))
     {
-        ss->bestMove = ttMove; // Can be MOVE_NONE
+        ss->currentMove = ttMove; // Can be MOVE_NONE
         return value_from_tt(tte->value(), ss->ply);
     }
 
@@ -1812,7 +1812,7 @@ split_point_start: // At split points actual search starts from here
       if (value > bestValue)
       {
           bestValue = value;
-          ss->bestMove = move;
+          bestMove = move;
 
           if (   PvNode
               && value > alpha
@@ -1830,7 +1830,7 @@ split_point_start: // At split points actual search starts from here
         bool in_danger = king8.dropCandidate() | king8.moveCandidate2();
         if (in_danger) {
             osl::checkmate::FixedDepthSearcher solver(pos.osl_state);
-            if (solver.hasCheckmateMoveOfTurn(2,(ss)->bestMove).isCheckmateSuccess()) {
+            if (solver.hasCheckmateMoveOfTurn(2,bestMove).isCheckmateSuccess()) {
                 return mate_in(ss->ply+2);;
             }
         }
@@ -1847,7 +1847,7 @@ split_point_start: // At split points actual search starts from here
 #endif
 
     // Update transposition table
-    move = bestValue <= oldAlpha ? MOVE_NONE : ss->bestMove;
+    move = bestValue <= oldAlpha ? MOVE_NONE : bestMove;
     bt   = bestValue <= oldAlpha ? BOUND_UPPER
          : bestValue >= beta ? BOUND_LOWER : BOUND_EXACT;
 
