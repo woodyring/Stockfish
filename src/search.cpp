@@ -1155,6 +1155,7 @@ namespace {
         Depth rdepth = depth - ONE_PLY - 3 * ONE_PLY;
 
         assert(rdepth >= ONE_PLY);
+        assert((ss-1)->currentMove != MOVE_NONE);
 
         MovePicker mp(pos, ttMove, H, pos.captured_piece_type());
         CheckInfo ci(pos);
@@ -1162,6 +1163,7 @@ namespace {
         while ((move = mp.next_move()) != MOVE_NONE)
             if (pos.pl_move_is_legal(move, ci.pinned))
             {
+                ss->currentMove = move;
 #ifdef GPSFISH
                 pos.do_undo_move(move,st,
                         [&](osl::Square){
