@@ -178,7 +178,6 @@ void MovePicker::score_captures() {
 void MovePicker::score_noncaptures() {
 
   Move m;
-  Square from;
 
   for (MoveStack* cur = moves; cur != lastMove; cur++)
   {
@@ -186,8 +185,7 @@ void MovePicker::score_noncaptures() {
 #ifdef GPSFISH
       cur->score = H.value(m.ptypeO(), to_sq(m));
 #else
-      from = from_sq(m);
-      cur->score = H.value(pos.piece_on(from), to_sq(m));
+      cur->score = H.value(pos.piece_moved(m), to_sq(m));
 #endif
   }
 }

@@ -243,9 +243,8 @@ public:
   bool has_pawn_on_7th(Color c) const;
 #endif
   bool is_chess960() const;
-
-  // Current thread ID searching on the position
   int thread() const;
+
 #ifdef GPSFISH
   int pliesFromNull() const;
 #endif
