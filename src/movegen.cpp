@@ -127,7 +127,7 @@ namespace {
         if (Type == MV_CAPTURE || Type == MV_EVASION || Type == MV_NON_EVASION)
             (*mlist++).move = make_promotion(to - Delta, to, QUEEN);
 
-        if (Type == MV_NON_CAPTURE || Type == MV_EVASION || Type == MV_NON_EVASION)
+        if (Type == MV_QUIET || Type == MV_EVASION || Type == MV_NON_EVASION)
         {
             (*mlist++).move = make_promotion(to - Delta, to, ROOK);
             (*mlist++).move = make_promotion(to - Delta, to, BISHOP);
@@ -136,7 +136,7 @@ namespace {
 
         // Knight-promotion is the only one that can give a direct check not
         // already included in the queen-promotion.
-        if (Type == MV_NON_CAPTURE_CHECK && bit_is_set(StepAttacksBB[W_KNIGHT][to], ksq))
+        if (Type == MV_QUIET_CHECK && bit_is_set(StepAttacksBB[W_KNIGHT][to], ksq))
             (*mlist++).move = make_promotion(to - Delta, to, KNIGHT);
         else
             (void)ksq; // Silence a warning under MSVC
@@ -170,7 +170,7 @@ namespace {
     // Single and double pawn pushes, no promotions
     if (Type != MV_CAPTURE)
     {
-        emptySquares = (Type == MV_NON_CAPTURE ? target : pos.empty_squares());
+        emptySquares = (Type == MV_QUIET ? target : pos.empty_squares());
 
         b1 = move_pawns<UP>(pawnsNotOn7)   & emptySquares;
         b2 = move_pawns<UP>(b1 & TRank3BB) & emptySquares;
@@ -181,7 +181,7 @@ namespace {
             b2 &= target;
         }
 
-        if (Type == MV_NON_CAPTURE_CHECK)
+        if (Type == MV_QUIET_CHECK)
         {
             b1 &= pos.attacks_from<PAWN>(ksq, Them);
             b2 &= pos.attacks_from<PAWN>(ksq, Them);
@@ -317,7 +317,7 @@ namespace {
 /// generate<MV_CAPTURE> generates all pseudo-legal captures and queen
 /// promotions. Returns a pointer to the end of the move list.
 ///
-/// generate<MV_NON_CAPTURE> generates all pseudo-legal non-captures and
+/// generate<MV_QUIET> generates all pseudo-legal non-captures and
 /// underpromotions. Returns a pointer to the end of the move list.
 ///
 /// generate<MV_NON_EVASION> generates all pseudo-legal captures and
@@ -339,7 +339,7 @@ MoveStack* generate(const Position& pos, MoveStack* mlist) {
 template<MoveType Type>
 MoveStack* generate(const Position& pos, MoveStack* mlist) {
 
-  assert(Type == MV_CAPTURE || Type == MV_NON_CAPTURE || Type == MV_NON_EVASION);
+  assert(Type == MV_CAPTURE || Type == MV_QUIET || Type == MV_NON_EVASION);
   assert(!pos.in_check());
 
   Color us = pos.side_to_move();
@@ -348,7 +348,7 @@ MoveStack* generate(const Position& pos, MoveStack* mlist) {
   if (Type == MV_CAPTURE)
       target = pos.pieces(~us);
 
-  else if (Type == MV_NON_CAPTURE)
+  else if (Type == MV_QUIET)
       target = pos.empty_squares();
 
   else if (Type == MV_NON_EVASION)
@@ -375,18 +375,18 @@ MoveStack* generate(const Position& pos, MoveStack* mlist) {
 
 // Explicit template instantiations
 template MoveStack* generate<MV_CAPTURE>(const Position& pos, MoveStack* mlist);
-template MoveStack* generate<MV_NON_CAPTURE>(const Position& pos, MoveStack* mlist);
+template MoveStack* generate<MV_QUIET>(const Position& pos, MoveStack* mlist);
 template MoveStack* generate<MV_NON_EVASION>(const Position& pos, MoveStack* mlist);
 #ifdef GPSFISH
-template MoveStack* generate<MV_NON_CAPTURE_CHECK>(const Position& pos, MoveStack* mlist);
+template MoveStack* generate<MV_QUIET_CHECK>(const Position& pos, MoveStack* mlist);
 template MoveStack* generate<MV_EVASION>(const Position& pos, MoveStack* mlist);
 #endif
 
 #ifndef GPSFISH
-/// generate<MV_NON_CAPTURE_CHECK> generates all pseudo-legal non-captures and knight
+/// generate<MV_QUIET_CHECK> generates all pseudo-legal non-captures and knight
 /// underpromotions that give check. Returns a pointer to the end of the move list.
 template<>
-MoveStack* generate<MV_NON_CAPTURE_CHECK>(const Position& pos, MoveStack* mlist) {
+MoveStack* generate<MV_QUIET_CHECK>(const Position& pos, MoveStack* mlist) {
 
   assert(!pos.in_check());
 
@@ -410,8 +410,8 @@ MoveStack* generate<MV_NON_CAPTURE_CHECK>(const Position& pos, MoveStack* mlist)
      SERIALIZE(b);
   }
 
-  mlist = (us == WHITE ? generate_pawn_moves<WHITE, MV_NON_CAPTURE_CHECK>(pos, mlist, ci.dcCandidates, ci.ksq)
-                       : generate_pawn_moves<BLACK, MV_NON_CAPTURE_CHECK>(pos, mlist, ci.dcCandidates, ci.ksq));
+  mlist = (us == WHITE ? generate_pawn_moves<WHITE, MV_QUIET_CHECK>(pos, mlist, ci.dcCandidates, ci.ksq)
+                       : generate_pawn_moves<BLACK, MV_QUIET_CHECK>(pos, mlist, ci.dcCandidates, ci.ksq));
 
   mlist = generate_direct_checks<KNIGHT>(pos, mlist, us, ci);
   mlist = generate_direct_checks<BISHOP>(pos, mlist, us, ci);

@@ -96,7 +96,7 @@ MoveStack* generateC(const Position& pos, MoveStack* mlist) {
 #endif
         return store.mlist;
     }
-    else if(Type==MV_NON_CAPTURE){
+    else if(Type==MV_QUIET){
         NoCaptureStore store(mlist);
         osl::move_generator::AllMoves<NoCaptureStore>::generate<P>(pos.osl_state,store);
         return store.mlist;
@@ -106,7 +106,7 @@ MoveStack* generateC(const Position& pos, MoveStack* mlist) {
         osl::move_generator::AllMoves<Store>::generate<P>(pos.osl_state,store);
         return store.mlist;
     }
-    else if(Type==MV_NON_CAPTURE_CHECK){
+    else if(Type==MV_QUIET_CHECK){
         NoCaptureStore store(mlist);
         osl::move_generator::AddEffectWithEffect<NoCaptureStore>::generate<P,true>(pos.osl_state,pos.king_square(altP),store);
         return store.mlist;
