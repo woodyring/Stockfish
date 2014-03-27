@@ -65,9 +65,9 @@ namespace { extern "C" {
 
 void Thread::wake_up() {
 
-  lock_grab(&sleepLock);
-  cond_signal(&sleepCond);
-  lock_release(&sleepLock);
+  lock_grab(sleepLock);
+  cond_signal(sleepCond);
+  lock_release(sleepLock);
 }
 
 
@@ -156,17 +156,17 @@ void ThreadsManager::set_size(int cnt) {
 void ThreadsManager::init() {
 
   // Initialize sleep condition and lock used by thread manager
-  cond_init(&sleepCond);
-  lock_init(&threadsLock);
+  cond_init(sleepCond);
+  lock_init(threadsLock);
 
   // Initialize thread's sleep conditions and split point locks
   for (int i = 0; i <= MAX_THREADS; i++)
   {
-      lock_init(&threads[i].sleepLock);
-      cond_init(&threads[i].sleepCond);
+      lock_init(threads[i].sleepLock);
+      cond_init(threads[i].sleepCond);
 
       for (int j = 0; j < MAX_ACTIVE_SPLIT_POINTS; j++)
-          lock_init(&(threads[i].splitPoints[j].lock));
+          lock_init(threads[i].splitPoints[j].lock);
   }
 
 #ifndef GPSFISH
@@ -182,23 +182,7 @@ void ThreadsManager::init() {
       threads[i].do_sleep = (i != 0); // Avoid a race with start_thinking()
       threads[i].threadID = i;
 
-#if defined(_MSC_VER) || defined(_WIN32) 
-#if defined(GPSFISH)
-      threads[i].handle = CreateThread(NULL, 1024*1024*16, start_routine, &threads[i], 0, NULL);
-#else
-      threads[i].handle = CreateThread(NULL, 0, start_routine, &threads[i], 0, NULL);
-#endif
-      bool ok = (threads[i].handle != NULL);
-#else
-#if defined(GPSFISH)
-      pthread_attr_t attr  ;
-      pthread_attr_init(&attr);
-      pthread_attr_setstacksize(&attr,1024*1024*4);
-      bool ok = !pthread_create(&threads[i].handle, &attr, start_routine, &threads[i]);
-#else
-      bool ok = !pthread_create(&threads[i].handle, NULL, start_routine, &threads[i]);
-#endif
-#endif
+      bool ok = thread_create(threads[i].handle, start_routine, threads[i]);
 
       if (!ok)
       {
@@ -218,24 +202,18 @@ void ThreadsManager::exit() {
       threads[i].do_terminate = true; // Search must be already finished
       threads[i].wake_up();
 
-      // Wait for thread termination
-#if defined(_MSC_VER) || defined(_WIN32)
-      WaitForSingleObject(threads[i].handle, INFINITE);
-      CloseHandle(threads[i].handle);
-#else
-      pthread_join(threads[i].handle, NULL);
-#endif
+      thread_join(threads[i].handle); // Wait for thread termination
 
       // Now we can safely destroy associated locks and wait conditions
-      lock_destroy(&threads[i].sleepLock);
-      cond_destroy(&threads[i].sleepCond);
+      lock_destroy(threads[i].sleepLock);
+      cond_destroy(threads[i].sleepCond);
 
       for (int j = 0; j < MAX_ACTIVE_SPLIT_POINTS; j++)
-          lock_destroy(&(threads[i].splitPoints[j].lock));
+          lock_destroy(threads[i].splitPoints[j].lock);
   }
 
-  lock_destroy(&threadsLock);
-  cond_destroy(&sleepCond);
+  lock_destroy(threadsLock);
+  cond_destroy(sleepCond);
 }
 
 
@@ -326,7 +304,7 @@ Value ThreadsManager::split(Position& pos, Stack* ss, Value alpha, Value beta,
   // Try to allocate available threads and ask them to start searching setting
   // is_searching flag. This must be done under lock protection to avoid concurrent
   // allocation of the same slave by another master.
-  lock_grab(&threadsLock);
+  lock_grab(threadsLock);
 
   for (i = 0; !Fake && i < activeThreads && workersCnt < maxThreadsPerSplitPoint; i++)
       if (threads[i].is_available_to(master))
@@ -342,7 +320,7 @@ Value ThreadsManager::split(Position& pos, Stack* ss, Value alpha, Value beta,
               threads[i].wake_up();
       }
 
-  lock_release(&threadsLock);
+  lock_release(threadsLock);
 
   // We failed to allocate even one slave, return
   if (!Fake && workersCnt == 1)
@@ -365,12 +343,12 @@ Value ThreadsManager::split(Position& pos, Stack* ss, Value alpha, Value beta,
   // We have returned from the idle loop, which means that all threads are
   // finished. Note that changing state and decreasing activeSplitPoints is done
   // under lock protection to avoid a race with Thread::is_available_to().
-  lock_grab(&threadsLock);
+  lock_grab(threadsLock);
 
   masterThread.is_searching = true;
   masterThread.activeSplitPoints--;
 
-  lock_release(&threadsLock);
+  lock_release(threadsLock);
 
   masterThread.splitPoint = sp->parent;
   pos.set_nodes_searched(pos.nodes_searched() + sp->nodes);
@@ -391,9 +369,9 @@ void Thread::timer_loop() {
 
   while (!do_terminate)
   {
-      lock_grab(&sleepLock);
-      timed_wait(&sleepCond, &sleepLock, maxPly ? maxPly : INT_MAX);
-      lock_release(&sleepLock);
+      lock_grab(sleepLock);
+      timed_wait(sleepCond, sleepLock, maxPly ? maxPly : INT_MAX);
+      lock_release(sleepLock);
       check_time();
   }
 }
@@ -406,10 +384,10 @@ void ThreadsManager::set_timer(int msec) {
 
   Thread& timer = threads[MAX_THREADS];
 
-  lock_grab(&timer.sleepLock);
+  lock_grab(timer.sleepLock);
   timer.maxPly = msec;
-  cond_signal(&timer.sleepCond); // Wake up and restart the timer
-  lock_release(&timer.sleepLock);
+  cond_signal(timer.sleepCond); // Wake up and restart the timer
+  lock_release(timer.sleepLock);
 }
 
 
@@ -420,20 +398,20 @@ void Thread::main_loop() {
 
   while (true)
   {
-      lock_grab(&sleepLock);
+      lock_grab(sleepLock);
 
       do_sleep = true; // Always return to sleep after a search
       is_searching = false;
 
       while (do_sleep && !do_terminate)
       {
-          cond_signal(&Threads.sleepCond); // Wake up UI thread if needed
-          cond_wait(&sleepCond, &sleepLock);
+          cond_signal(Threads.sleepCond); // Wake up UI thread if needed
+          cond_wait(sleepCond, sleepLock);
       }
 
       is_searching = true;
 
-      lock_release(&sleepLock);
+      lock_release(sleepLock);
 
       if (do_terminate)
           return;
@@ -452,11 +430,11 @@ void ThreadsManager::start_thinking(const Position& pos, const LimitsType& limit
                                     const std::set<Move>& searchMoves, bool async) {
   Thread& main = threads[0];
 
-  lock_grab(&main.sleepLock);
+  lock_grab(main.sleepLock);
 
   // Wait main thread has finished before to launch a new search
   while (!main.do_sleep)
-      cond_wait(&sleepCond, &main.sleepLock);
+      cond_wait(sleepCond, main.sleepLock);
 
   // Copy input arguments to initialize the search
   RootPosition.copy(pos, 0);
@@ -474,13 +452,13 @@ void ThreadsManager::start_thinking(const Position& pos, const LimitsType& limit
   Signals.stop = Signals.failedLowAtRoot = false;
 
   main.do_sleep = false;
-  cond_signal(&main.sleepCond); // Wake up main thread and start searching
+  cond_signal(main.sleepCond); // Wake up main thread and start searching
 
   if (!async)
       while (!main.do_sleep)
-          cond_wait(&sleepCond, &main.sleepLock);
+          cond_wait(sleepCond, main.sleepLock);
 
-  lock_release(&main.sleepLock);
+  lock_release(main.sleepLock);
 }
 
 
@@ -494,14 +472,14 @@ void ThreadsManager::stop_thinking() {
 
   Search::Signals.stop = true;
 
-  lock_grab(&main.sleepLock);
+  lock_grab(main.sleepLock);
 
-  cond_signal(&main.sleepCond); // In case is waiting for stop or ponderhit
+  cond_signal(main.sleepCond); // In case is waiting for stop or ponderhit
 
   while (!main.do_sleep)
-      cond_wait(&sleepCond, &main.sleepLock);
+      cond_wait(sleepCond, main.sleepLock);
 
-  lock_release(&main.sleepLock);
+  lock_release(main.sleepLock);
 }
 
 
@@ -518,10 +496,10 @@ void ThreadsManager::wait_for_stop_or_ponderhit() {
 
   Thread& main = threads[0];
 
-  lock_grab(&main.sleepLock);
+  lock_grab(main.sleepLock);
 
   while (!Signals.stop)
-      cond_wait(&main.sleepCond, &main.sleepLock);
+      cond_wait(main.sleepCond, main.sleepLock);
 
-  lock_release(&main.sleepLock);
+  lock_release(main.sleepLock);
 }

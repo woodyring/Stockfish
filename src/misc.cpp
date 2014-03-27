@@ -173,7 +173,7 @@ int cpu_count() {
 /// timed_wait() waits for msec milliseconds. It is mainly an helper to wrap
 /// conversion from milliseconds to struct timespec, as used by pthreads.
 
-void timed_wait(WaitCondition* sleepCond, Lock* sleepLock, int msec) {
+void timed_wait(WaitCondition& sleepCond, Lock& sleepLock, int msec) {
 
 #if defined(_MSC_VER) || defined(_WIN32)
   int tm = msec;
