@@ -469,7 +469,11 @@ finalize:
 
   // Best move could be MOVE_NONE when searching on a stalemate position
   cout << "bestmove " << move_to_uci(RootMoves[0].pv[0], Chess960)
+#ifdef GPSFISH
+       << (RootMoves[0].pv[1].isNormal() ? " ponder " + move_to_uci(RootMoves[0].pv[1], Chess960) : "" ) << endl;
+#else
        << " ponder "  << move_to_uci(RootMoves[0].pv[1], Chess960) << endl;
+#endif
 }
 
 #ifdef GPSFISH_DFPN
