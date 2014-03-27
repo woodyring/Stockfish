@@ -240,6 +240,7 @@ public:
   int startpos_ply_counter() const;
   bool opposite_colored_bishops() const;
 #ifndef GPSFISH
+  bool both_color_bishops(Color c) const;
   bool has_pawn_on_7th(Color c) const;
 #endif
   bool is_chess960() const;
@@ -550,6 +551,12 @@ inline bool Position::opposite_colored_bishops() const {
   return   pieceCount[WHITE][BISHOP] == 1
         && pieceCount[BLACK][BISHOP] == 1
         && opposite_colors(pieceList[WHITE][BISHOP][0], pieceList[BLACK][BISHOP][0]);
+}
+
+inline bool Position::both_color_bishops(Color c) const {
+  // Assumes that there are only two bishops
+  return  pieceCount[c][BISHOP] >= 2 &&
+          opposite_colors(pieceList[c][BISHOP][0], pieceList[c][BISHOP][1]);
 }
 
 inline bool Position::has_pawn_on_7th(Color c) const {
