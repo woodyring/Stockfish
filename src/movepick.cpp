@@ -366,7 +366,7 @@ Move MovePicker::next_move() {
            break;
 
       case CAPTURES_S6:
-          move = (curMove++)->move;
+          move = pick_best(curMove++, lastMove)->move;
           if (to_sq(move) == recaptureSquare)
               return move;
           break;
