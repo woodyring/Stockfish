@@ -2518,6 +2518,10 @@ void Thread::idle_loop(SplitPoint* sp_master) {
       {
           assert(!do_sleep && !do_exit);
 
+          lock_grab(Threads.splitLock);
+
+          assert(is_searching);
+
           // Copy split point position and search stack and call search()
 #ifdef MOVE_STACK_REJECTIONS
           SearchStack ss_base[MAX_PLY_PLUS_2];
@@ -2529,8 +2533,11 @@ void Thread::idle_loop(SplitPoint* sp_master) {
               ss_base[i].currentMove=(tsp->ss-ply+i)->currentMove;
           SearchStack *ss= &ss_base[ply-1];
 #else
-          Stack ss[MAX_PLY_PLUS_2];
           SplitPoint* sp = splitPoint;
+
+          lock_release(Threads.splitLock);
+
+          Stack ss[MAX_PLY_PLUS_2];
           Position pos(*sp->pos, threadID);
 #endif
 
@@ -2558,12 +2565,9 @@ void Thread::idle_loop(SplitPoint* sp_master) {
 
           assert(is_searching);
 
-          // We return from search with lock held
+          is_searching = false;
           sp->slavesMask &= ~(1ULL << threadID);
           sp->nodes += pos.nodes_searched();
-          lock_release(sp->lock);
-
-          is_searching = false;
 
           // Wake up master thread so to allow it to return from the idle loop in
           // case we are the last slave of the split point.
@@ -2571,8 +2575,16 @@ void Thread::idle_loop(SplitPoint* sp_master) {
               && threadID != sp->master
               && !Threads[sp->master].is_searching)
               Threads[sp->master].wake_up();
+
+          // After releasing the lock we cannot access anymore any SplitPoint
+          // related data in a reliably way becuase it could have been released
+          // under our feet by the sp master.
+          lock_release(sp->lock);
       }
   }
+  // In helpful master concept a master can help only a sub-tree of its split
+  // point, and because here is all finished is not possible master is booked.
+  assert(!is_searching);
 }
 
 #ifdef GPSFISHONE
