@@ -1899,8 +1899,7 @@ split_point_start: // At split points actual search starts from here
         return true;
 
     // Rule 2. Queen contact check is very dangerous
-    if (   type_of(pc) == QUEEN
-        && bit_is_set(kingAtt, to))
+    if (type_of(pc) == QUEEN && (kingAtt & to))
         return true;
 
     // Rule 3. Creating new double threats with checks
@@ -1962,8 +1961,7 @@ split_point_start: // At split points actual search starts from here
        abs((f2-t2).intValue())>abs((f2-f1).intValue())) return true;
 #else
     p2 = pos.piece_on(f2);
-    if (   piece_is_slider(p2)
-        && bit_is_set(squares_between(f2, t2), f1))
+    if (piece_is_slider(p2) && (squares_between(f2, t2) & f1))
       return true;
 #endif
 
@@ -1973,7 +1971,7 @@ split_point_start: // At split points actual search starts from here
     osl::Piece pc=pos.osl_state.pieceAt(t1);
     if(pos.osl_state.hasEffectByPiece(pc,t2)) return true;
 #else
-    if (bit_is_set(pos.attacks_from(p1, t1), t2))
+    if (pos.attacks_from(p1, t1) & t2)
         return true;
 #endif
 
@@ -1988,12 +1986,11 @@ split_point_start: // At split points actual search starts from here
         return true;
 #else
     ksq = pos.king_square(pos.side_to_move());
-    if (    piece_is_slider(p1)
-        &&  bit_is_set(squares_between(t1, ksq), f2))
+    if (piece_is_slider(p1) && (squares_between(t1, ksq) & f2))
     {
         Bitboard occ = pos.occupied_squares();
-        xor_bit(&occ, f2);
-        if (bit_is_set(pos.attacks_from(p1, t1, occ), ksq))
+        occ ^= f2;
+        if (pos.attacks_from(p1, t1, occ) & ksq)
             return true;
     }
 #endif
@@ -2076,9 +2073,9 @@ split_point_start: // At split points actual search starts from here
         && pos.see_sign(m) >= 0)
         return true;
 #else
-    if (   piece_is_slider(pos.piece_on(tfrom))
-        && bit_is_set(squares_between(tfrom, tto), mto)
-        && pos.see_sign(m) >= 0)
+    if (    piece_is_slider(pos.piece_on(tfrom))
+        && (squares_between(tfrom, tto) & mto)
+        &&  pos.see_sign(m) >= 0)
         return true;
 #endif
 
