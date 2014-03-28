@@ -359,6 +359,7 @@ void Search::think() {
 
   Position& pos = RootPosition;
   Chess960 = pos.is_chess960();
+  EvalRootColor = pos.side_to_move();
   SearchTime.restart();
   TimeMgr.init(Limits, pos.startpos_ply_counter());
   TT.new_search();
@@ -383,9 +384,6 @@ void Search::think() {
           goto finalize;
       }
   }
-
-  // Read UCI options: GUI could change UCI parameters during the game
-  read_evaluation_uci_options(pos.side_to_move());
 
   UCIMultiPV = Options["MultiPV"];
   SkillLevel = Options["Skill Level"];

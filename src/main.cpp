@@ -24,10 +24,11 @@
 #include "bitboard.h"
 #endif
 
-#include "ucioption.h"
+#include "evaluate.h"
 #include "position.h"
 #include "search.h"
 #include "thread.h"
+#include "ucioption.h"
 
 #ifdef GPSFISH
 #include <cstdlib>
@@ -110,6 +111,9 @@ int main(int argc, char* argv[]) {
 #endif
   Search::init();
   Threads.init();
+#ifndef GPSFISH
+  eval_init();
+#endif
   TT.set_size(Options["Hash"]);
 
   cout << engine_info() << endl;
