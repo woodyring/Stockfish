@@ -219,6 +219,8 @@ void ThreadsManager::set_size(int cnt) {
 
 void ThreadsManager::init() {
 
+  read_uci_options();
+
   cond_init(sleepCond);
   lock_init(splitLock);
 

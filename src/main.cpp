@@ -24,6 +24,7 @@
 #include "bitboard.h"
 #endif
 
+#include "ucioption.h"
 #include "position.h"
 #include "search.h"
 #include "thread.h"
@@ -37,6 +38,7 @@
 #endif
 
 #include "misc.h"
+#include "tt.h"
 
 
 using namespace std;
@@ -108,6 +110,7 @@ int main(int argc, char* argv[]) {
 #endif
   Search::init();
   Threads.init();
+  TT.set_size(Options["Hash"]);
 
   cout << engine_info() << endl;
 
