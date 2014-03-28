@@ -114,7 +114,11 @@ void uci_loop() {
 #ifdef GPSFISH
       else if (token == "usinewgame")
           pos.from_fen(StartFEN, false);
+#else
+      else if (token == "ucinewgame")
+      { /* Avoid returning "Unknown command" */ }
 #endif
+
       else if (token == "isready")
       {
 #ifdef GPSFISH
