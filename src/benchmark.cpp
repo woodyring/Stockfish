@@ -117,6 +117,7 @@ void benchmark(istringstream& is) {
 
   if (fenFile != "default")
   {
+      fens.clear();
       string fen;
       ifstream file(fenFile.c_str());
 
