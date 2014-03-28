@@ -22,7 +22,6 @@
 
 #include <set>
 
-#include "lock.h"
 #ifndef GPSFISH
 #include "material.h"
 #endif
