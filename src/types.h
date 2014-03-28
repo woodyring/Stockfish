@@ -601,11 +601,14 @@ inline int is_castle(Move m) {
 }
 
 #ifdef GPSFISH
+
 inline bool move_is_pawn_drop(Move m){
   return m.isDrop() && m.ptype()==osl::PAWN;
 }
+
 #else
-inline PieceType promotion_piece_type(Move m) {
+
+inline PieceType promotion_type(Move m) {
   return PieceType(((m >> 12) & 3) + 2);
 }
 

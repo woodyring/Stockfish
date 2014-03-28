@@ -170,7 +170,7 @@ void MovePicker::score_captures() {
 #ifdef GPSFISH
           cur->score ++; // XXX , calc correct value ?
 #else
-          cur->score += PieceValueMidgame[promotion_piece_type(m)];
+          cur->score += PieceValueMidgame[promotion_type(m)];
 #endif
   }
 }
