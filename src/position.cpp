@@ -552,7 +552,7 @@ Bitboard Position::attackers_to(Square s, Bitboard occ) const {
 
 Bitboard Position::attacks_from(Piece p, Square s, Bitboard occ) {
 
-  assert(square_is_ok(s));
+  assert(is_ok(s));
 
   switch (type_of(p))
   {
@@ -574,7 +574,7 @@ bool Position::move_attacks_square(Move m, Square s) const {
 #else
 
   assert(is_ok(m));
-  assert(square_is_ok(s));
+  assert(is_ok(s));
 
   Bitboard occ, xray;
   Square from = from_sq(m);

@@ -405,7 +405,7 @@ inline Square operator~(Square s) {
   // For shogi, do rotate180 instead of flipping
   return s.rotate180();
 #else
-  return Square(s ^ 56);
+  return Square(s ^ 56); // Vertical flip SQ_A1 -> SQ_A8
 #endif
 }
 
@@ -449,6 +449,12 @@ inline Square make_square(File f, Rank r) {
 #endif
 }
 
+#ifndef GPSFISH
+inline bool is_ok(Square s) {
+  return s >= SQ_A1 && s <= SQ_H8;
+}
+#endif
+
 inline File file_of(Square s) {
 #ifdef GPSFISH
   return File(s.x());
@@ -470,7 +476,7 @@ inline Square mirror(Square s) {
   // flipHorizontal is expensive because it checks if s is pieceStand
   return s.flipHorizontal();
 #else
-  return Square(s ^ 7);
+  return Square(s ^ 7); // Horizontal flip SQ_A1 -> SQ_H1
 #endif
 }
 
