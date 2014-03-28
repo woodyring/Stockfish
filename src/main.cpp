@@ -28,6 +28,7 @@
 #include "position.h"
 #include "search.h"
 #include "thread.h"
+#include "tt.h"
 #include "ucioption.h"
 
 #ifdef GPSFISH
