@@ -454,7 +454,7 @@ finalize:
   // but if we are pondering or in infinite search, we shouldn't print the best
   // move before we are told to do so.
   if (!Signals.stop && (Limits.ponder || Limits.infinite))
-      Threads[pos.this_thread()].wait_for_stop_or_ponderhit();
+      pos.this_thread().wait_for_stop_or_ponderhit();
 
   // Best move could be MOVE_NONE when searching on a stalemate position
   cout << "bestmove " << move_to_uci(RootMoves[0].pv[0], Chess960)
@@ -815,7 +815,6 @@ namespace {
     assert(alpha >= -VALUE_INFINITE && alpha < beta && beta <= VALUE_INFINITE);
     assert((alpha == beta - 1) || PvNode);
     assert(depth > DEPTH_ZERO);
-    assert(pos.this_thread() >= 0 && pos.this_thread() < Threads.size());
 
     Move movesSearched[MAX_MOVES];
     StateInfo st;
@@ -829,7 +828,7 @@ namespace {
     bool isPvMove, inCheck, singularExtensionNode, givesCheck;
     bool captureOrPromotion, dangerous, doFullDepthSearch;
     int moveCount = 0, playedMoveCount = 0;
-    Thread& thread = Threads[pos.this_thread()];
+    Thread& thread = pos.this_thread();
     SplitPoint* sp = NULL;
 #ifdef GPSFISH
     int repeat_check=0;
@@ -1256,7 +1255,7 @@ split_point_start: // At split points actual search starts from here
           Signals.firstRootMove = (moveCount == 1);
 
 #ifndef GPSFISH
-          if (pos.this_thread() == 0 && SearchTime.elapsed() > 2000)
+          if (&thread == Threads.main_thread() && SearchTime.elapsed() > 2000)
               cout << "info depth " << depth / ONE_PLY
                    << " currmove " << move_to_uci(move, Chess960)
                    << " currmovenumber " << moveCount + PVIdx << endl;
@@ -1504,7 +1503,7 @@ split_point_start: // At split points actual search starts from here
       if (   !SpNode
           && depth >= Threads.min_split_depth()
           && bestValue < beta
-          && Threads.available_slave_exists(pos.this_thread())
+          && Threads.available_slave_exists(thread)
           && !Signals.stop
           && !thread.cutoff_occurred())
           bestValue = Threads.split<FakeSplit>(pos, ss, alpha, beta, bestValue, &bestMove,
@@ -1585,7 +1584,6 @@ split_point_start: // At split points actual search starts from here
     assert(alpha >= -VALUE_INFINITE && alpha < beta && beta <= VALUE_INFINITE);
     assert((alpha == beta - 1) || PvNode);
     assert(depth <= DEPTH_ZERO);
-    assert(pos.this_thread() >= 0 && pos.this_thread() < Threads.size());
 
     StateInfo st;
     Move ttMove, move, bestMove;
@@ -2486,9 +2484,9 @@ void Thread::idle_loop(SplitPoint* sp_master) {
           lock_release(Threads.splitLock);
 
           Stack ss[MAX_PLY_PLUS_2];
-          Position pos(*sp->pos, threadID);
+          Position pos(*sp->pos, this);
 #endif
-          int master = sp->master;
+          Thread* master = sp->master;
 
           memcpy(ss, sp->ss - 1, 4 * sizeof(Stack));
           (ss+1)->sp = sp;
@@ -2515,7 +2513,7 @@ void Thread::idle_loop(SplitPoint* sp_master) {
           assert(is_searching);
 
           is_searching = false;
-          sp->slavesMask &= ~(1ULL << threadID);
+          sp->slavesMask &= ~(1ULL << idx);
           sp->nodes += pos.nodes_searched();
 
           // After releasing the lock we cannot access anymore any SplitPoint
@@ -2526,9 +2524,9 @@ void Thread::idle_loop(SplitPoint* sp_master) {
           // Wake up master thread so to allow it to return from the idle loop in
           // case we are the last slave of the split point.
           if (   Threads.use_sleeping_threads()
-              && threadID != master
-              && !Threads[master].is_searching)
-              Threads[master].wake_up();
+              && this != master
+              && !master->is_searching)
+              master->wake_up();
       }
   }
 }

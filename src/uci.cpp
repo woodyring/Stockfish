@@ -72,7 +72,7 @@ std::vector<Move> ignore_moves;
 
 void uci_loop(const string& args) {
 
-  Position pos(StartFEN, false, 0); // The root position
+  Position pos(StartFEN, false, Threads.main_thread()); // The root position
   string cmd, token;
 
   while (token != "quit")
@@ -119,7 +119,7 @@ void uci_loop(const string& args) {
 
 #ifdef GPSFISH
       else if (token == "usinewgame")
-          pos.from_fen(StartFEN, false);
+          pos.from_fen(StartFEN, false, Threads.main_thread());
 #else
       else if (token == "ucinewgame")
       { /* Avoid returning "Unknown command" */ }
@@ -248,9 +248,9 @@ namespace {
         return;
 
 #ifdef GPSFISH
-    pos.from_fen(fen, false);
+    pos.from_fen(fen, false, Threads.main_thread());
 #else
-    pos.from_fen(fen, Options["UCI_Chess960"]);
+    pos.from_fen(fen, Options["UCI_Chess960"], Threads.main_thread());
 #endif
 
     // Parse move list (if any)

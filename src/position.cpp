@@ -191,16 +191,16 @@ CheckInfo::CheckInfo(const Position& pos) {
 }
 
 
-/// Position c'tors. Here we always create a copy of the original position
-/// or the FEN string, we want the new born Position object do not depend
-/// on any external data so we detach state pointer from the source one.
+/// Position::copy() creates a copy of 'pos'. We want the new born Position
+/// object do not depend on any external data so we detach state pointer from
+/// the source one.
 
-void Position::copy(const Position& pos, int th) {
+void Position::copy(const Position& pos, Thread* th) {
 
   memcpy(this, &pos, sizeof(Position));
   startState = *st;
   st = &startState;
-  threadID = th;
+  thisThread = th;
   nodes = 0;
 #ifdef GPSFISH
   eval=NULL;
@@ -209,21 +209,12 @@ void Position::copy(const Position& pos, int th) {
   assert(pos_is_ok());
 }
 
-Position::Position(const string& fen, bool isChess960, int th) {
-
-#ifdef GPSFISH
-  eval=NULL;
-#endif
-  from_fen(fen, isChess960);
-  threadID = th;
-}
-
 
 /// Position::from_fen() initializes the position object with the given FEN
 /// string. This function is not very robust - make sure that input FENs are
 /// correct (this is assumed to be the responsibility of the GUI).
 
-void Position::from_fen(const string& fenStr, bool isChess960) {
+void Position::from_fen(const string& fenStr, bool isChess960, Thread* th) {
 /*
    A FEN string defines a particular position using only the ASCII character set.
 
@@ -353,6 +344,7 @@ void Position::from_fen(const string& fenStr, bool isChess960) {
   st->checkersBB = attackers_to(king_square(sideToMove)) & pieces(~sideToMove);
   chess960 = isChess960;
 #endif
+  thisThread = th;
 
   assert(pos_is_ok());
 }
@@ -475,7 +467,7 @@ void Position::print(Move move) const {
   if (move)
 #endif
   {
-      Position p(*this, this_thread());
+      Position p(*this, thisThread);
       cout << "\nMove is: " << (sideToMove == BLACK ? ".." : "") << move_to_san(p, move);
   }
 #ifdef GPSFISH
@@ -1133,8 +1125,8 @@ void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveI
   }
 
   // Prefetch pawn and material hash tables
-  prefetch((char*)Threads[threadID].pawnTable.entries[st->pawnKey]);
-  prefetch((char*)Threads[threadID].materialTable.entries[st->materialKey]);
+  prefetch((char*)thisThread->pawnTable.entries[st->pawnKey]);
+  prefetch((char*)thisThread->materialTable.entries[st->materialKey]);
 
   // Update incremental scores
   st->psqScore += psq_delta(piece, from, to);
@@ -1852,10 +1844,10 @@ void Position::init() {
 void Position::flip() {
 
   // Make a copy of current position before to start changing
-  const Position pos(*this, threadID);
+  const Position pos(*this, thisThread);
 
   clear();
-  threadID = pos.this_thread();
+  thisThread = &pos.this_thread();
 
   // Board
   for (Square s = SQ_A1; s <= SQ_H8; s++)

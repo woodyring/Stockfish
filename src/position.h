@@ -37,6 +37,7 @@ typedef osl::eval::ml::OpenMidEndingEval eval_t;
 /// The checkInfo struct is initialized at c'tor time and keeps info used
 /// to detect if a move gives check.
 class Position;
+class Thread;
 
 struct CheckInfo {
 
@@ -109,12 +110,12 @@ class Position {
 
 public:
   Position() {}
-  Position(const Position& pos, int th) { copy(pos, th); }
-  Position(const std::string& fen, bool isChess960, int th);
+  Position(const Position& p, Thread* t) { copy(p, t); }
+  Position(const std::string& f, bool c960, Thread* t) { from_fen(f, c960, t); }
 
   // Text input/output
-  void copy(const Position& pos, int th);
-  void from_fen(const std::string& fen, bool isChess960);
+  void copy(const Position& pos, Thread* th);
+  void from_fen(const std::string& fen, bool isChess960, Thread* th);
   const std::string to_fen() const;
   void print(Move m = MOVE_NONE) const;
 
@@ -222,7 +223,7 @@ public:
   Color side_to_move() const;
   int startpos_ply_counter() const;
   bool is_chess960() const;
-  int this_thread() const;
+  Thread& this_thread() const;
 
 #ifdef GPSFISH
   int pliesFromNull() const;
@@ -290,7 +291,7 @@ private:
   int64_t nodes;
   int startPosPly;
   Color sideToMove;
-  int threadID;
+  Thread* thisThread;
   StateInfo* st;
 #ifndef GPSFISH
   int chess960;
@@ -555,8 +556,8 @@ inline PieceType Position::captured_piece_type() const {
   return st->capturedType;
 }
 
-inline int Position::this_thread() const {
-  return threadID;
+inline Thread& Position::this_thread() const {
+  return *thisThread;
 }
 
 #ifdef GPSFISH
