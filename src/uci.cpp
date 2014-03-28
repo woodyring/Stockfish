@@ -90,7 +90,10 @@ void uci_loop() {
 #else
       if (token == "quit" || token == "stop")
 #endif
-          Threads.stop_thinking();
+      {
+          Search::Signals.stop = true;
+          Threads.wait_for_search_finished(); // Cannot quit while threads are running
+      }
 
       else if (token == "ponderhit")
       {
@@ -100,7 +103,10 @@ void uci_loop() {
           Search::Limits.ponder = false;
 
           if (Search::Signals.stopOnPonderhit)
-              Threads.stop_thinking();
+          {
+              Search::Signals.stop = true;
+              Threads.wait_for_search_finished();
+          }
       }
 
       else if (token == "go")
@@ -346,7 +352,7 @@ namespace {
     limits.time = time[pos.side_to_move()];
     limits.increment = inc[pos.side_to_move()];
 
-    Threads.start_thinking(pos, limits, searchMoves, true);
+    Threads.start_searching(pos, limits, searchMoves, true);
   }
 
 
