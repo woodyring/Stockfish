@@ -126,8 +126,6 @@ public:
   int min_split_depth() const { return minimumSplitDepth; }
   int size() const { return (int)threads.size(); }
   Thread* main_thread() const { return threads[0]; }
-  Thread* this_thread() const { return (Thread*)tls_get(tlsKey); }
-  void set_this_thread(Thread* th) const { tls_set(tlsKey, th); }
 
   void wake_up() const;
   void sleep() const;
@@ -146,7 +144,6 @@ private:
 
   std::vector<Thread*> threads;
   Thread* timer;
-  ThreadLocalStorageKey tlsKey;
   Lock splitLock;
   WaitCondition sleepCond;
   Depth minimumSplitDepth;
@@ -155,5 +152,6 @@ private:
 };
 
 extern ThreadsManager Threads;
+extern THREAD_LOCAL Thread* this_thread;
 
 #endif // !defined(THREAD_H_INCLUDED)
