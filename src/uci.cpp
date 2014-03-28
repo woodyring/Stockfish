@@ -300,7 +300,7 @@ namespace {
   void go(Position& pos, istringstream& is) {
 
     Search::LimitsType limits;
-    std::set<Move> searchMoves;
+    vector<Move> searchMoves;
 
 #ifdef GPSFISH
     osl::CArray<int,2> time={{0,0}},inc={{0,0}};
@@ -344,7 +344,7 @@ namespace {
             limits.ponder = true;
         else if (token == "searchmoves")
             while (is >> token)
-                searchMoves.insert(move_from_uci(pos, token));
+                searchMoves.push_back(move_from_uci(pos, token));
     }
 
 #if 0 //def GPSFISH
@@ -389,8 +389,8 @@ namespace {
 
     int e = time.elapsed();
 
-    std::cout << "\nNodes " << n
-              << "\nTime (ms) " << e
-              << "\nNodes/second " << int(n / (e / 1000.0)) << std::endl;
+    cout << "\nNodes " << n
+         << "\nTime (ms) " << e
+         << "\nNodes/second " << int(n / (e / 1000.0)) << endl;
   }
 }
