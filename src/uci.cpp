@@ -276,11 +276,10 @@ namespace {
 
   // go() is called when engine receives the "go" UCI command. The function sets
   // the thinking time and other parameters from the input string, and then starts
-  // the main searching thread.
+  // the search.
 
   void go(Position& pos, istringstream& is) {
 
-    string token;
     Search::LimitsType limits;
     std::set<Move> searchMoves;
 
@@ -290,26 +289,24 @@ namespace {
     int time[] = { 0, 0 }, inc[] = { 0, 0 };
 #endif
 
+    string token;
+
     while (is >> token)
     {
-        if (token == "infinite")
-            limits.infinite = true;
-        else if (token == "ponder")
-            limits.ponder = true;
-        else if (token == "wtime")
-            is >> time[WHITE];
+        if (token == "wtime")
+            is >> limits.times[WHITE];
         else if (token == "btime")
-            is >> time[BLACK];
+            is >> limits.times[BLACK];
         else if (token == "winc")
-            is >> inc[WHITE];
+            is >> limits.incs[WHITE];
         else if (token == "binc")
-            is >> inc[BLACK];
+            is >> limits.incs[BLACK];
         else if (token == "movestogo")
-            is >> limits.movesToGo;
+            is >> limits.movestogo;
         else if (token == "depth")
-            is >> limits.maxDepth;
+            is >> limits.depth;
         else if (token == "nodes")
-            is >> limits.maxNodes;
+            is >> limits.nodes;
 #ifdef GPSFISH
         else if (token == "mate"){
             int mateTime;
@@ -321,7 +318,11 @@ namespace {
 #else
         else if (token == "movetime")
 #endif
-            is >> limits.maxTime;
+            is >> limits.movetime;
+        else if (token == "infinite")
+            limits.infinite = true;
+        else if (token == "ponder")
+            limits.ponder = true;
         else if (token == "searchmoves")
             while (is >> token)
                 searchMoves.insert(move_from_uci(pos, token));
@@ -347,9 +348,6 @@ namespace {
         return true;
     }
 #endif
-
-    limits.time = time[pos.side_to_move()];
-    limits.increment = inc[pos.side_to_move()];
 
     Threads.start_searching(pos, limits, searchMoves);
   }
