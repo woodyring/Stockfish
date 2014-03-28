@@ -75,6 +75,8 @@ void uci_loop(const string& args) {
   Position pos(StartFEN, false, Threads.main_thread()); // The root position
   string cmd, token;
 
+  Search::RootPosition = pos;
+
   while (token != "quit")
   {
       if (!args.empty())
