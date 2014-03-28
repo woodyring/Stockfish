@@ -151,6 +151,7 @@ public:
   // Castling rights
   bool can_castle(CastleRight f) const;
   bool can_castle(Color c) const;
+  bool castle_impeded(CastleRight f) const;
   Square castle_rook_square(CastleRight f) const;
 #endif
 
@@ -273,7 +274,7 @@ private:
   void clear();
   void put_piece(Piece p, Square s);
 #ifndef GPSFISH
-  void set_castle_right(Color c, Square rsq);
+  void set_castle_right(Color c, Square rfrom);
 #endif
   bool move_is_legal(const Move m) const;
 
@@ -293,9 +294,7 @@ private:
   Score pst(Piece p, Square s) const;
   Score compute_value() const;
   Value compute_non_pawn_material(Color c) const;
-#endif
 
-#ifndef GPSFISH
   // Board
   Piece board[64];             // [square]
 
@@ -312,10 +311,9 @@ private:
   int index[64];               // [square]
 
   // Other info
-#endif
-#ifndef GPSFISH
   int castleRightsMask[64];    // [square]
   Square castleRookSquare[16]; // [castleRight]
+  Bitboard castlePath[16];     // [castleRight]
 #endif
   StateInfo startState;
   int64_t nodes;
@@ -434,6 +432,10 @@ inline bool Position::can_castle(CastleRight f) const {
 
 inline bool Position::can_castle(Color c) const {
   return st->castleRights & ((WHITE_OO | WHITE_OOO) << c);
+}
+
+inline bool Position::castle_impeded(CastleRight f) const {
+  return occupied & castlePath[f];
 }
 
 inline Square Position::castle_rook_square(CastleRight f) const {
