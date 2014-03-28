@@ -44,11 +44,11 @@ namespace {
 
 /// 'On change' actions, triggered by an option's value change
 #ifndef GPSFISH
-void on_eval(UCIOption&) { Eval::init(); }
+void on_eval(const UCIOption&) { Eval::init(); }
 #endif
-void on_threads(UCIOption&) { Threads.read_uci_options(); }
-void on_hash_size(UCIOption& o) { TT.set_size(o); }
-void on_clear_hash(UCIOption& o) { TT.clear(); o = false; } // UCI button
+void on_threads(const UCIOption&) { Threads.read_uci_options(); }
+void on_hash_size(const UCIOption& o) { TT.set_size(o); }
+void on_clear_hash(const UCIOption&) { TT.clear(); }
 
 /// Our case insensitive less() function as required by UCI protocol
 bool ci_less(char c1, char c2) { return tolower(c1) < tolower(c2); }
@@ -135,7 +135,7 @@ OptionsMap::OptionsMap() {
 #else
   o["Hash"]                        = UCIOption(32, 4, 8192, on_hash_size);
 #endif
-  o["Clear Hash"]                  = UCIOption(false, on_clear_hash);
+  o["Clear Hash"]                  = UCIOption(on_clear_hash);
 #ifdef GPSFISH
   o["Ponder"]                      = UCIOption(false);
 #else
@@ -200,6 +200,9 @@ UCIOption::UCIOption(const char* v, Fn* f) : type("string"), min(0), max(0), idx
 UCIOption::UCIOption(bool v, Fn* f) : type("check"), min(0), max(0), idx(Options.size()), on_change(f)
 { defaultValue = currentValue = (v ? "true" : "false"); }
 
+UCIOption::UCIOption(Fn* f) : type("button"), min(0), max(0), idx(Options.size()), on_change(f)
+{ defaultValue = currentValue = "false"; }
+
 UCIOption::UCIOption(int v, int minv, int maxv, Fn* f) : type("spin"), min(minv), max(maxv), idx(Options.size()), on_change(f)
 { std::ostringstream ss; ss << v; defaultValue = currentValue = ss.str(); }
 
@@ -213,12 +216,15 @@ void UCIOption::operator=(const string& v) {
   assert(!type.empty());
 
   if (   !v.empty()
-      && (type == "check") == (v == "true" || v == "false")
+      && (type == "check" || type == "button") == (v == "true" || v == "false")
       && (type != "spin" || (atoi(v.c_str()) >= min && atoi(v.c_str()) <= max)))
   {
       currentValue = v;
 
       if (on_change)
           (*on_change)(*this);
+
+      if (type == "button")
+          currentValue = "false";
   }
 }
