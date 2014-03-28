@@ -138,11 +138,12 @@ OptionsMap::OptionsMap() {
   o["Clear Hash"]                  = UCIOption(on_clear_hash);
 #ifdef GPSFISH
   o["Ponder"]                      = UCIOption(false);
+  o["OwnBook"]                     = UCIOption(true);
 #else
   o["Ponder"]                      = UCIOption(true);
+  o["OwnBook"]                     = UCIOption(false);
 #endif
 
-  o["OwnBook"]                     = UCIOption(true);
   o["MultiPV"]                     = UCIOption(1, 1, 500);
   o["Skill Level"]                 = UCIOption(20, 0, 20);
 #ifdef GPSFISH
