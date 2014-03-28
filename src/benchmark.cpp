@@ -150,6 +150,7 @@ void benchmark(int argc, char* argv[]) {
       else
       {
           Threads.start_searching(pos, limits);
+          Threads.wait_for_search_finished();
           nodes += Search::RootPosition.nodes_searched();
       }
   }
