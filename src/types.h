@@ -382,7 +382,6 @@ extern const Value PieceValueEndgame[osl::PTYPE_SIZE];
 extern const Value PieceValueMidgame[17]; // Indexed by Piece or PieceType
 extern const Value PieceValueEndgame[17];
 extern int SquareDistance[64][64];
-extern uint8_t BitCount8Bit[256];
 #endif
 
 #ifdef GPSFISH
