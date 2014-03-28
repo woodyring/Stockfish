@@ -152,7 +152,7 @@ void uci_loop(const string& args) {
 
 #ifndef GPSFISH
       else if (token == "flip")
-          pos.flip_me();
+          pos.flip();
 
       else if (token == "eval")
           cout << Eval::trace(pos) << endl;
