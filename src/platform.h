@@ -54,6 +54,7 @@ inline uint64_t time_to_msec(const sys_time_t& t) { return t.tv_sec * 1000LL + t
 typedef pthread_mutex_t Lock;
 typedef pthread_cond_t WaitCondition;
 typedef pthread_t NativeHandle;
+typedef pthread_key_t ThreadLocalStorageKey;
 typedef void*(*pt_start_fn)(void*);
 
 #  define lock_init(x) pthread_mutex_init(&(x), NULL)
@@ -76,6 +77,10 @@ typedef void*(*pt_start_fn)(void*);
 #  define thread_create(x,f,t) !pthread_create(&(x),NULL,(pt_start_fn)f,t)
 #endif
 #  define thread_join(x) pthread_join(x, NULL)
+#  define tls_init(k) pthread_key_create(&k,NULL)
+#  define tls_get(k) pthread_getspecific(k)
+#  define tls_set(k,x) pthread_setspecific(k,x)
+#  define tls_destroy(k) pthread_key_delete(k)
 
 #else // Windows and MinGW
 
@@ -103,6 +108,7 @@ inline uint64_t time_to_msec(const sys_time_t& t) { return t.time * 1000LL + t.m
 typedef CRITICAL_SECTION Lock;
 typedef HANDLE WaitCondition;
 typedef HANDLE NativeHandle;
+typedef DWORD ThreadLocalStorageKey;
 
 #  define lock_init(x) InitializeCriticalSection(&(x))
 #  define lock_grab(x) EnterCriticalSection(&(x))
@@ -119,6 +125,10 @@ typedef HANDLE NativeHandle;
 #  define thread_create(x,f,t) (x = CreateThread(NULL,0,(LPTHREAD_START_ROUTINE)f,t,0,NULL), x != NULL)
 #endif
 #  define thread_join(x) { WaitForSingleObject(x, INFINITE); CloseHandle(x); }
+#  define tls_init(k) do { k = TlsAlloc(); } while(0)
+#  define tls_get(k) TlsGetValue(k)
+#  define tls_set(k,x) TlsSetValue(k,x)
+#  define tls_destroy(k) TlsFree(k)
 
 #endif
 
