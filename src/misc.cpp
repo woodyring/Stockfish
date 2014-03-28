@@ -59,25 +59,19 @@ const string engine_info(bool to_uci) {
   string month, day, year;
   stringstream s, date(__DATE__); // From compiler, format is "Sep 21 2008"
 
+#ifdef GPSFISH
+  s << AppName << Version;
+#else
+  s << "Stockfish " << Version;
+#endif
+
   if (Version.empty())
   {
       date >> month >> day >> year;
 
-#ifdef GPSFISH
-      s << AppName << Tag
-#else
-      s << "Stockfish " << Tag
-#endif
-        << setfill('0') << " " << year.substr(2)
-        << setw(2) << (1 + months.find(month) / 4)
-        << setw(2) << day;
+      s << Tag << setfill('0') << " " << year.substr(2)
+        << setw(2) << (1 + months.find(month) / 4) << setw(2) << day;
   }
-  else
-#ifdef GPSFISH
-      s << AppName << Version;
-#else
-      s << "Stockfish " << Version;
-#endif
 
   s << cpu64 << popcnt << (to_uci ? "\nid author ": " by ")
 #ifdef GPSFISH
