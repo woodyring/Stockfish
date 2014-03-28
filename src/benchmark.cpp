@@ -19,7 +19,7 @@
 
 #include <fstream>
 #include <iostream>
-#include <sstream>
+#include <istream>
 #include <vector>
 
 #include "misc.h"
@@ -81,7 +81,7 @@ static const char* Defaults[] = {
 /// format (defaults are the positions defined above) and the type of the
 /// limit value: depth (default), time in secs or number of nodes.
 
-void benchmark(istringstream& is) {
+void benchmark(const Position& current, istream& is) {
 
 #ifdef GPSFISH
   bool ok = osl::eval::ml::OpenMidEndingEval::setUp();
@@ -94,7 +94,7 @@ void benchmark(istringstream& is) {
 
   string token;
   Search::LimitsType limits;
-  vector<string> fens(Defaults, Defaults + 16);
+  vector<string> fens;
 
   // Assign default values to missing arguments
   string ttSize    = (is >> token) ? token : "128";
@@ -115,14 +115,14 @@ void benchmark(istringstream& is) {
   else
       limits.depth = atoi(limit.c_str());
 
-  if (fenFile == "current")
+  if (fenFile == "default")
+      fens.assign(Defaults, Defaults + 16);
+
+  else if (fenFile == "current")
+      fens.push_back(current.to_fen());
+
+  else
   {
-      fens.clear();
-      fens.push_back(Search::RootPosition.to_fen());
-  }
-  else if (fenFile != "default")
-  {
-      fens.clear();
       string fen;
       ifstream file(fenFile.c_str());
 
