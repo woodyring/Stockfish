@@ -45,8 +45,7 @@
 
 using namespace std;
 
-extern void uci_loop();
-extern void benchmark(int argc, char* argv[]);
+extern void uci_loop(const std::string&);
 extern void kpk_bitbase_init();
 
 #if defined(GPSFISH) && !defined(_WIN32)
@@ -90,7 +89,7 @@ int setup_network(int *pargc, char* argv[]) {
 
 int main(int argc, char* argv[]) {
 
-  cout << engine_info() << endl;
+  std::cout << engine_info() << std::endl;
 
 #if defined(GPSFISH) && !defined(_WIN32)
   setup_network(argc,argv);
@@ -119,14 +118,10 @@ int main(int argc, char* argv[]) {
 #endif
   TT.set_size(Options["Hash"]);
 
-  if (argc == 1)
-      uci_loop();
+  std::string args;
 
-  else if (string(argv[1]) == "bench")
-      benchmark(argc, argv);
+  for (int i = 1; i < argc; i++)
+      args += std::string(" ") + argv[i];
 
-  else
-      cerr << "\nUsage: stockfish bench [hash size = 128] [threads = 1] "
-           << "[limit = 12] [fen positions file = default] "
-           << "[limited by depth, time, nodes or perft = depth]" << endl;
+  uci_loop(args);
 }
