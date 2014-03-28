@@ -691,19 +691,17 @@ Value do_evaluate(const Position& pos, Value& margin) {
     Score score = SCORE_ZERO;
 
     // Undefended minors get penalized even if not under attack
-    const Bitboard undefended =  pos.pieces(Them)
-                              & (pos.pieces(BISHOP) | pos.pieces(KNIGHT))
-                              & ~ei.attackedBy[Them][0];
-    if (undefended) {
-        score += UndefendedMinorPenalty;
-        if (!single_bit(undefended))
-            score += UndefendedMinorPenalty;
-    }
+    Bitboard undefended =  pos.pieces(Them)
+                         & (pos.pieces(BISHOP) | pos.pieces(KNIGHT))
+                         & ~ei.attackedBy[Them][0];
+    if (undefended)
+        score += single_bit(undefended) ? UndefendedMinorPenalty
+                                        : UndefendedMinorPenalty * 2;
 
     // Enemy pieces not defended by a pawn and under our attack
-    const Bitboard weakEnemies =  pos.pieces(Them)
-                               & ~ei.attackedBy[Them][PAWN]
-                               & ei.attackedBy[Us][0];
+    Bitboard weakEnemies =  pos.pieces(Them)
+                          & ~ei.attackedBy[Them][PAWN]
+                          & ei.attackedBy[Us][0];
     if (!weakEnemies)
         return score;
 
