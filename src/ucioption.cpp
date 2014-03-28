@@ -43,7 +43,7 @@ OptionsMap Options; // Global object
 namespace {
 
 /// 'On change' actions, triggered by an option's value change
-void on_logger(const UCIOption& opt) { logger_set(opt); }
+void on_logger(const UCIOption& opt) { start_logger(opt); }
 #ifndef GPSFISH
 void on_eval(const UCIOption&) { Eval::init(); }
 #endif
