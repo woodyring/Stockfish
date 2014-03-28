@@ -44,7 +44,7 @@ namespace {
 
 /// 'On change' actions, triggered by an option's value change
 #ifndef GPSFISH
-void on_eval(UCIOption&) { eval_init(); }
+void on_eval(UCIOption&) { Eval::init(); }
 #endif
 void on_threads(UCIOption&) { Threads.read_uci_options(); }
 void on_hash_size(UCIOption& o) { TT.set_size(o); }

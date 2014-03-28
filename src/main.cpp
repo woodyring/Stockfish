@@ -112,7 +112,7 @@ int main(int argc, char* argv[]) {
   Search::init();
   Threads.init();
 #ifndef GPSFISH
-  eval_init();
+  Eval::init();
 #endif
   TT.set_size(Options["Hash"]);
 

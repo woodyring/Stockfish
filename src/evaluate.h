@@ -28,12 +28,17 @@ typedef osl::eval::ml::OpenMidEndingEval eval_t;
 
 class Position;
 
+namespace Eval {
+
+extern Color RootColor;
+
+extern void init();
 extern Value evaluate(const Position& pos, Value& margin);
-extern std::string trace_evaluate(const Position& pos);
+extern std::string trace(const Position& pos);
 #ifndef GPSFISH
 extern void eval_init();
 #endif
 
-extern Color EvalRootColor;
+}
 
 #endif // !defined(EVALUATE_H_INCLUDED)

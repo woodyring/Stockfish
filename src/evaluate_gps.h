@@ -1,5 +1,7 @@
 #include "osl/eval/ml/openMidEndingEval.h"
 
+namespace Eval {
+
 Value evaluate(const Position& pos, Value& margin) {
     margin=VALUE_ZERO;
     int iret=pos.eval->value();
@@ -12,10 +14,8 @@ Value evaluate(const Position& pos, Value& margin) {
         return -ret;
 }
 
-std::string trace_evaluate(const Position& pos){
+std::string trace(const Position& pos){
     return "";
 }
 
-void read_evaluation_uci_options(Color sideToMove){
 }
-

@@ -143,10 +143,7 @@ void uci_loop() {
           pos.flip_me();
 
       else if (token == "eval")
-      {
-          EvalRootColor = pos.side_to_move();
-          cout << trace_evaluate(pos) << endl;
-      }
+          cout << Eval::trace(pos) << endl;
 #endif
 
       else if (token == "key")
