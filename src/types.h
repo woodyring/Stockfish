@@ -45,6 +45,7 @@
 #pragma warning(disable: 4127) // Conditional expression is constant
 #pragma warning(disable: 4146) // Unary minus operator applied to unsigned type
 #pragma warning(disable: 4800) // Forcing value to bool 'true' or 'false'
+#pragma warning(disable: 4996) // Function _ftime() may be unsafe
 #endif
 
 // MSVC does not support <inttypes.h>
@@ -59,6 +60,20 @@ typedef unsigned __int64 uint64_t;
 
 #else
 #  include <inttypes.h>
+#endif
+
+#if defined(_WIN32) || defined(_WIN64)
+#  include <sys/timeb.h>
+typedef _timeb my_time_t;
+
+inline void system_time(my_time_t* t) { _ftime(t); }
+inline uint64_t time_to_msec(const my_time_t& t) { return t.time * 1000 + t.millitm; }
+#else
+#  include <sys/time.h>
+typedef timeval my_time_t;
+
+inline void system_time(my_time_t* t) { gettimeofday(t, NULL); }
+inline uint64_t time_to_msec(const my_time_t& t) { return t.tv_sec * 1000 + t.tv_usec / 1000; }
 #endif
 
 #if defined(_WIN64)

@@ -152,6 +152,7 @@ namespace {
   Value DrawValue;
 #endif
   TimeManager TimeMgr;
+  Time SearchTime;
   int BestMoveChanges;
   int SkillLevel;
   bool SkillLevelEnabled, Chess960;
@@ -173,7 +174,6 @@ namespace {
   bool connected_threat(const Position& pos, Move m, Move threat);
   Value refine_eval(const TTEntry* tte, Value defaultEval, int ply);
   Move do_skill_level();
-  int elapsed_time(bool reset = false);
   string score_to_uci(Value v, Value alpha = -VALUE_INFINITE, Value beta = VALUE_INFINITE);
   void pv_info_to_log(Position& pos, int depth, Value score, int time, Move pv[]);
   void pv_info_to_uci(const Position& pos, int depth, Value alpha, Value beta);
@@ -359,7 +359,7 @@ void Search::think() {
 
   Position& pos = RootPosition;
   Chess960 = pos.is_chess960();
-  elapsed_time(true);
+  SearchTime.restart();
   TimeMgr.init(Limits, pos.startpos_ply_counter());
   TT.new_search();
   H.clear();
@@ -433,7 +433,7 @@ void Search::think() {
 
   if (Options["Use Search Log"])
   {
-      int e = elapsed_time();
+      int e = SearchTime.elapsed();
 
       Log log(Options["Search Log Filename"]);
       log << "Nodes: "          << pos.nodes_searched()
@@ -641,7 +641,7 @@ namespace {
 
 #ifdef GPSFISH_DFPN
         if ((uint64_t)pos.nodes_searched() > next_checkmate
-                && elapsed_time()+1000
+                && SearchTime.elapsed()+1000
                 < std::max(Limits.maxTime,TimeMgr.maximum_time())*4/5) {
             run_checkmate(depth, next_checkmate, pos);
             next_checkmate *= 2;
@@ -704,7 +704,7 @@ namespace {
 
                 // Send full PV info to GUI if we are going to leave the loop or
                 // if we have a fail high/low and we are deep in the search.
-                if ((bestValue > alpha && bestValue < beta) || elapsed_time() > 2000)
+                if ((bestValue > alpha && bestValue < beta) || SearchTime.elapsed() > 2000)
                     pv_info_to_uci(pos, depth, alpha, beta);
 
                 // In case of failing high/low increase aspiration window and
@@ -735,7 +735,7 @@ namespace {
             skillBest = do_skill_level();
 
         if (!Signals.stop && Options["Use Search Log"])
-             pv_info_to_log(pos, depth, bestValue, elapsed_time(), &RootMoves[0].pv[0]);
+             pv_info_to_log(pos, depth, bestValue, SearchTime.elapsed(), &RootMoves[0].pv[0]);
 
         // Filter out startup noise when monitoring best move stability
         if (depth > 2 && BestMoveChanges)
@@ -765,14 +765,14 @@ namespace {
             // Stop search if most of available time is already consumed. We
             // probably don't have enough time to search the first move at the
             // next iteration anyway.
-            if (elapsed_time() > (TimeMgr.available_time() * 62) / 100)
+            if (SearchTime.elapsed() > (TimeMgr.available_time() * 62) / 100)
                 stop = true;
 
             // Stop search early if one move seems to be much better than others
             if (    depth >= 12
                 && !stop
                 && (   (bestMoveNeverChanged &&  pos.captured_piece_type())
-                    || elapsed_time() > (TimeMgr.available_time() * 40) / 100))
+                    || SearchTime.elapsed() > (TimeMgr.available_time() * 40) / 100))
             {
                 Value rBeta = bestValue - EasyMoveMargin;
                 (ss+1)->excludedMove = RootMoves[0].pv[0];
@@ -1269,7 +1269,7 @@ split_point_start: // At split points actual search starts from here
           Signals.firstRootMove = (moveCount == 1);
 
 #ifndef GPSFISH
-          if (pos.thread() == 0 && elapsed_time() > 2000)
+          if (pos.thread() == 0 && SearchTime.elapsed() > 2000)
               cout << "info depth " << depth / ONE_PLY
                    << " currmove " << move_to_uci(move, Chess960)
                    << " currmovenumber " << moveCount + PVIdx << endl;
@@ -2096,20 +2096,6 @@ split_point_start: // At split points actual search starts from here
   }
 
 
-  // current_search_time() returns the number of milliseconds which have passed
-  // since the beginning of the current search.
-
-  int elapsed_time(bool reset) {
-
-    static int searchStartTime;
-
-    if (reset)
-        searchStartTime = system_time();
-
-    return system_time() - searchStartTime;
-  }
-
-
   // score_to_uci() converts a value to a string suitable for use with the UCI
   // protocol specifications:
   //
@@ -2145,7 +2131,7 @@ split_point_start: // At split points actual search starts from here
 
   void pv_info_to_uci(const Position& pos, int depth, Value alpha, Value beta) {
 
-    int t = elapsed_time();
+    int t = SearchTime.elapsed();
     int selDepth = 0;
 
     for (int i = 0; i < Threads.size(); i++)
@@ -2283,7 +2269,7 @@ split_point_start: // At split points actual search starts from here
     static RKISS rk;
 
     // PRNG sequence should be not deterministic
-    for (int i = abs(system_time() % 50); i > 0; i--)
+    for (int i = Time::current_time().msec() % 50; i > 0; i--)
         rk.rand<unsigned>();
 
     // RootMoves are already sorted by score in descending order
@@ -2638,18 +2624,18 @@ void show_tree(Position &pos){
 
 void check_time() {
 
-  static int lastInfoTime;
-  int e = elapsed_time();
+  static Time lastInfoTime = Time::current_time();
 
-  if (system_time() - lastInfoTime >= 1000 || !lastInfoTime)
+  if (lastInfoTime.elapsed() >= 1000)
   {
-      lastInfoTime = system_time();
+      lastInfoTime.restart();
       dbg_print();
   }
 
   if (Limits.ponder)
       return;
 
+  int e = SearchTime.elapsed();
   bool stillAtFirstMove =    Signals.firstRootMove
                          && !Signals.failedLowAtRoot
                          &&  e > TimeMgr.available_time();
