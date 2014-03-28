@@ -66,14 +66,14 @@ typedef void*(*start_fn)(void*);
 #  define cond_wait(x,y) pthread_cond_wait(&(x),&(y))
 #  define cond_timedwait(x,y,z) pthread_cond_timedwait(&(x),&(y),z)
 #ifdef GPSFISH
-#  define thread_create(x,f,id) { \
+#  define thread_create(x,f,t) { \
     pthread_attr_t attr; \
     pthread_attr_init(&attr); \
     pthread_attr_setstacksize(&attr,1024*1024*16); \
-    !pthread_create(&(x),NULL,(start_fn)f,&(id)) \
+    !pthread_create(&(x),NULL,(start_fn)f,t) \
 }
 #else
-#  define thread_create(x,f,id) !pthread_create(&(x),NULL,(start_fn)f,&(id))
+#  define thread_create(x,f,t) !pthread_create(&(x),NULL,(start_fn)f,t)
 #endif
 #  define thread_join(x) pthread_join(x, NULL)
 
@@ -114,9 +114,9 @@ typedef HANDLE ThreadHandle;
 #  define cond_wait(x,y) { lock_release(y); WaitForSingleObject(x, INFINITE); lock_grab(y); }
 #  define cond_timedwait(x,y,z) { lock_release(y); WaitForSingleObject(x,z); lock_grab(y); }
 #ifdef GPSFISH
-#  define thread_create(x,f,id) (x = CreateThread(NULL,16*1024*1024,(LPTHREAD_START_ROUTINE)f,&(id),0,NULL), x != NULL)
+#  define thread_create(x,f,t) (x = CreateThread(NULL,16*1024*1024,(LPTHREAD_START_ROUTINE)f,t,0,NULL), x != NULL)
 #else
-#  define thread_create(x,f,id) (x = CreateThread(NULL,0,(LPTHREAD_START_ROUTINE)f,&(id),0,NULL), x != NULL)
+#  define thread_create(x,f,t) (x = CreateThread(NULL,0,(LPTHREAD_START_ROUTINE)f,t,0,NULL), x != NULL)
 #endif
 #  define thread_join(x) { WaitForSingleObject(x, INFINITE); CloseHandle(x); }
 

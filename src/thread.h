@@ -70,6 +70,9 @@ struct SplitPoint {
 
 struct Thread {
 
+  Thread(int id);
+  ~Thread();
+
   void wake_up();
   bool cutoff_occurred() const;
   bool is_available_to(int master) const;
@@ -106,7 +109,7 @@ class ThreadsManager {
      static storage duration are automatically set to zero before enter main()
   */
 public:
-  Thread& operator[](int threadID) { return threads[threadID]; }
+  Thread& operator[](int threadID) { return *threads[threadID]; }
   void init();
   void exit();
 
@@ -129,7 +132,8 @@ public:
 private:
   friend struct Thread;
 
-  Thread threads[MAX_THREADS + 1]; // Last one is used as a timer
+  Thread* timer;
+  Thread* threads[MAX_THREADS];
   Lock splitLock;
   WaitCondition sleepCond;
   Depth minimumSplitDepth;
