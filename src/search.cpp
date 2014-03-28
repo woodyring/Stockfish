@@ -28,7 +28,6 @@
 #include "book.h"
 #include "evaluate.h"
 #include "history.h"
-#include "misc.h"
 #include "movegen.h"
 #include "movepick.h"
 #include "search.h"
@@ -72,6 +71,7 @@ namespace Search {
   LimitsType Limits;
   std::vector<RootMove> RootMoves;
   Position RootPosition;
+  Time SearchTime;
 }
 
 using std::string;
@@ -153,7 +153,6 @@ namespace {
   Value DrawValue;
 #endif
   TimeManager TimeMgr;
-  Time SearchTime;
   int BestMoveChanges;
   int SkillLevel;
   bool SkillLevelEnabled, Chess960;
