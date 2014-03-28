@@ -1968,14 +1968,12 @@ split_point_start: // At split points actual search starts from here
         return true;
 #else
     ksq = pos.king_square(pos.side_to_move());
-    if (piece_is_slider(p1) && (squares_between(t1, ksq) & f2))
-    {
-        Bitboard occ = pos.occupied_squares();
-        occ ^= f2;
-        if (pos.attacks_from(p1, t1, occ) & ksq)
-            return true;
-    }
+    if (    piece_is_slider(p1)
+        && (squares_between(t1, ksq) & f2)
+        && (pos.attacks_from(p1, t1, pos.occupied_squares() ^ f2) & ksq))
+        return true;
 #endif
+
     return false;
   }
 
