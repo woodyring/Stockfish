@@ -43,6 +43,7 @@ OptionsMap Options; // Global object
 namespace {
 
 /// 'On change' actions, triggered by an option's value change
+void on_logger(const UCIOption& o) { logger_set(o); }
 #ifndef GPSFISH
 void on_eval(const UCIOption&) { Eval::init(); }
 #endif
@@ -109,6 +110,7 @@ OptionsMap::OptionsMap() {
   int msd = cpus < 8 ? 4 : 7;
   OptionsMap& o = *this;
 
+  o["Use Debug Log"]               = UCIOption(false, on_logger);
   o["Use Search Log"]              = UCIOption(false);
   o["Search Log Filename"]         = UCIOption("SearchLog.txt");
 #ifndef GPSFISH
