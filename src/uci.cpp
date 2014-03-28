@@ -108,11 +108,8 @@ void uci_loop() {
 
 #ifdef GPSFISH
       else if (token == "usinewgame")
-#else
-      else if (token == "ucinewgame")
-#endif
           pos.from_fen(StartFEN, false);
-
+#endif
       else if (token == "isready")
       {
 #ifdef GPSFISH
