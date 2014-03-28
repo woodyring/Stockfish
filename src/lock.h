@@ -27,6 +27,7 @@
 typedef pthread_mutex_t Lock;
 typedef pthread_cond_t WaitCondition;
 typedef pthread_t ThreadHandle;
+typedef void*(*start_fn)(void*);
 
 #  define lock_init(x) pthread_mutex_init(&(x), NULL)
 #  define lock_grab(x) pthread_mutex_lock(&(x))
@@ -42,10 +43,10 @@ typedef pthread_t ThreadHandle;
     pthread_attr_t attr; \
     pthread_attr_init(&attr); \
     pthread_attr_setstacksize(&attr,1024*1024*16); \
-    !pthread_create(&(x),NULL,f,&(id)); \
+    !pthread_create(&(x),NULL,(start_fn)f,&(id)) \
 }
 #else
-#  define thread_create(x,f,id) !pthread_create(&(x),NULL,f,&(id))
+#  define thread_create(x,f,id) !pthread_create(&(x),NULL,(start_fn)f,&(id))
 #endif
 #  define thread_join(x) pthread_join(x, NULL)
 
@@ -80,9 +81,9 @@ typedef HANDLE ThreadHandle;
 #  define cond_wait(x,y) { lock_release(y); WaitForSingleObject(x, INFINITE); lock_grab(y); }
 #  define cond_timedwait(x,y,z) { lock_release(y); WaitForSingleObject(x,z); lock_grab(y); }
 #ifdef GPSFISH
-#  define thread_create(x,f,id) (x = CreateThread(NULL,16*1024*1024,f,&(id),0,NULL), x != NULL)
+#  define thread_create(x,f,id) (x = CreateThread(NULL,16*1024*1024,(LPTHREAD_START_ROUTINE)f,&(id),0,NULL), x != NULL)
 #else
-#  define thread_create(x,f,id) (x = CreateThread(NULL,0,f,&(id),0,NULL), x != NULL)
+#  define thread_create(x,f,id) (x = CreateThread(NULL,0,(LPTHREAD_START_ROUTINE)f,&(id),0,NULL), x != NULL)
 #endif
 #  define thread_join(x) { WaitForSingleObject(x, INFINITE); CloseHandle(x); }
 
