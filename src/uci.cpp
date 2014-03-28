@@ -92,7 +92,9 @@ void uci_loop() {
 #endif
       {
           Search::Signals.stop = true;
-          Threads.wait_for_search_finished(); // Cannot quit while threads are running
+
+          if (token == "quit") // Cannot quit while threads are still running
+              Threads.wait_for_search_finished();
       }
 
       else if (token == "ponderhit")
@@ -103,10 +105,7 @@ void uci_loop() {
           Search::Limits.ponder = false;
 
           if (Search::Signals.stopOnPonderhit)
-          {
               Search::Signals.stop = true;
-              Threads.wait_for_search_finished();
-          }
       }
 
       else if (token == "go")
