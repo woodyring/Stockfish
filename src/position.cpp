@@ -153,9 +153,9 @@ const Value PieceValueEndgame[17] = {
 
 // To convert a Piece to and from a FEN char
 #ifdef GPSFISH
-static const string PieceToChar(".PLNSGBRK  plnsgbrk  .");
+static const string PieceToChar(".PLNSGBRK  plnsgbrk");
 #else
-static const string PieceToChar(" PNBRQK  pnbrqk  .");
+static const string PieceToChar(" PNBRQK  pnbrqk");
 #endif
 
 
@@ -260,7 +260,7 @@ void Position::from_fen(const string& fenStr, bool isChess960, Thread* th) {
           sq += Square(token - '0'); // Advance the given number of files
 
       else if (token == '/')
-          sq = make_square(FILE_A, rank_of(sq) - Rank(2));
+          sq -= Square(16);
 
       else if ((p = PieceToChar.find(token)) != string::npos)
       {
@@ -450,7 +450,11 @@ const string Position::to_fen() const {
 
 void Position::print(Move move) const {
 
-  const char* dottedLine = "\n+---+---+---+---+---+---+---+---+\n";
+  const string dottedLine =            "\n+---+---+---+---+---+---+---+---+";
+  const string twoRows =  dottedLine + "\n|   | . |   | . |   | . |   | . |"
+                        + dottedLine + "\n| . |   | . |   | . |   | . |   |";
+
+  string brd = twoRows + twoRows + twoRows + twoRows + dottedLine;
 
 #ifdef GPSFISH
   if (move.isValid())
@@ -461,26 +465,18 @@ void Position::print(Move move) const {
       Position p(*this);
       cout << "\nMove is: " << (sideToMove == BLACK ? ".." : "") << move_to_san(p, move);
   }
+
 #ifdef GPSFISH
   cout << osl_state << endl;
 #else
-  for (Rank rank = RANK_8; rank >= RANK_1; rank--)
-  {
-      cout << dottedLine << '|';
-      for (File file = FILE_A; file <= FILE_H; file++)
-      {
-          Square sq = make_square(file, rank);
-          Piece piece = piece_on(sq);
-          char c = (color_of(piece) == BLACK ? '=' : ' ');
 
-          if (piece == NO_PIECE && !opposite_colors(sq, SQ_A1))
-              piece++; // Index the dot
+  for (Square sq = SQ_A1; sq <= SQ_H8; sq++)
+      if (piece_on(sq) != NO_PIECE)
+          brd[513 - 68*rank_of(sq) + 4*file_of(sq)] = PieceToChar[piece_on(sq)];
 
-          cout << c << PieceToChar[piece] << c << '|';
-      }
-  }
+  cout << brd << "\nFen is: " << to_fen() << "\nKey is: " << st->key << endl;
+
 #endif
-  cout << dottedLine << "Fen is: " << to_fen() << "\nKey is: " << st->key << endl;
 }
 
 
