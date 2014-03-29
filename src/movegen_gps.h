@@ -14,7 +14,7 @@ struct Store{
         (*mlist++).move = move;
     }
     // old interfaces
-    void simpleMove(Square from,Square to,Ptype ptype, 
+    void simpleMove(Square from,Square to,Ptype ptype,
             bool isPromote,Player p)
     {
         simpleMove(from,to,ptype,isPromote,p,
@@ -56,7 +56,7 @@ struct NoCaptureStore{
         (*mlist++).move = move;
     }
     // old interfaces
-    void simpleMove(Square from,Square to,Ptype ptype, 
+    void simpleMove(Square from,Square to,Ptype ptype,
             bool isPromote,Player p)
     {
 #ifdef PROMOTE_AS_CAPTURE

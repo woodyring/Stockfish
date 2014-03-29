@@ -33,7 +33,7 @@ int setup_network(int *pargc, char* argv[]) {
     dup2(sock_fd,1);
     argc--;
     using_tcp_connection = true;
-  }    
+  }
   *pargv = argc;
 }
 #endif

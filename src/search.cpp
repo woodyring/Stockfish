@@ -229,7 +229,7 @@ namespace {
     if(pos.side_to_move()==osl::BLACK) return DrawValue;
     else return -DrawValue;
   }
-#endif  
+#endif
 #ifdef MOVE_STACK_REJECTIONS
   osl::container::MoveStack moveStacks[MAX_THREADS];
   bool move_stack_rejections_probe(osl::Move m, Position const &pos,SearchStack* ss,Value alpha){
@@ -251,7 +251,7 @@ namespace {
     }
     return ret;
   }
-#endif  
+#endif
 #ifdef GPSFISH
   bool can_capture_king(Position const& pos){
     Color us=pos.side_to_move();
@@ -259,7 +259,7 @@ namespace {
     const osl::Square king = pos.king_square(them);
     return pos.osl_state.hasEffectAt(us, king);
   }
-#endif  
+#endif
 } // namespace
 
 
@@ -445,14 +445,14 @@ struct CheckmateSolver
     osl::checkmate::DfpnTable table_black;
     osl::checkmate::DfpnTable table_white;
     osl::checkmate::Dfpn dfpn[2];
-    CheckmateSolver() 
+    CheckmateSolver()
     {
         table_black.setAttack(osl::BLACK);
         table_white.setAttack(osl::WHITE);
         dfpn[playerToIndex(osl::BLACK)].setTable(&table_black);
         dfpn[playerToIndex(osl::WHITE)].setTable(&table_white);
     }
-    Move hasCheckmate(Position& pos, size_t nodes) 
+    Move hasCheckmate(Position& pos, size_t nodes)
     {
         const Depth CheckmateDepth = ONE_PLY*100;
         TTEntry* tte = TT.probe(pos.key());
@@ -523,11 +523,11 @@ struct TestCheckmate
                 StateInfo st;
                 pos->do_undo_move(moves[next.first], st, next);
             }
-        }	
+        }
     }
 };
 
-void run_checkmate(int depth, uint64_t nodes, Position& pos) 
+void run_checkmate(int depth, uint64_t nodes, Position& pos)
 {
     static boost::scoped_ptr<CheckmateSolver> solver(new CheckmateSolver);
     StateInfo st;
@@ -717,18 +717,6 @@ namespace {
         if (depth > 2 && BestMoveChanges)
             bestMoveNeverChanged = false;
 
-#if 0 //def GPSFISH
-        // removed a6fc3d6ee501911375b29ebdb09638eb6789d091
-        if (! Limits.ponder
-          && !Signals.stop
-          && depth >= 5
-          && abs(bestValues[depth])     >= VALUE_MATE_IN_MAX_PLY
-          && abs(bestValues[depth - 1]) >= VALUE_MATE_IN_MAX_PLY)
-        {
-            Signals.stop = true;
-        }
-#endif
-
         // Do we have time for the next iteration? Can we stop searching now?
         if (!Signals.stop && !Signals.stopOnPonderhit && Limits.use_time_management())
         {
@@ -782,6 +770,7 @@ namespace {
         std::swap(RootMoves[0], *std::find(RootMoves.begin(), RootMoves.end(), skillBest));
     }
   }
+
 
   // search<>() is the main search function for both PV and non-PV nodes and for
   // normal and SplitPoint nodes. When called just after a split point the search
@@ -862,9 +851,9 @@ namespace {
     if (Signals.stop || ss->ply > MAX_PLY || pos.is_draw(repeat_check))
         return value_draw(pos);
 
-    if(repeat_check<0) 
+    if(repeat_check<0)
         return mated_in(ss->ply+1);
-    else if(repeat_check>0) 
+    else if(repeat_check>0)
         return mate_in(ss->ply);
 #endif
     // Step 2. Check for aborted search and immediate draw
@@ -879,11 +868,11 @@ namespace {
 
 #ifdef GPSFISH
     if ( !Root ){
-        if(repeat_check<0) 
+        if(repeat_check<0)
             return mated_in(ss->ply);
-        else if(repeat_check>0) 
+        else if(repeat_check>0)
             return mate_in(ss->ply);
-        else if(osl::EnterKing::canDeclareWin(pos.osl_state)) 
+        else if(osl::EnterKing::canDeclareWin(pos.osl_state))
             return mate_in(ss->ply+1);
     }
     if (!ss->checkmateTested) {
@@ -936,6 +925,11 @@ namespace {
 #endif
 
     tte = TT.probe(posKey);
+#ifdef GPSFISH
+    ttMove = RootNode ? RootMoves[PVIdx].pv[0] : tte ? tte->move(pos) : MOVE_NONE;
+#else
+    ttMove = RootNode ? RootMoves[PVIdx].pv[0] : tte ? tte->move() : MOVE_NONE;
+#endif
     ttValue = tte ? value_from_tt(tte->value(), ss->ply) : VALUE_ZERO;
 
     // At PV nodes we check for exact scores, while at non-PV nodes we check for
@@ -1154,7 +1148,6 @@ namespace {
                 --pos.eval;
                 });
 #else
-=======
                 pos.undo_move(move);
 #endif
                 if (value >= rbeta)
@@ -1233,7 +1226,7 @@ split_point_start: // At split points actual search starts from here
               lock_grab(&(sp->lock));
           continue;
       }
-#endif      
+#endif
 
       if (RootNode)
       {
@@ -1312,8 +1305,8 @@ split_point_start: // At split points actual search starts from here
           // but fixing this made program slightly weaker.
           Depth predictedDepth = newDepth - reduction<PvNode>(depth, moveCount);
           futilityValue =  futilityBase + futility_margin(predictedDepth, moveCount)
-#if 0 //def GPSFISH
-                         + H.gain(move.ptypeO(), to_sq(move));
+#ifdef GPSFISH
+                         + H.gain(move.ptypeO(), to_sq(move)); // XXX
 #else
                          + H.gain(pos.piece_moved(move), to_sq(move));
 #endif
@@ -1594,7 +1587,7 @@ split_point_start: // At split points actual search starts from here
     if(!pos.osl_state.inCheck()
             && ImmediateCheckmate::hasCheckmateMove
             (pos.side_to_move(),pos.osl_state,bestMove)) {
-        return mate_in(ss->ply); 
+        return mate_in(ss->ply);
     }
 #endif
 
@@ -1607,6 +1600,11 @@ split_point_start: // At split points actual search starts from here
     // Transposition table lookup. At PV nodes, we don't use the TT for
     // pruning, but only for move ordering.
     tte = TT.probe(pos.key());
+#ifdef GPSFISH
+    ttMove = (tte ? tte->move(pos) : MOVE_NONE);
+#else
+    ttMove = (tte ? tte->move() : MOVE_NONE);
+#endif
     ttValue = tte ? value_from_tt(tte->value(),ss->ply) : VALUE_ZERO;
 
     if (!PvNode && tte && can_return_tt(tte, ttDepth, ttValue, beta))
@@ -1669,7 +1667,7 @@ split_point_start: // At split points actual search starts from here
 
 #ifdef MOVE_STACK_REJECTIONS
       if(move_stack_rejections_probe(move,pos,ss,alpha)) continue;
-#endif      
+#endif
 
       givesCheck = pos.move_gives_check(move, ci);
 
@@ -2285,9 +2283,11 @@ void RootMove::insert_pv_in_tt(Position& pos) {
 #endif
 }
 
+#ifdef GPSFISH
 inline bool single_bit(uint64_t b) {
   return !(b & (b - 1));
 }
+#endif
 
 /// Thread::idle_loop() is where the thread is parked when it has no work to do
 
@@ -2435,7 +2435,7 @@ void do_checkmate(Position& pos, int mateTime){
     double seconds=(double)mateTime/1000.0;
     osl::misc::MilliSeconds start = osl::misc::MilliSeconds::now();
     size_t step = 100000, total = 0;
-    double scale = 1.0; 
+    double scale = 1.0;
     for (size_t limit = step; true; limit = static_cast<size_t>(step*scale)) {
         result = dfpn.
             hasCheckmateMove(state, osl::hash::HashKey(state), path, limit, checkmate_move, Move(), &pv);
@@ -2468,9 +2468,11 @@ void do_checkmate(Position& pos, int mateTime){
 }
 #endif
 
+#ifdef GPSFISH
 void show_tree(Position &pos){
     show_tree_rec(pos);
 }
+#endif
 
 /// check_time() is called by the timer thread when the timer triggers. It is
 /// used to print debug info and, more important, to detect when we are out of

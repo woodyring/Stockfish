@@ -20,6 +20,8 @@
 #if !defined(POSITION_H_INCLUDED)
 #define POSITION_H_INCLUDED
 
+#include <cassert>
+
 #ifdef GPSFISH
 #include "osl/state/numEffectState.h"
 #include "osl/misc/carray3d.h"
@@ -30,7 +32,6 @@ typedef osl::eval::ml::OpenMidEndingEval eval_t;
 #include "bitboard.h"
 #endif
 
-#include <cassert>
 #include "types.h"
 
 

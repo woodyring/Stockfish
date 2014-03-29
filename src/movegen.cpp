@@ -272,6 +272,7 @@ namespace {
     return mlist;
   }
 
+
   template<GenType Type> FORCE_INLINE
   MoveStack* generate_all_moves(const Position& pos, MoveStack* mlist, Color us,
                                 Bitboard target, const CheckInfo* ci = NULL) {
