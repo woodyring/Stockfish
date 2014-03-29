@@ -26,6 +26,7 @@
 #include "position.h"
 #include "search.h"
 #include "thread.h"
+#include "tt.h"
 #include "ucioption.h"
 
 #ifdef GPSFISH
@@ -121,7 +122,7 @@ void UCI::loop(const string& args) {
       }
 #else
       else if (token == "ucinewgame")
-      { /* Avoid returning "Unknown command" */ }
+          TT.clear();
 #endif
 
       else if (token == "isready")
