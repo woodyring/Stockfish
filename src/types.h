@@ -182,7 +182,20 @@ enum Value {
   VALUE_MATED_IN_MAX_PLY = -VALUE_MATE + MAX_PLY,
 
   VALUE_ENSURE_INTEGER_SIZE_P = INT_MAX,
-  VALUE_ENSURE_INTEGER_SIZE_N = INT_MIN
+  VALUE_ENSURE_INTEGER_SIZE_N = INT_MIN,
+
+#ifndef GPSFISH
+  PawnValueMidgame   = 198,
+  PawnValueEndgame   = 258,
+  KnightValueMidgame = 817,
+  KnightValueEndgame = 846,
+  BishopValueMidgame = 836,
+  BishopValueEndgame = 857,
+  RookValueMidgame   = 1270,
+  RookValueEndgame   = 1278,
+  QueenValueMidgame  = 2521,
+  QueenValueEndgame  = 2558
+#endif
 };
 
 #ifdef GPSFISH
@@ -363,17 +376,6 @@ inline Score apply_weight(Score v, Score w) {
 #include "osl/eval/ptypeEvalTraits.h"
 using osl::PAWN;
 const Value PawnValueMidgame   = (Value)osl::eval::PtypeEvalTraits<osl::PAWN>::val;
-#else
-const Value PawnValueMidgame   = Value(198);
-const Value PawnValueEndgame   = Value(258);
-const Value KnightValueMidgame = Value(817);
-const Value KnightValueEndgame = Value(846);
-const Value BishopValueMidgame = Value(836);
-const Value BishopValueEndgame = Value(857);
-const Value RookValueMidgame   = Value(1270);
-const Value RookValueEndgame   = Value(1278);
-const Value QueenValueMidgame  = Value(2521);
-const Value QueenValueEndgame  = Value(2558);
 #endif
 
 #ifdef GPSFISH
