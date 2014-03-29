@@ -542,10 +542,6 @@ inline int square_distance(Square s1, Square s2) {
 }
 #endif
 
-inline char piece_type_to_char(PieceType pt) {
-  return " PNBRQK"[pt];
-}
-
 inline char file_to_char(File f) {
 #ifdef GPSFISH
   return char(int('a')+FILE_9-f);
