@@ -17,7 +17,6 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <deque>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -52,6 +51,10 @@ namespace {
 #else
   const char* StartFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 #endif
+
+  // Keep track of position keys along the setup moves (from start position to the
+  // position just before to start searching). Needed by repetition draw detection.
+  Search::StateStackPtr SetupStates;
 
   void set_option(istringstream& up);
   void set_position(Position& pos, istringstream& up);
@@ -229,10 +232,6 @@ namespace {
 
   void set_position(Position& pos, istringstream& is) {
 
-    // Keep track of position keys along the setup moves (from start position to the
-    // position just before to start searching). Needed by repetition draw detection.
-    static std::deque<StateInfo> st;
-
     Move m;
     string token, fen;
 
@@ -261,13 +260,13 @@ namespace {
 #else
     pos.from_fen(fen, Options["UCI_Chess960"], Threads.main_thread());
 #endif
-    st.clear();
+    SetupStates = Search::StateStackPtr(new std::stack<StateInfo>());
 
     // Parse move list (if any)
     while (is >> token && (m = move_from_uci(pos, token)) != MOVE_NONE)
     {
-        st.push_back(StateInfo());
-        pos.do_move(m, st.back());
+        SetupStates->push(StateInfo());
+        pos.do_move(m, SetupStates->top());
     }
 
 #ifdef GPSFISH
@@ -369,6 +368,6 @@ namespace {
     }
 #endif
 
-    Threads.start_searching(pos, limits, searchMoves);
+    Threads.start_searching(pos, limits, searchMoves, SetupStates);
   }
 }

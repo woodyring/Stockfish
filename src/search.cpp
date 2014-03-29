@@ -72,6 +72,7 @@ namespace Search {
   std::vector<RootMove> RootMoves;
   Position RootPosition;
   Time SearchTime;
+  StateStackPtr SetupStates;
 }
 
 using std::string;
