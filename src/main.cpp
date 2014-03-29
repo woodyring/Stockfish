@@ -76,12 +76,12 @@ int main(int argc, char* argv[]) {
 #endif
 
   Search::init();
-  Threads.init();
 
 #ifndef GPSFISH
   Eval::init();
 #endif
 
+  Threads.init();
   TT.set_size(Options["Hash"]);
 
   std::string args;
@@ -90,4 +90,6 @@ int main(int argc, char* argv[]) {
       args += std::string(argv[i]) + " ";
 
   UCI::loop(args);
+
+  Threads.exit();
 }
