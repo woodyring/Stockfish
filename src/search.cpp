@@ -212,11 +212,11 @@ namespace {
     }
 
     // Test for a capture that triggers a pawn endgame
-    if (   captureOrPromotion
-        && type_of(pos.piece_on(to_sq(m))) != PAWN
+    if (    captureOrPromotion
+        &&  type_of(pos.piece_on(to_sq(m))) != PAWN
+        && !is_special(m)
         && (  pos.non_pawn_material(WHITE) + pos.non_pawn_material(BLACK)
-            - PieceValueMidgame[pos.piece_on(to_sq(m))] == VALUE_ZERO)
-        && !is_special(m))
+            - PieceValueMidgame[pos.piece_on(to_sq(m))] == VALUE_ZERO))
         return true;
 #endif
 
@@ -963,10 +963,10 @@ namespace {
         TT.refresh(tte);
         ss->currentMove = ttMove; // Can be MOVE_NONE
 
-        if (   ttValue >= beta
-            && ttMove
+        if (    ttValue >= beta
+            &&  ttMove
             && !pos.is_capture_or_promotion(ttMove)
-            && ttMove != ss->killers[0])
+            &&  ttMove != ss->killers[0])
         {
             ss->killers[1] = ss->killers[0];
             ss->killers[0] = ttMove;
@@ -996,10 +996,10 @@ namespace {
 #ifdef GPSFISH
     if (   !(move = (ss-1)->currentMove).isPass()
 #else
-    if (   (move = (ss-1)->currentMove) != MOVE_NULL
+    if (    (move = (ss-1)->currentMove) != MOVE_NULL
 #endif
-        && (ss-1)->eval != VALUE_NONE
-        && ss->eval != VALUE_NONE
+        &&  (ss-1)->eval != VALUE_NONE
+        &&  ss->eval != VALUE_NONE
         && !pos.captured_piece_type()
         && !is_special(move))
     {
@@ -1203,19 +1203,19 @@ split_point_start: // At split points actual search starts from here
     futilityBase = ss->eval + ss->evalMargin;
     singularExtensionNode =   !RootNode
                            && !SpNode
-                           && depth >= SingularExtensionDepth[PvNode]
-                           && ttMove != MOVE_NONE
+                           &&  depth >= SingularExtensionDepth[PvNode]
+                           &&  ttMove != MOVE_NONE
 #ifdef GPSFISH
                            && excludedMove==MOVE_NONE // Recursive singular search is not allowed
 #else
                            && !excludedMove // Recursive singular search is not allowed
 #endif
                            && (tte->type() & BOUND_LOWER)
-                           && tte->depth() >= depth - 3 * ONE_PLY;
+                           &&  tte->depth() >= depth - 3 * ONE_PLY;
 
     // Step 11. Loop through moves
     // Loop through all pseudo-legal moves until no moves remain or a beta cutoff occurs
-    while (   bestValue < beta
+    while (    bestValue < beta
            && (move = mp.next_move()) != MOVE_NONE
            && !thisThread->cutoff_occurred()
            && !Signals.stop)
@@ -1280,10 +1280,10 @@ split_point_start: // At split points actual search starts from here
       // is singular and should be extended. To verify this we do a reduced search
       // on all the other moves but the ttMove, if result is lower than ttValue minus
       // a margin then we extend ttMove.
-      if (   singularExtensionNode
+      if (    singularExtensionNode
           && !ext
-          && move == ttMove
-          && pos.pl_move_is_legal(move, ci.pinned))
+          &&  move == ttMove
+          &&  pos.pl_move_is_legal(move, ci.pinned))
       {
           if (abs(ttValue) < VALUE_KNOWN_WIN)
           {
@@ -1386,7 +1386,7 @@ split_point_start: // At split points actual search starts from here
 
       // Step 15. Reduced depth search (LMR). If the move fails high will be
       // re-searched at full depth.
-      if (   depth > 3 * ONE_PLY
+      if (    depth > 3 * ONE_PLY
           && !isPvMove
           && !captureOrPromotion
           && !dangerous
@@ -1501,9 +1501,9 @@ split_point_start: // At split points actual search starts from here
 
       // Step 19. Check for split
       if (   !SpNode
-          && depth >= Threads.min_split_depth()
-          && bestValue < beta
-          && Threads.available_slave_exists(thisThread)
+          &&  depth >= Threads.min_split_depth()
+          &&  bestValue < beta
+          &&  Threads.available_slave_exists(thisThread)
           && !Signals.stop
           && !thisThread->cutoff_occurred())
           bestValue = Threads.split<FakeSplit>(pos, ss, alpha, beta, bestValue, &bestMove,
@@ -1730,8 +1730,8 @@ split_point_start: // At split points actual search starts from here
 
       // Detect non-capture evasions that are candidate to be pruned
       evasionPrunable =   !PvNode
-                       && inCheck
-                       && bestValue > VALUE_MATED_IN_MAX_PLY
+                       &&  inCheck
+                       &&  bestValue > VALUE_MATED_IN_MAX_PLY
                        && !pos.is_capture(move)
 #ifndef GPSFISH
                        && !pos.can_castle(pos.side_to_move())
@@ -2520,8 +2520,8 @@ void Thread::idle_loop(SplitPoint* sp_master) {
 
           // Wake up master thread so to allow it to return from the idle loop in
           // case we are the last slave of the split point.
-          if (   Threads.use_sleeping_threads()
-              && this != sp->master
+          if (    Threads.use_sleeping_threads()
+              &&  this != sp->master
               && !sp->master->is_searching)
               sp->master->wake_up();
 
