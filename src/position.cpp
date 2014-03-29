@@ -27,6 +27,7 @@
 #include "bitcount.h"
 #endif
 #include "movegen.h"
+#include "notation.h"
 #include "position.h"
 #ifndef GPSFISH
 #include "psqtab.h"
