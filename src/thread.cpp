@@ -115,6 +115,8 @@ void Thread::main_loop() {
       is_searching = true;
 
       Search::think();
+
+      assert(is_searching);
   }
 }
 
@@ -199,7 +201,7 @@ void ThreadPool::init() {
 
 ThreadPool::~ThreadPool() {
 
-  for (size_t i = 0; i < size(); i++)
+  for (size_t i = 0; i < threads.size(); i++)
       delete threads[i];
 
   delete timer;
@@ -220,10 +222,10 @@ void ThreadPool::read_uci_options() {
 
   assert(requested > 0);
 
-  while (size() < requested)
+  while (threads.size() < requested)
       threads.push_back(new Thread(&Thread::idle_loop));
 
-  while (size() > requested)
+  while (threads.size() > requested)
   {
       delete threads.back();
       threads.pop_back();
@@ -237,7 +239,7 @@ void ThreadPool::read_uci_options() {
 
 void ThreadPool::wake_up() const {
 
-  for (size_t i = 0; i < size(); i++)
+  for (size_t i = 0; i < threads.size(); i++)
   {
       threads[i]->maxPly = 0;
       threads[i]->do_sleep = false;
@@ -253,8 +255,9 @@ void ThreadPool::wake_up() const {
 
 void ThreadPool::sleep() const {
 
-  for (size_t i = 1; i < size(); i++) // Main thread will go to sleep by itself
-      threads[i]->do_sleep = true; // to avoid a race with start_searching()
+  // Main thread will go to sleep by itself to avoid a race with start_searching()
+  for (size_t i = 1; i < threads.size(); i++)
+      threads[i]->do_sleep = true;
 }
 
 
@@ -263,7 +266,7 @@ void ThreadPool::sleep() const {
 
 bool ThreadPool::available_slave_exists(Thread* master) const {
 
-  for (size_t i = 0; i < size(); i++)
+  for (size_t i = 0; i < threads.size(); i++)
       if (threads[i]->is_available_to(master))
           return true;
 
@@ -328,7 +331,7 @@ Value ThreadPool::split(Position& pos, Stack* ss, Value alpha, Value beta,
   sp.mutex.lock();
   mutex.lock();
 
-  for (size_t i = 0; i < size() && !Fake; ++i)
+  for (size_t i = 0; i < threads.size() && !Fake; ++i)
       if (threads[i]->is_available_to(master))
       {
           sp.slavesMask |= 1ULL << i;
