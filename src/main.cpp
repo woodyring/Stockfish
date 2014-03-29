@@ -43,7 +43,6 @@
 #include "tt.h"
 
 
-void uci_loop(const std::string&);
 void kpk_bitbase_init();
 
 #if defined(GPSFISH) && !defined(_WIN32)
@@ -102,7 +101,7 @@ int main(int argc, char* argv[]) {
 #  endif
 #endif
 
-  UCIOptions::init(Options);
+  UCI::init(Options);
 
 #ifndef GPSFISH
   Bitboards::init();
@@ -123,5 +122,5 @@ int main(int argc, char* argv[]) {
   for (int i = 1; i < argc; i++)
       args += std::string(argv[i]) + " ";
 
-  uci_loop(args);
+  UCI::loop(args);
 }
