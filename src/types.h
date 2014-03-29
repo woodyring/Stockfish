@@ -373,18 +373,39 @@ inline Score apply_weight(Score v, Score w) {
 #undef ENABLE_SAFE_OPERATORS_ON
 
 #ifdef GPSFISH
-#include "osl/eval/ptypeEvalTraits.h"
-using osl::PAWN;
-const Value PawnValueMidgame   = (Value)osl::eval::PtypeEvalTraits<osl::PAWN>::val;
+#include "osl/misc/carray3d.h"
 #endif
+
+namespace Zobrist {
+
+#ifdef GPSFISH
+  extern osl::misc::CArray3d<Key,2,osl::PTYPE_SIZE,osl::Square::SIZE> psq;
+#else
+  extern Key psq[2][8][64]; // [color][pieceType][square]/[piece count]
+  extern Key enpassant[8];  // [file]
+  extern Key castle[16];    // [castleRight]
+#endif
+  extern Key side;
+  extern Key exclusion;
+
+  void init();
+}
 
 #ifdef GPSFISH
 extern const Value PieceValueMidgame[osl::PTYPE_SIZE];
 extern const Value PieceValueEndgame[osl::PTYPE_SIZE];
 #else
+extern Score pieceSquareTable[16][64];
+extern int SquareDistance[64][64];
 extern const Value PieceValueMidgame[17]; // Indexed by Piece or PieceType
 extern const Value PieceValueEndgame[17];
-extern int SquareDistance[64][64];
+#endif
+
+
+#ifdef GPSFISH
+#include "osl/eval/ptypeEvalTraits.h"
+using osl::PAWN;
+const Value PawnValueMidgame   = (Value)osl::eval::PtypeEvalTraits<osl::PAWN>::val;
 #endif
 
 #ifdef GPSFISH

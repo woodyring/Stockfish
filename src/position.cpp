@@ -52,18 +52,11 @@ using std::string;
 using std::cout;
 using std::endl;
 
+// To convert a Piece to and from a FEN char
 #ifdef GPSFISH
-osl::misc::CArray3d<Key,2,osl::PTYPE_SIZE,osl::Square::SIZE> Position::zobrist;
+static const string PieceToChar(".PLNSGBRK  plnsgbrk");
 #else
-Key Position::zobrist[2][8][64];
-Key Position::zobEp[8];
-Key Position::zobCastle[16];
-#endif
-Key Position::zobSideToMove;
-Key Position::zobExclusion;
-
-#ifndef GPSFISH
-Score Position::pieceSquareTable[16][64];
+static const string PieceToChar(" PNBRQK  pnbrqk");
 #endif
 
 // Material values arrays, indexed by Piece
@@ -152,12 +145,84 @@ const Value PieceValueEndgame[17] = {
 };
 #endif
 
-// To convert a Piece to and from a FEN char
-#ifdef GPSFISH
-static const string PieceToChar(".PLNSGBRK  plnsgbrk");
-#else
-static const string PieceToChar(" PNBRQK  pnbrqk");
+#ifndef GPSFISH
+CACHE_LINE_ALIGNMENT
+
+Score pieceSquareTable[16][64];
 #endif
+
+namespace Zobrist {
+
+#ifndef GPSFISH
+Score Position::pieceSquareTable[16][64];
+#endif
+
+#ifdef GPSFISH
+osl::misc::CArray3d<Key,2,osl::PTYPE_SIZE,osl::Square::SIZE> psq;
+#else
+Key psq[2][8][64]; // [color][pieceType][square]/[piece count]
+Key enpassant[8];  // [file]
+Key castle[16];    // [castleRight]
+#endif
+Key side;
+Key exclusion;
+
+/// init() initializes at startup the various arrays used to compute hash keys
+/// and the piece square tables. The latter is a two-step operation: First, the
+/// white halves of the tables are copied from PSQT[] tables. Second, the black
+/// halves of the tables are initialized by flipping and changing the sign of
+/// the white scores.
+
+void init() {
+
+  RKISS rk;
+
+#ifdef GPSFISH
+  for (int i = 0; i < 2; i++)
+      for (int j = 0; j < osl::PTYPE_SIZE; j++)
+          for (int k = 0; k < osl::Square::SIZE; k++)
+              psq[i][j][k] = rk.rand<Key>() & ~1;
+#else
+  for (Color c = WHITE; c <= BLACK; c++)
+      for (PieceType pt = PAWN; pt <= KING; pt++)
+          for (Square s = SQ_A1; s <= SQ_H8; s++)
+              psq[c][pt][s] = rk.rand<Key>();
+
+  for (File f = FILE_A; f <= FILE_H; f++)
+      enpassant[f] = rk.rand<Key>();
+
+  for (int cr = CASTLES_NONE; cr <= ALL_CASTLES; cr++)
+  {
+      Bitboard b = cr;
+      while (b)
+      {
+          Key k = castle[1ULL << pop_lsb(&b)];
+          castle[cr] ^= k ? k : rk.rand<Key>();
+      }
+  }
+#endif
+
+#ifdef GPSFISH
+  side = 1;
+  exclusion  = rk.rand<Key>() & ~1;
+#else
+  side = rk.rand<Key>();
+  exclusion  = rk.rand<Key>();
+
+  for (PieceType pt = PAWN; pt <= KING; pt++)
+  {
+      Score v = make_score(PieceValueMidgame[pt], PieceValueEndgame[pt]);
+
+      for (Square s = SQ_A1; s <= SQ_H8; s++)
+      {
+          pieceSquareTable[make_piece(WHITE, pt)][ s] =  (v + PSQT[pt][s]);
+          pieceSquareTable[make_piece(BLACK, pt)][~s] = -(v + PSQT[pt][s]);
+      }
+  }
+#endif
+}
+
+} // namespace Zobrist
 
 
 /// CheckInfo c'tor
@@ -885,7 +950,7 @@ void Position::do_move(Move m, StateInfo& newSt) {
   //history[st->gamePly++] = key;
 
   // Update side to move
-  key ^= zobSideToMove;
+  key ^= Zobrist::side;
 
   st->pliesFromNull++;
 
@@ -900,14 +965,14 @@ void Position::do_move(Move m, StateInfo& newSt) {
   osl::Ptype capture = m.capturePtype();
   st->capturedType = capture;
   if(capture!=osl::PTYPE_EMPTY){
-    key -= zobrist[them][(int)capture][to.index()];
-    key += zobrist[us][unpromote(capture)][Square::STAND().index()];
+    key -= Zobrist::psq[them][(int)capture][to.index()];
+    key += Zobrist::psq[us][unpromote(capture)][Square::STAND().index()];
   }
   // Update hash key
   if(type_of(m)==PROMOTION)
-    key += zobrist[us][(int)pt][to.index()]-zobrist[us][(int)unpromote(pt)][from.index()];
+    key += Zobrist::psq[us][(int)pt][to.index()]-Zobrist::psq[us][(int)unpromote(pt)][from.index()];
   else
-    key += zobrist[us][(int)pt][to.index()]-zobrist[us][(int)pt][from.index()];
+    key += Zobrist::psq[us][(int)pt][to.index()]-Zobrist::psq[us][(int)pt][from.index()];
 
   st->key = key;
   osl_state.makeMove(m);
@@ -938,7 +1003,7 @@ void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveI
   st = &newSt;
 
   // Update side to move
-  k ^= zobSideToMove;
+  k ^= Zobrist::side;
 
   // Increment the 50 moves rule draw counter. Resetting it to zero in the
   // case of a capture or a pawn move is taken care of later.
@@ -985,7 +1050,7 @@ void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveI
               board[capsq] = NO_PIECE;
           }
 
-          st->pawnKey ^= zobrist[them][PAWN][capsq];
+          st->pawnKey ^= Zobrist::psq[them][PAWN][capsq];
       }
       else
           st->npMaterial[them] -= PieceValueMidgame[capture];
@@ -1008,8 +1073,8 @@ void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveI
       pieceList[them][capture][pieceCount[them][capture]] = SQ_NONE;
 
       // Update hash keys
-      k ^= zobrist[them][capture][capsq];
-      st->materialKey ^= zobrist[them][capture][pieceCount[them][capture]];
+      k ^= Zobrist::psq[them][capture][capsq];
+      st->materialKey ^= Zobrist::psq[them][capture][pieceCount[them][capture]];
 
       // Update incremental scores
       st->psqScore -= pieceSquareTable[make_piece(them, capture)][capsq];
@@ -1019,12 +1084,12 @@ void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveI
   }
 
   // Update hash key
-  k ^= zobrist[us][pt][from] ^ zobrist[us][pt][to];
+  k ^= Zobrist::psq[us][pt][from] ^ Zobrist::psq[us][pt][to];
 
   // Reset en passant square
   if (st->epSquare != SQ_NONE)
   {
-      k ^= zobEp[file_of(st->epSquare)];
+      k ^= Zobrist::enpassant[file_of(st->epSquare)];
       st->epSquare = SQ_NONE;
   }
 
@@ -1032,7 +1097,7 @@ void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveI
   if (st->castleRights && (castleRightsMask[from] | castleRightsMask[to]))
   {
       int cr = castleRightsMask[from] | castleRightsMask[to];
-      k ^= zobCastle[st->castleRights & cr];
+      k ^= Zobrist::castle[st->castleRights & cr];
       st->castleRights &= ~cr;
   }
 
@@ -1061,7 +1126,7 @@ void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveI
           && (attacks_from<PAWN>(from + pawn_push(us), us) & pieces(them, PAWN)))
       {
           st->epSquare = Square((from + to) / 2);
-          k ^= zobEp[file_of(st->epSquare)];
+          k ^= Zobrist::enpassant[file_of(st->epSquare)];
       }
 
       if (type_of(m) == PROMOTION)
@@ -1086,10 +1151,10 @@ void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveI
           pieceList[us][promotion][index[to]] = to;
 
           // Update hash keys
-          k ^= zobrist[us][PAWN][to] ^ zobrist[us][promotion][to];
-          st->pawnKey ^= zobrist[us][PAWN][to];
-          st->materialKey ^=  zobrist[us][promotion][pieceCount[us][promotion]++]
-                            ^ zobrist[us][PAWN][pieceCount[us][PAWN]];
+          k ^= Zobrist::psq[us][PAWN][to] ^ Zobrist::psq[us][promotion][to];
+          st->pawnKey ^= Zobrist::psq[us][PAWN][to];
+          st->materialKey ^=  Zobrist::psq[us][promotion][pieceCount[us][promotion]++]
+                            ^ Zobrist::psq[us][PAWN][pieceCount[us][PAWN]];
 
           // Update incremental score
           st->psqScore +=  pieceSquareTable[make_piece(us, promotion)][to]
@@ -1100,7 +1165,7 @@ void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveI
       }
 
       // Update pawn hash key
-      st->pawnKey ^= zobrist[us][PAWN][from] ^ zobrist[us][PAWN][to];
+      st->pawnKey ^= Zobrist::psq[us][PAWN][from] ^ Zobrist::psq[us][PAWN][to];
 
       // Reset rule 50 draw counter
       st->rule50 = 0;
@@ -1318,18 +1383,18 @@ void Position::do_castle_move(Move m) {
       st->psqScore += psq_delta(rook, rfrom, rto);
 
       // Update hash key
-      st->key ^= zobrist[us][KING][kfrom] ^ zobrist[us][KING][kto];
-      st->key ^= zobrist[us][ROOK][rfrom] ^ zobrist[us][ROOK][rto];
+      st->key ^= Zobrist::psq[us][KING][kfrom] ^ Zobrist::psq[us][KING][kto];
+      st->key ^= Zobrist::psq[us][ROOK][rfrom] ^ Zobrist::psq[us][ROOK][rto];
 
       // Clear en passant square
       if (st->epSquare != SQ_NONE)
       {
-          st->key ^= zobEp[file_of(st->epSquare)];
+          st->key ^= Zobrist::enpassant[file_of(st->epSquare)];
           st->epSquare = SQ_NONE;
       }
 
       // Update castling rights
-      st->key ^= zobCastle[st->castleRights & castleRightsMask[kfrom]];
+      st->key ^= Zobrist::castle[st->castleRights & castleRightsMask[kfrom]];
       st->castleRights &= ~castleRightsMask[kfrom];
 
       // Update checkers BB
@@ -1370,9 +1435,9 @@ void Position::do_null_move(StateInfo& backupSt) {
   if (Do)
   {
       if (st->epSquare != SQ_NONE)
-          st->key ^= zobEp[file_of(st->epSquare)];
+          st->key ^= Zobrist::enpassant[file_of(st->epSquare)];
 
-      st->key ^= zobSideToMove;
+      st->key ^= Zobrist::side;
       prefetch((char*)TT.first_entry(st->key));
 
       st->epSquare = SQ_NONE;
@@ -1576,25 +1641,25 @@ Key Position::compute_key() const {
   for(int num=0;num<osl::Piece::SIZE;num++){
     osl::Piece p=osl_state.pieceOf(num);
     if(osl_state.usedMask().test(num))
-      k += zobrist[playerToIndex(p.owner())][p.ptype()][p.square().index()];
+      k += Zobrist::psq[playerToIndex(p.owner())][p.ptype()][p.square().index()];
   }
 
 #else
 
-  Key k = zobCastle[st->castleRights];
+  Key k = Zobrist::castle[st->castleRights];
 
   for (Bitboard b = pieces(); b; )
   {
       Square s = pop_lsb(&b);
-      k ^= zobrist[color_of(piece_on(s))][type_of(piece_on(s))][s];
+      k ^= Zobrist::psq[color_of(piece_on(s))][type_of(piece_on(s))][s];
   }
 
   if (ep_square() != SQ_NONE)
-      k ^= zobEp[file_of(ep_square())];
+      k ^= Zobrist::enpassant[file_of(ep_square())];
 #endif
 
   if (sideToMove == BLACK)
-      k ^= zobSideToMove;
+      k ^= Zobrist::side;
 
   return k;
 }
@@ -1614,7 +1679,7 @@ Key Position::compute_pawn_key() const {
   for (Bitboard b = pieces(PAWN); b; )
   {
       Square s = pop_lsb(&b);
-      k ^= zobrist[color_of(piece_on(s))][PAWN][s];
+      k ^= Zobrist::psq[color_of(piece_on(s))][PAWN][s];
   }
 
   return k;
@@ -1634,7 +1699,7 @@ Key Position::compute_material_key() const {
   for (Color c = WHITE; c <= BLACK; c++)
       for (PieceType pt = PAWN; pt <= QUEEN; pt++)
           for (int cnt = 0; cnt < piece_count(c, pt); cnt++)
-              k ^= zobrist[c][pt][cnt];
+              k ^= Zobrist::psq[c][pt][cnt];
 
   return k;
 }
@@ -1747,62 +1812,6 @@ bool Position::is_draw() const {
 // Explicit template instantiations
 template bool Position::is_draw<false>() const;
 template bool Position::is_draw<true>() const;
-
-
-/// Position::init() is a static member function which initializes at startup
-/// the various arrays used to compute hash keys and the piece square tables.
-/// The latter is a two-step operation: First, the white halves of the tables
-/// are copied from PSQT[] tables. Second, the black halves of the tables are
-/// initialized by flipping and changing the sign of the white scores.
-
-void Position::init() {
-
-  RKISS rk;
-
-#ifdef GPSFISH
-  for (int i = 0; i < 2; i++)
-      for (int j = 0; j < osl::PTYPE_SIZE; j++)
-          for (int k = 0; k < osl::Square::SIZE; k++)
-              zobrist[i][j][k] = rk.rand<Key>() & ~1;
-#else
-  for (Color c = WHITE; c <= BLACK; c++)
-      for (PieceType pt = PAWN; pt <= KING; pt++)
-          for (Square s = SQ_A1; s <= SQ_H8; s++)
-              zobrist[c][pt][s] = rk.rand<Key>();
-
-  for (File f = FILE_A; f <= FILE_H; f++)
-      zobEp[f] = rk.rand<Key>();
-
-  for (int cr = CASTLES_NONE; cr <= ALL_CASTLES; cr++)
-  {
-      Bitboard b = cr;
-      while (b)
-      {
-          Key k = zobCastle[1ULL << pop_lsb(&b)];
-          zobCastle[cr] ^= k ? k : rk.rand<Key>();
-      }
-  }
-#endif
-
-#ifdef GPSFISH
-  zobSideToMove = 1;
-  zobExclusion  = rk.rand<Key>() & ~1;
-#else
-  zobSideToMove = rk.rand<Key>();
-  zobExclusion  = rk.rand<Key>();
-
-  for (PieceType pt = PAWN; pt <= KING; pt++)
-  {
-      Score v = make_score(PieceValueMidgame[pt], PieceValueEndgame[pt]);
-
-      for (Square s = SQ_A1; s <= SQ_H8; s++)
-      {
-          pieceSquareTable[make_piece(WHITE, pt)][ s] =  (v + PSQT[pt][s]);
-          pieceSquareTable[make_piece(BLACK, pt)][~s] = -(v + PSQT[pt][s]);
-      }
-  }
-#endif
-}
 
 
 /// Position::flip() flips position with the white and black sides reversed. This

@@ -26,7 +26,7 @@ void Position::do_undo_move(Move m, StateInfo& newSt,F const& f){
   //history[st->gamePly++] = key;
 
   // Update side to move
-  key ^= zobSideToMove;
+  key ^= Zobrist::side;
 
   st->pliesFromNull++;
 
@@ -40,14 +40,14 @@ void Position::do_undo_move(Move m, StateInfo& newSt,F const& f){
   osl::Ptype capture = m.capturePtype();
   st->capturedType = capture;
   if(capture!=osl::PTYPE_EMPTY){
-    key -= zobrist[them][(int)capture][to.index()];
-    key += zobrist[us][unpromote(capture)][Square::STAND().index()];
+    key -= Zobrist::psq[them][(int)capture][to.index()];
+    key += Zobrist::psq[us][unpromote(capture)][Square::STAND().index()];
   }
   // Update hash key
   if(type_of(m)==PROMOTION)
-    key += zobrist[us][(int)pt][to.index()]-zobrist[us][(int)unpromote(pt)][from.index()];
+    key += Zobrist::psq[us][(int)pt][to.index()]-Zobrist::psq[us][(int)unpromote(pt)][from.index()];
   else
-    key += zobrist[us][(int)pt][to.index()]-zobrist[us][(int)pt][from.index()];
+    key += Zobrist::psq[us][(int)pt][to.index()]-Zobrist::psq[us][(int)pt][from.index()];
 
   st->key = key;
   prefetch((char*)TT.first_entry(key));
@@ -67,7 +67,7 @@ void Position::do_undo_null_move(StateInfo& backupSt, F const& f){
   backupSt.pliesFromNull = st->pliesFromNull;
   st->previous = &backupSt;
   //history[st->gamePly++] = st->key;
-  st->key ^= zobSideToMove;
+  st->key ^= Zobrist::side;
   prefetch((char*)TT.first_entry(st->key));
   st->pliesFromNull = 0;
   Color us = side_to_move();

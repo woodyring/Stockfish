@@ -245,9 +245,6 @@ public:
   bool eval_is_ok() const;
 #endif
 
-  // Global initialization
-  static void init();
-
 #ifdef GPSFISH
   osl::state::NumEffectState osl_state;
   osl::misc::CArray<int,2> continuous_check; // number of a player's continuous check moves
@@ -300,17 +297,6 @@ private:
   int chess960;
 #endif
 
-  // Static variables
-#ifdef GPSFISH
-  static osl::misc::CArray3d<Key,2,osl::PTYPE_SIZE,osl::Square::SIZE> zobrist;
-#else
-  static Score pieceSquareTable[16][64]; // [piece][square]
-  static Key zobrist[2][8][64];          // [color][pieceType][square]/[piece count]
-  static Key zobEp[8];                   // [file]
-  static Key zobCastle[16];              // [castleRight]
-#endif
-  static Key zobSideToMove;
-  static Key zobExclusion;
 };
 
 inline int64_t Position::nodes_searched() const {
@@ -477,7 +463,7 @@ inline Key Position::key() const {
 }
 
 inline Key Position::exclusion_key() const {
-  return st->key ^ zobExclusion;
+  return st->key ^ Zobrist::exclusion;
 }
 
 #ifndef GPSFISH

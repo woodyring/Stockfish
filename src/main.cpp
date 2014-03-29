@@ -68,15 +68,20 @@ int main(int argc, char* argv[]) {
 #ifndef GPSFISH
   Bitboards::init();
 #endif
-  Position::init();
+
+  Zobrist::init();
+
 #ifndef GPSFISH
   Bitbases::init_kpk();
 #endif
+
   Search::init();
   Threads.init();
+
 #ifndef GPSFISH
   Eval::init();
 #endif
+
   TT.set_size(Options["Hash"]);
 
   std::string args;
