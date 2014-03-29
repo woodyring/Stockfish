@@ -311,12 +311,6 @@ namespace {
     Search::LimitsType limits;
     vector<Move> searchMoves;
 
-#ifdef GPSFISH
-    osl::CArray<int,2> time={{0,0}},inc={{0,0}};
-#else
-    int time[] = { 0, 0 }, inc[] = { 0, 0 };
-#endif
-
     string token;
 
     while (is >> token)

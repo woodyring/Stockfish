@@ -88,6 +88,10 @@ struct LimitsType {
   LimitsType() { memset(this, 0, sizeof(LimitsType)); }
   bool use_time_management() const { return !(movetime | depth | nodes | infinite); }
 
+#ifdef GPSFISH
+    //osl::CArray<int,2> time={{0,0}},inc={{0,0}};
+#endif
+
   int time[2], inc[2], movestogo, depth, nodes, movetime, infinite, ponder;
 };
 
