@@ -43,10 +43,8 @@
 #include "tt.h"
 
 
-using namespace std;
-
-extern void uci_loop(const std::string&);
-extern void kpk_bitbase_init();
+void uci_loop(const std::string&);
+void kpk_bitbase_init();
 
 #if defined(GPSFISH) && !defined(_WIN32)
 int setup_network(int *pargc, char* argv[]) {
@@ -103,6 +101,8 @@ int main(int argc, char* argv[]) {
   osl::OslConfig::home(GPSFISH_HOME);
 #  endif
 #endif
+
+  UCIOptions::init(Options);
 
 #ifndef GPSFISH
   Bitboards::init();

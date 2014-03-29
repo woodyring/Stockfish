@@ -100,15 +100,14 @@ static size_t get_memory()
 }
 #endif
 
-/// OptionsMap c'tor initializes the UCI options to their hard coded default
+/// UCIOptions::init() initializes the UCI options to their hard coded default
 /// values and initializes the default value of "Threads" and "Min Split Depth"
 /// parameters according to the number of CPU cores detected.
 
-OptionsMap::OptionsMap() {
+void UCIOptions::init(OptionsMap& o) {
 
   int cpus = std::min(cpu_count(), MAX_THREADS);
   int msd = cpus < 8 ? 4 : 7;
-  OptionsMap& o = *this;
 
   o["Use Debug Log"]               = UCIOption(false, on_logger);
   o["Use Search Log"]              = UCIOption(false);
