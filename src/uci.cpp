@@ -25,6 +25,7 @@
 #include "position.h"
 #include "search.h"
 #include "thread.h"
+#include "tt.h"
 #include "ucioption.h"
 
 #ifdef GPSFISH
@@ -116,11 +117,13 @@ void uci_loop(const string& args) {
           go(pos, is);
 
 #ifdef GPSFISH
-      else if (token == "usinewgame")
+      else if (token == "usinewgame") {
           pos.from_fen(StartFEN, false, Threads.main_thread());
+          TT.clear();
+      }
 #else
       else if (token == "ucinewgame")
-      { /* Avoid returning "Unknown command" */ }
+          TT.clear();
 #endif
 
       else if (token == "isready")
