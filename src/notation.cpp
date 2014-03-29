@@ -37,7 +37,7 @@ bool using_tcp_connection = false;
 #endif
 
 #ifdef GPSFISH
-static const char* PieceToChar = " PNBRQK pnbrqk";
+static const char* PieceToChar = " PNBRQK  pnbrqk";
 #endif
 
 
