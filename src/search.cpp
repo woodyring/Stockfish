@@ -1259,7 +1259,7 @@ split_point_start: // At split points actual search starts from here
       {
           Signals.firstRootMove = (moveCount == 1);
 
-#ifndef GPSFISH
+#if 1 //ndef GPSFISH
           if (thisThread == Threads.main_thread() && SearchTime.elapsed() > 2000)
               cout << "info depth " << depth / ONE_PLY
                    << " currmove " << move_to_uci(move, Chess960)
@@ -1883,7 +1883,7 @@ split_point_start: // At split points actual search starts from here
     while (b)
     {
         // Note that here we generate illegal "double move"!
-        if (futilityBase + PieceValueEndgame[pos.piece_on(pop_1st_bit(&b))] >= beta)
+        if (futilityBase + PieceValueEndgame[pos.piece_on(pop_lsb(&b))] >= beta)
             return true;
     }
 
@@ -2139,6 +2139,7 @@ split_point_start: // At split points actual search starts from here
              << " nps " << (t > 0 ? pos.nodes_searched() * 1000 / t : 0)
 #ifdef GPSFISH
              << " time " << (t > 0 ? t : 1)
+             << " hashfull " << TT.get_hashfull()
 #else
              << " time " << t
              << " multipv " << i + 1

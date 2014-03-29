@@ -501,7 +501,7 @@ Bitboard Position::hidden_checkers() const {
 
   while (pinners)
   {
-      b = between_bb(ksq, pop_1st_bit(&pinners)) & pieces();
+      b = between_bb(ksq, pop_lsb(&pinners)) & pieces();
 
       if (b && !more_than_one(b) && (b & pieces(sideToMove)))
           result |= b;
@@ -769,7 +769,7 @@ bool Position::is_pseudo_legal(const Move m) const {
       if (type_of(pc) != KING)
       {
           Bitboard b = checkers();
-          Square checksq = pop_1st_bit(&b);
+          Square checksq = pop_lsb(&b);
 
           if (b) // double check ? In this case a king move is required
               return false;
@@ -1584,7 +1584,7 @@ Key Position::compute_key() const {
 
   for (Bitboard b = pieces(); b; )
   {
-      Square s = pop_1st_bit(&b);
+      Square s = pop_lsb(&b);
       k ^= zobrist[color_of(piece_on(s))][type_of(piece_on(s))][s];
   }
 
@@ -1612,7 +1612,7 @@ Key Position::compute_pawn_key() const {
 
   for (Bitboard b = pieces(PAWN); b; )
   {
-      Square s = pop_1st_bit(&b);
+      Square s = pop_lsb(&b);
       k ^= zobrist[color_of(piece_on(s))][PAWN][s];
   }
 
@@ -1651,7 +1651,7 @@ Score Position::compute_psq_score() const {
 
   for (Bitboard b = pieces(); b; )
   {
-      Square s = pop_1st_bit(&b);
+      Square s = pop_lsb(&b);
       score += pieceSquareTable[piece_on(s)][s];
   }
 
@@ -1777,7 +1777,7 @@ void Position::init() {
       Bitboard b = cr;
       while (b)
       {
-          Key k = zobCastle[1ULL << pop_1st_bit(&b)];
+          Key k = zobCastle[1ULL << pop_lsb(&b)];
           zobCastle[cr] ^= k ? k : rk.rand<Key>();
       }
   }

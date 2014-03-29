@@ -167,8 +167,14 @@ public:
   TTEntry* first_entry(const Key posKey) const;
   void refresh(const TTEntry* tte) const;
 
+#ifdef GPSFISH
+  size_t get_hashfull() { return (size)?(1000ll*used/size):1000; }
+#endif
 private:
   size_t size;
+#ifdef GPSFISH
+  size_t used;
+#endif
   TTCluster* entries;
   uint8_t generation; // Size must be not bigger then TTEntry::generation8
 };

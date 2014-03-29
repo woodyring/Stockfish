@@ -20,7 +20,9 @@
 #include <cstring>
 #include <iostream>
 
+#ifndef GPSFISH
 #include "bitboard.h"
+#endif
 #include "tt.h"
 
 TranspositionTable TT; // Our global transposition table
@@ -29,6 +31,9 @@ TranspositionTable::TranspositionTable() {
 
   size = generation = 0;
   entries = NULL;
+#ifdef GPSFISH
+  used = 0;
+#endif
 }
 
 TranspositionTable::~TranspositionTable() {
@@ -36,6 +41,13 @@ TranspositionTable::~TranspositionTable() {
   delete [] entries;
 }
 
+#ifdef GPSFISH
+FORCE_INLINE uint32_t msb(uint64_t b) {
+  unsigned long index;
+  _BitScanReverse64(&index, b);
+  return (uint32_t) index;
+}
+#endif
 
 /// TranspositionTable::set_size() sets the size of the transposition table,
 /// measured in megabytes. Transposition table consists of a power of 2 number of
@@ -44,7 +56,18 @@ TranspositionTable::~TranspositionTable() {
 
 void TranspositionTable::set_size(size_t mbSize) {
 
-  size_t newSize = 1ULL << last_1((mbSize << 20) / sizeof(TTCluster));
+#ifdef GPSFISH
+  size_t newSize = 1024;
+  while (2ULL * newSize * sizeof(TTCluster) <= (mbSize << 20))
+      newSize *= 2;
+#else
+  size_t newSize = 1ULL << msb((mbSize << 20) / sizeof(TTCluster));
+#endif
+#if 1
+  std::cout << "info string mbsize " << mbSize
+            << " shift " << (mbSize<<20)
+            << " msb " << msb((mbSize<<20)) << " newSize " << newSize << std::endl;
+#endif
 
   if (newSize == size)
       return;
@@ -60,7 +83,7 @@ void TranspositionTable::set_size(size_t mbSize) {
       exit(EXIT_FAILURE);
   }
 
-  clear(); // operator new is not guaranteed to initialize memory to zero
+  clear(); // Operator new is not guaranteed to initialize memory to zero
 }
 
 
@@ -71,6 +94,9 @@ void TranspositionTable::set_size(size_t mbSize) {
 void TranspositionTable::clear() {
 
   memset(entries, 0, size * sizeof(TTCluster));
+#ifdef GPSFISH
+  used = 0;
+#endif
 }
 
 
@@ -104,8 +130,10 @@ void TranspositionTable::store(const Key posKey, Value v, Bound t, Depth d, Move
       {
           // Preserve any existing ttMove
 #ifdef GPSFISH
-          if (m == MOVE16_NONE)
+          if (m == MOVE16_NONE) {
               m = tte->move16Val();
+              used++;
+          }
 #else
           if (m == MOVE_NONE)
               m = tte->move();
