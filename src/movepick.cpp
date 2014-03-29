@@ -39,15 +39,15 @@ namespace {
 
   // Unary predicate used by std::partition to split positive scores from remaining
   // ones so to sort separately the two sets, and with the second sort delayed.
-  inline bool has_positive_score(const MoveStack& move) { return move.score > 0; }
+  inline bool has_positive_score(const MoveStack& ms) { return ms.score > 0; }
 
-  // Picks and moves to the front the best move in the range [firstMove, lastMove),
+  // Picks and moves to the front the best move in the range [begin, end),
   // it is faster than sorting all the moves in advance when moves are few, as
   // normally are the possible captures.
-  inline MoveStack* pick_best(MoveStack* firstMove, MoveStack* lastMove)
+  inline MoveStack* pick_best(MoveStack* begin, MoveStack* end)
   {
-      std::swap(*firstMove, *std::max_element(firstMove, lastMove));
-      return firstMove;
+      std::swap(*begin, *std::max_element(begin, end));
+      return begin;
   }
 }
 
@@ -64,8 +64,8 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h,
   assert(d > DEPTH_ZERO);
 
   captureThreshold = 0;
-  curMove = lastMove = moves;
-  lastBadCapture = moves + MAX_MOVES - 1;
+  cur = end = moves;
+  endBadCaptures = moves + MAX_MOVES - 1;
   ss = s;
 
   if (p.in_check())
@@ -88,11 +88,11 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h,
   }
 
   ttMove = (ttm && pos.is_pseudo_legal(ttm) ? ttm : MOVE_NONE);
-  lastMove += (ttMove != MOVE_NONE);
+  end += (ttMove != MOVE_NONE);
 }
 
 MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h,
-                       Square sq) : pos(p), H(h), curMove(moves), lastMove(moves) {
+                       Square sq) : pos(p), H(h), cur(moves), end(moves) {
 
   assert(d <= DEPTH_ZERO);
 
@@ -120,11 +120,11 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h,
   }
 
   ttMove = (ttm && pos.is_pseudo_legal(ttm) ? ttm : MOVE_NONE);
-  lastMove += (ttMove != MOVE_NONE);
+  end += (ttMove != MOVE_NONE);
 }
 
 MovePicker::MovePicker(const Position& p, Move ttm, const History& h, PieceType pt)
-                       : pos(p), H(h), curMove(moves), lastMove(moves) {
+                       : pos(p), H(h), cur(moves), end(moves) {
 
   assert(!pos.in_check());
 
@@ -137,7 +137,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, const History& h, PieceType 
   if (ttMove && (!pos.is_capture(ttMove) ||  pos.see(ttMove) <= captureThreshold))
       ttMove = MOVE_NONE;
 
-  lastMove += (ttMove != MOVE_NONE);
+  end += (ttMove != MOVE_NONE);
 }
 
 
@@ -162,17 +162,17 @@ void MovePicker::score_captures() {
   // some SEE calls in case we get a cutoff (idea from Pablo Vazquez).
   Move m;
 
-  for (MoveStack* cur = moves; cur != lastMove; cur++)
+  for (MoveStack* it = moves; it != end; ++it)
   {
-      m = cur->move;
-      cur->score =  PieceValue[Mg][pos.piece_on(to_sq(m))]
-                  - type_of(pos.piece_moved(m));
+      m = it->move;
+      it->score =  PieceValue[Mg][pos.piece_on(to_sq(m))]
+                 - type_of(pos.piece_moved(m));
 
       if (type_of(m) == PROMOTION)
 #ifdef GPSFISH
-          cur->score ++; // XXX , calc correct value ?
+          it->score ++; // XXX , calc correct value ?
 #else
-          cur->score += PieceValue[Mg][promotion_type(m)];
+          it->score += PieceValue[Mg][promotion_type(m)];
 #endif
   }
 }
@@ -181,13 +181,13 @@ void MovePicker::score_noncaptures() {
 
   Move m;
 
-  for (MoveStack* cur = moves; cur != lastMove; cur++)
+  for (MoveStack* it = moves; it != end; ++it)
   {
-      m = cur->move;
+      m = it->move;
 #ifdef GPSFISH
-      cur->score = H.value(m.ptypeO(), to_sq(m));
+      it->score = H.value(m.ptypeO(), to_sq(m)); // XXX
 #else
-      cur->score = H.value(pos.piece_moved(m), to_sq(m));
+      it->score = H.value(pos.piece_moved(m), to_sq(m));
 #endif
   }
 }
@@ -199,26 +199,26 @@ void MovePicker::score_evasions() {
   Move m;
   int seeScore;
 
-  if (lastMove < moves + 2)
+  if (end < moves + 2)
       return;
 
-  for (MoveStack* cur = moves; cur != lastMove; cur++)
+  for (MoveStack* it = moves; it != end; ++it)
   {
-      m = cur->move;
+      m = it->move;
       if ((seeScore = pos.see_sign(m)) < 0)
-          cur->score = seeScore - History::MaxValue; // Be sure we are at the bottom
+          it->score = seeScore - History::MaxValue; // Be sure we are at the bottom
       else if (pos.is_capture(m))
-          cur->score =  PieceValue[Mg][pos.piece_on(to_sq(m))]
+          it->score =  PieceValue[Mg][pos.piece_on(to_sq(m))]
 #ifdef GPSFISH
-                      - type_value_of_piece_on(pos.piece_moved(m)) + History::MaxValue; // XXX : why
+                     - type_value_of_piece_on(pos.piece_moved(m)) + History::MaxValue; // XXX : why
 #else
-                      - type_of(pos.piece_moved(m)) + History::MaxValue;
+                     - type_of(pos.piece_moved(m)) + History::MaxValue;
 #endif
       else
 #ifdef GPSFISH
-          cur->score = H.value(m.ptypeO(), to_sq(m));
+          it->score = H.value(m.ptypeO(), to_sq(m));
 #else
-          cur->score = H.value(pos.piece_moved(m), to_sq(m));
+          it->score = H.value(pos.piece_moved(m), to_sq(m));
 #endif
   }
 }
@@ -229,53 +229,53 @@ void MovePicker::score_evasions() {
 
 void MovePicker::generate_next() {
 
-  curMove = moves;
+  cur = moves;
 
   switch (++phase) {
 
   case CAPTURES_S1: case CAPTURES_S3: case CAPTURES_S4: case CAPTURES_S5: case CAPTURES_S6:
-      lastMove = generate<CAPTURES>(pos, moves);
+      end = generate<CAPTURES>(pos, moves);
       score_captures();
       return;
 
   case KILLERS_S1:
-      curMove = killers;
-      lastMove = curMove + 2;
+      cur = killers;
+      end = cur + 2;
       return;
 
   case QUIETS_1_S1:
-      lastQuiet = lastMove = generate<QUIETS>(pos, moves);
+      endQuiets = end = generate<QUIETS>(pos, moves);
       score_noncaptures();
-      lastMove = std::partition(curMove, lastMove, has_positive_score);
-      sort<MoveStack>(curMove, lastMove);
+      end = std::partition(cur, end, has_positive_score);
+      sort<MoveStack>(cur, end);
       return;
 
   case QUIETS_2_S1:
-      curMove = lastMove;
-      lastMove = lastQuiet;
+      cur = end;
+      end = endQuiets;
       if (depth >= 3 * ONE_PLY)
-          sort<MoveStack>(curMove, lastMove);
+          sort<MoveStack>(cur, end);
       return;
 
   case BAD_CAPTURES_S1:
       // Just pick them in reverse order to get MVV/LVA ordering
-      curMove = moves + MAX_MOVES - 1;
-      lastMove = lastBadCapture;
+      cur = moves + MAX_MOVES - 1;
+      end = endBadCaptures;
       return;
 
   case EVASIONS_S2:
-      lastMove = generate<EVASIONS>(pos, moves);
+      end = generate<EVASIONS>(pos, moves);
       score_evasions();
       return;
 
   case QUIET_CHECKS_S3:
-      lastMove = generate<QUIET_CHECKS>(pos, moves);
+      end = generate<QUIET_CHECKS>(pos, moves);
       return;
 
   case EVASION: case QSEARCH_0: case QSEARCH_1: case PROBCUT: case RECAPTURE:
       phase = STOP;
   case STOP:
-      lastMove = curMove + 1; // Avoid another next_phase() call
+      end = cur + 1; // Avoid another next_phase() call
       return;
 
   default:
@@ -296,17 +296,17 @@ Move MovePicker::next_move<false>() {
 
   while (true)
   {
-      while (curMove == lastMove)
+      while (cur == end)
           generate_next();
 
       switch (phase) {
 
       case MAIN_SEARCH: case EVASION: case QSEARCH_0: case QSEARCH_1: case PROBCUT:
-          curMove++;
+          cur++;
           return ttMove;
 
       case CAPTURES_S1:
-          move = pick_best(curMove++, lastMove)->move;
+          move = pick_best(cur++, end)->move;
           if (move != ttMove)
           {
               assert(captureThreshold <= 0); // Otherwise we cannot use see_sign()
@@ -315,12 +315,12 @@ Move MovePicker::next_move<false>() {
                   return move;
 
               // Losing capture, move it to the tail of the array
-              (lastBadCapture--)->move = move;
+              (endBadCaptures--)->move = move;
           }
           break;
 
       case KILLERS_S1:
-          move = (curMove++)->move;
+          move = (cur++)->move;
           if (    move != MOVE_NONE
               &&  pos.is_pseudo_legal(move)
               &&  move != ttMove
@@ -329,7 +329,7 @@ Move MovePicker::next_move<false>() {
           break;
 
       case QUIETS_1_S1: case QUIETS_2_S1:
-          move = (curMove++)->move;
+          move = (cur++)->move;
           if (   move != ttMove
               && move != killers[0].move
               && move != killers[1].move)
@@ -337,28 +337,28 @@ Move MovePicker::next_move<false>() {
           break;
 
       case BAD_CAPTURES_S1:
-          return (curMove--)->move;
+          return (cur--)->move;
 
       case EVASIONS_S2: case CAPTURES_S3: case CAPTURES_S4:
-          move = pick_best(curMove++, lastMove)->move;
+          move = pick_best(cur++, end)->move;
           if (move != ttMove)
               return move;
           break;
 
       case CAPTURES_S5:
-           move = pick_best(curMove++, lastMove)->move;
+           move = pick_best(cur++, end)->move;
            if (move != ttMove && pos.see(move) > captureThreshold)
                return move;
            break;
 
       case CAPTURES_S6:
-          move = pick_best(curMove++, lastMove)->move;
+          move = pick_best(cur++, end)->move;
           if (to_sq(move) == recaptureSquare)
               return move;
           break;
 
       case QUIET_CHECKS_S3:
-          move = (curMove++)->move;
+          move = (cur++)->move;
           if (move != ttMove)
               return move;
           break;
