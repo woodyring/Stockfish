@@ -395,7 +395,7 @@ const string Position::to_fen() const {
       {
           sq = make_square(file, rank);
 
-          if (square_empty(sq))
+          if (is_empty(sq))
               emptyCnt++;
           else
           {
@@ -564,7 +564,7 @@ bool Position::move_attacks_square(Move m, Square s) const {
   Square to = to_sq(m);
   Piece piece = piece_moved(m);
 
-  assert(!square_empty(from));
+  assert(!is_empty(from));
 
   // Update occupancy as if the piece is moving
   occ = pieces() ^ from ^ to;
@@ -732,7 +732,7 @@ bool Position::is_pseudo_legal(const Move m) const {
       case DELTA_N:
       case DELTA_S:
       // Pawn push. The destination square must be empty.
-      if (!square_empty(to))
+      if (!is_empty(to))
           return false;
       break;
 
@@ -740,9 +740,9 @@ bool Position::is_pseudo_legal(const Move m) const {
       // Double white pawn push. The destination square must be on the fourth
       // rank, and both the destination square and the square between the
       // source and destination squares must be empty.
-      if (   rank_of(to) != RANK_4
-          || !square_empty(to)
-          || !square_empty(from + DELTA_N))
+      if (    rank_of(to) != RANK_4
+          || !is_empty(to)
+          || !is_empty(from + DELTA_N))
           return false;
       break;
 
@@ -750,9 +750,9 @@ bool Position::is_pseudo_legal(const Move m) const {
       // Double black pawn push. The destination square must be on the fifth
       // rank, and both the destination square and the square between the
       // source and destination squares must be empty.
-      if (   rank_of(to) != RANK_5
-          || !square_empty(to)
-          || !square_empty(from + DELTA_S))
+      if (    rank_of(to) != RANK_5
+          || !is_empty(to)
+          || !is_empty(from + DELTA_S))
           return false;
       break;
 
@@ -1182,7 +1182,7 @@ void Position::undo_move(Move m) {
   PieceType pt = type_of(piece);
   PieceType capture = st->capturedType;
 
-  assert(square_empty(from));
+  assert(is_empty(from));
   assert(color_of(piece) == us);
   assert(capture != KING);
 
@@ -1831,7 +1831,7 @@ void Position::flip() {
   startPosPly = pos.startpos_ply_counter();
 
   for (Square s = SQ_A1; s <= SQ_H8; s++)
-      if (!pos.square_empty(s))
+      if (!pos.is_empty(s))
           put_piece(Piece(pos.piece_on(s) ^ 8), ~s);
 
   if (pos.can_castle(WHITE_OO))
