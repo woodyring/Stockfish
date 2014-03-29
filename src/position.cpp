@@ -212,6 +212,8 @@ void init() {
 } // namespace Zobrist
 
 
+#ifndef GPSFISH
+
 /// next_attacker() is an helper function used by see() to locate the least
 /// valuable attacker for the side to move, remove the attacker we just found
 /// from the 'occupied' bitboard and scan for new X-ray attacks behind it.
@@ -241,6 +243,8 @@ template<> FORCE_INLINE
 PieceType next_attacker<KING>(const Bitboard*, const Square&, const Bitboard&, Bitboard&, Bitboard&) {
   return KING; // No need to update bitboards, it is the last cycle
 }
+
+#endif
 
 
 /// CheckInfo c'tor
