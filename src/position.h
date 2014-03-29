@@ -118,11 +118,11 @@ public:
 #ifndef GPSFISH
   // Position representation
   Bitboard pieces() const;
-  Bitboard pieces(Color c) const;
   Bitboard pieces(PieceType pt) const;
-  Bitboard pieces(PieceType pt, Color c) const;
   Bitboard pieces(PieceType pt1, PieceType pt2) const;
-  Bitboard pieces(PieceType pt1, PieceType pt2, Color c) const;
+  Bitboard pieces(Color c) const;
+  Bitboard pieces(Color c, PieceType pt) const;
+  Bitboard pieces(Color c, PieceType pt1, PieceType pt2) const;
 #endif
 
   Piece piece_on(Square s) const;
@@ -352,24 +352,24 @@ inline Bitboard Position::pieces() const {
   return byTypeBB[ALL_PIECES];
 }
 
-inline Bitboard Position::pieces(Color c) const {
-  return byColorBB[c];
-}
-
 inline Bitboard Position::pieces(PieceType pt) const {
   return byTypeBB[pt];
-}
-
-inline Bitboard Position::pieces(PieceType pt, Color c) const {
-  return byTypeBB[pt] & byColorBB[c];
 }
 
 inline Bitboard Position::pieces(PieceType pt1, PieceType pt2) const {
   return byTypeBB[pt1] | byTypeBB[pt2];
 }
 
-inline Bitboard Position::pieces(PieceType pt1, PieceType pt2, Color c) const {
-  return (byTypeBB[pt1] | byTypeBB[pt2]) & byColorBB[c];
+inline Bitboard Position::pieces(Color c) const {
+  return byColorBB[c];
+}
+
+inline Bitboard Position::pieces(Color c, PieceType pt) const {
+  return byColorBB[c] & byTypeBB[pt];
+}
+
+inline Bitboard Position::pieces(Color c, PieceType pt1, PieceType pt2) const {
+  return byColorBB[c] & (byTypeBB[pt1] | byTypeBB[pt2]);
 }
 
 inline int Position::piece_count(Color c, PieceType pt) const {
@@ -461,7 +461,7 @@ inline Bitboard Position::pinned_pieces() const {
 
 #ifndef GPSFISH
 inline bool Position::pawn_is_passed(Color c, Square s) const {
-  return !(pieces(PAWN, ~c) & passed_pawn_mask(c, s));
+  return !(pieces(~c, PAWN) & passed_pawn_mask(c, s));
 }
 #endif
 
@@ -520,7 +520,7 @@ inline bool Position::bishop_pair(Color c) const {
 }
 
 inline bool Position::pawn_on_7th(Color c) const {
-  return pieces(PAWN, c) & rank_bb(relative_rank(c, RANK_7));
+  return pieces(c, PAWN) & rank_bb(relative_rank(c, RANK_7));
 }
 #endif
 
