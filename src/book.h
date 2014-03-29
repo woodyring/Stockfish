@@ -26,29 +26,15 @@
 #include "position.h"
 #include "rkiss.h"
 
-
-#ifndef GPSFISH
-/// A Polyglot book is a series of "entries" of 16 bytes. All integers are
-/// stored highest byte first (regardless of size). The entries are ordered
-/// according to key. Lowest key first.
-struct BookEntry {
-  uint64_t key;
-  uint16_t move;
-  uint16_t count;
-  uint32_t learn;
-};
-#endif
-
-
-class Book : private std::ifstream {
+class PolyglotBook : private std::ifstream {
 public:
-  Book();
-  ~Book();
+  PolyglotBook();
+ ~PolyglotBook();
   Move probe(const Position& pos, const std::string& fName, bool pickBest);
 
 private:
 #ifndef GPSFISH
-  template<typename T> Book& operator>>(T& n);
+  template<typename T> PolyglotBook& operator>>(T& n);
 
   bool open(const char* fName);
   size_t find_first(uint64_t key);

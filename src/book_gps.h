@@ -3,11 +3,11 @@
 
 using osl::record::opening::BookInMemory;
 
-Book::Book() {}
+PolyglotBook::PolyglotBook() {}
 
-Book::~Book() {}
+PolyglotBook::~PolyglotBook() {}
 
-Move Book::probe(const Position& pos, const std::string& fName, bool pickBest)
+Move PolyglotBook::probe(const Position& pos, const std::string& fName, bool pickBest)
 {
     const BookInMemory& book = BookInMemory::instance();
     osl::hash::HashKey key(pos.osl_state);
