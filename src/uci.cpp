@@ -136,7 +136,7 @@ void UCI::loop(const string& args) {
               return;
           }
 #endif
-          cout << "readyok" << endl;
+          sync_cout << "readyok" << sync_endl;
       }
 
       else if (token == "position")
@@ -153,7 +153,7 @@ void UCI::loop(const string& args) {
           pos.flip();
 
       else if (token == "eval")
-          cout << Eval::trace(pos) << endl;
+          sync_cout << Eval::trace(pos) << sync_endl;
 #endif
 
       else if (token == "bench")
@@ -161,11 +161,11 @@ void UCI::loop(const string& args) {
 
       else if (token == "key")
 #ifdef GPSFISH
-          cout << "key: " << hex     << pos.key() << endl;
+          sync_cout << "key: " << hex     << pos.key() << sync_endl;
 #else
-          cout << "key: " << hex     << pos.key()
-               << "\nmaterial key: " << pos.material_key()
-               << "\npawn key: "     << pos.pawn_key() << endl;
+          sync_cout << "key: " << hex     << pos.key()
+                    << "\nmaterial key: " << pos.material_key()
+                    << "\npawn key: "     << pos.pawn_key() << sync_endl;
 #endif
 
 #ifdef GPSFISH
@@ -180,13 +180,13 @@ void UCI::loop(const string& args) {
 #else
       else if (token == "uci")
 #endif
-          cout << "id name "     << engine_info(true)
+          sync_cout << "id name " << engine_info(true)
 #ifdef GPSFISH
-               << Options
-               << "\nusiok"      << endl;
+                    << Options
+                    << "\nusiok"  << sync_endl;
 #else
-               << "\n"           << Options
-               << "\nuciok"      << endl;
+                    << "\n"       << Options
+                    << "\nuciok"  << sync_endl;
 #endif
 
 #ifdef GPSFISH
@@ -212,7 +212,7 @@ void UCI::loop(const string& args) {
       }
 
       else
-          cout << "Unknown command: " << cmd << endl;
+          sync_cout << "Unknown command: " << cmd << sync_endl;
 
       if (!args.empty()) // Command line arguments have one-shot behaviour
       {
@@ -295,7 +295,7 @@ namespace {
     if (Options.count(name))
         Options[name] = value;
     else
-        cout << "No such option: " << name << endl;
+        sync_cout << "No such option: " << name << sync_endl;
   }
 
 

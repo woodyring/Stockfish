@@ -76,8 +76,6 @@ namespace Search {
 }
 
 using std::string;
-using std::cout;
-using std::endl;
 using Eval::evaluate;
 using namespace Search;
 
@@ -346,8 +344,8 @@ void Search::think() {
 
   if (RootMoves.empty())
   {
-      cout << "info depth 0 score "
-           << score_to_uci(pos.in_check() ? -VALUE_MATE : VALUE_DRAW) << endl;
+      sync_cout << "info depth 0 score "
+                << score_to_uci(pos.in_check() ? -VALUE_MATE : VALUE_DRAW) << sync_endl;
 
       RootMoves.push_back(MOVE_NONE);
       goto finalize;
@@ -381,7 +379,7 @@ void Search::think() {
           << " time: "        << Limits.time[pos.side_to_move()]
           << " increment: "   << Limits.inc[pos.side_to_move()]
           << " moves to go: " << Limits.movestogo
-          << endl;
+          << std::endl;
   }
 
   Threads.wake_up();
@@ -417,7 +415,7 @@ void Search::think() {
 #else
       pos.do_move(RootMoves[0].pv[0], st);
 #endif
-      log << "\nPonder move: " << move_to_san(pos, RootMoves[0].pv[1]) << endl;
+      log << "\nPonder move: " << move_to_san(pos, RootMoves[0].pv[1]) << std::endl;
 #ifdef GPSFISH
       } );
 #else
@@ -434,11 +432,11 @@ finalize:
       pos.this_thread()->wait_for_stop_or_ponderhit();
 
   // Best move could be MOVE_NONE when searching on a stalemate position
-  cout << "bestmove " << move_to_uci(RootMoves[0].pv[0], Chess960)
+  sync_cout << "bestmove " << move_to_uci(RootMoves[0].pv[0], Chess960)
 #ifdef GPSFISH
-       << (RootMoves[0].pv[1].isNormal() ? " ponder " + move_to_uci(RootMoves[0].pv[1], Chess960) : "" ) << endl;
+            << (RootMoves[0].pv[1].isNormal() ? " ponder " + move_to_uci(RootMoves[0].pv[1], Chess960) : "" ) << sync_endl;
 #else
-       << " ponder "  << move_to_uci(RootMoves[0].pv[1], Chess960) << endl;
+            << " ponder "  << move_to_uci(RootMoves[0].pv[1], Chess960) << sync_endl;
 #endif
 }
 
@@ -511,9 +509,9 @@ struct TestCheckmate
             *result = solver->hasCheckmate(*pos, nodes);
         if (result->isNormal()) {
             if (first > 0)
-                std::cout << "info string checkmate in future (" << first
+                sync_cout << "info string checkmate in future (" << first
                     << ") " << move_to_uci(moves[first],false)
-                    << " by " << move_to_uci(*result,false) << '\n';
+                    << " by " << move_to_uci(*result,false) << sync_endl;
         }
         else if (! Signals.stop) {
             Move move;
@@ -547,9 +545,9 @@ void run_checkmate(int depth, uint64_t nodes, Position& pos)
             ++mated;
             RootMoves[i].score = -VALUE_INFINITE;
             //RootMoves[i].non_pv_score = VALUE_MATED_IN_MAX_PLY;
-            std::cout << "info string losing move " << i << "th "
+            sync_cout << "info string losing move " << i << "th "
                 << move_to_uci(RootMoves[i].pv[0],false)
-                << " by " << move_to_uci(win_move,false) << '\n';
+                << " by " << move_to_uci(win_move,false) << sync_endl;
         }
     }
     solver->clear();
@@ -673,7 +671,7 @@ namespace {
                 // Send full PV info to GUI if we are going to leave the loop or
                 // if we have a fail high/low and we are deep in the search.
                 if ((bestValue > alpha && bestValue < beta) || SearchTime.elapsed() > 2000)
-                    cout << uci_pv(pos, depth, alpha, beta) << endl;
+                    sync_cout << uci_pv(pos, depth, alpha, beta) << sync_endl;
 
                 // In case of failing high/low increase aspiration window and
                 // research, otherwise exit the fail high/low loop.
@@ -706,7 +704,7 @@ namespace {
         {
             Log log(Options["Search Log Filename"]);
             log << pretty_pv(pos, depth, bestValue, SearchTime.elapsed(), &RootMoves[0].pv[0])
-                << endl;
+                << std::endl;
         }
 
         // Filter out startup noise when monitoring best move stability
@@ -1237,9 +1235,9 @@ split_point_start: // At split points actual search starts from here
 
 #if 1 //ndef GPSFISH
           if (thisThread == Threads.main_thread() && SearchTime.elapsed() > 2000)
-              cout << "info depth " << depth / ONE_PLY
-                   << " currmove " << move_to_uci(move, Chess960)
-                   << " currmovenumber " << moveCount + PVIdx << endl;
+              sync_cout << "info depth " << depth / ONE_PLY
+                        << " currmove " << move_to_uci(move, Chess960)
+                        << " currmovenumber " << moveCount + PVIdx << sync_endl;
 #endif
       }
 
@@ -2407,7 +2405,7 @@ void Thread::idle_loop() {
 
 #ifdef GPSFISHONE
 void do_checkmate(Position& pos, int mateTime){
-    cout << "checkmate notimplemented";
+    sync_cout << "checkmate notimplemented";
     return;
 }
 #else
@@ -2416,7 +2414,7 @@ void do_checkmate(Position& pos, int mateTime){
     osl::state::NumEffectState state(pos.osl_state);
 #if (! defined ALLOW_KING_ABSENCE)
     if (state.kingSquare(state.turn()).isPieceStand()) {
-        cout << "checkmate notimplemented";
+        sync_cout << "checkmate notimplemented";
         return;
     }
 #endif
@@ -2437,8 +2435,8 @@ void do_checkmate(Position& pos, int mateTime){
         double elapsed = start.elapsedSeconds();
         double memory = osl::OslConfig::memoryUseRatio();
         uint64_t node_count = dfpn.nodeCount();
-        cout << "info time " << static_cast<int>(elapsed*1000) << "nodes " << total+node_count
-             << "nps %d " << static_cast<int>(node_count/elapsed) << "hashfull " << static_cast<int>(memory*1000) << endl;
+        sync_cout << "info time " << static_cast<int>(elapsed*1000) << "nodes " << total+node_count
+                  << "nps %d " << static_cast<int>(node_count/elapsed) << "hashfull " << static_cast<int>(memory*1000) << sync_endl;
         //poll(pos);
         if (result.isFinal() || elapsed >= seconds || memory > 0.9 || Signals.stop)
             break;
@@ -2449,17 +2447,17 @@ void do_checkmate(Position& pos, int mateTime){
         scale = std::max(std::min(16.0, scale), 0.1);
     }
     if (! result.isFinal()) {
-        cout << "checkmate timeout\n";
+        sync_cout << "checkmate timeout\n";
         return;
     }
     if (! result.isCheckmateSuccess()) {
-        cout << "checkmate nomate\n";
+        sync_cout << "checkmate nomate\n";
         return;
     }
     std::string msg = "checkmate";
     for (size_t i=0; i<pv.size(); ++i)
         msg += " " + move_to_uci(pv[i],false);
-    cout << msg << endl;
+    sync_cout << msg << sync_endl;
 }
 #endif
 
