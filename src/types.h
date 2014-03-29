@@ -431,9 +431,11 @@ inline Piece make_piece(Color c, PieceType pt) {
 #endif
 }
 
+#ifndef GPSFISH
 inline CastleRight make_castle_right(Color c, CastlingSide s) {
   return CastleRight(WHITE_OO << ((s == QUEEN_SIDE) + 2 * c));
 }
+#endif
 
 inline PieceType type_of(Piece p)  {
 #ifdef GPSFISH
