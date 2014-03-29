@@ -337,7 +337,6 @@ void Search::think() {
 #ifndef GPSFISH
   Eval::RootColor = pos.side_to_move();
 #endif
-  SearchTime.restart();
   TimeMgr.init(Limits, pos.startpos_ply_counter(), pos.side_to_move());
   TT.new_search();
   H.clear();
