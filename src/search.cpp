@@ -1866,7 +1866,7 @@ split_point_start: // At split points actual search starts from here
     // Rule 1. Checks which give opponent's king at most one escape square are dangerous
     b = kingAtt & ~pos.pieces(them) & ~newAtt & ~(1ULL << to);
 
-    if (single_bit(b)) // Catches also !b
+    if (!more_than_one(b))
         return true;
 
     // Rule 2. Queen contact check is very dangerous
@@ -1922,7 +1922,7 @@ split_point_start: // At split points actual search starts from here
        abs((f2-t2).intValue())>abs((f2-f1).intValue())) return true;
 #else
     p2 = pos.piece_on(f2);
-    if (piece_is_slider(p2) && (squares_between(f2, t2) & f1))
+    if (piece_is_slider(p2) && (between_bb(f2, t2) & f1))
       return true;
 #endif
 
@@ -1948,7 +1948,7 @@ split_point_start: // At split points actual search starts from here
 #else
     ksq = pos.king_square(pos.side_to_move());
     if (    piece_is_slider(p1)
-        && (squares_between(t1, ksq) & f2)
+        && (between_bb(t1, ksq) & f2)
         && (pos.attacks_from(p1, t1, pos.pieces() ^ f2) & ksq))
         return true;
 #endif
@@ -2033,7 +2033,7 @@ split_point_start: // At split points actual search starts from here
         return true;
 #else
     if (    piece_is_slider(pos.piece_on(tfrom))
-        && (squares_between(tfrom, tto) & mto)
+        && (between_bb(tfrom, tto) & mto)
         &&  pos.see_sign(m) >= 0)
         return true;
 #endif
@@ -2544,7 +2544,7 @@ void Thread::idle_loop(SplitPoint* sp_master) {
                   &&  spCnt > 0
                   && !latest->cutoff
                   &&  latest->slavesMask == latest->allSlavesMask
-                  && !single_bit(latest->allSlavesMask))
+                  &&  more_than_one(latest->allSlavesMask))
               {
                   lock_grab(latest->lock);
                   lock_grab(Threads.splitLock);
@@ -2555,7 +2555,7 @@ void Thread::idle_loop(SplitPoint* sp_master) {
                       &&  spCnt == th->splitPointsCnt
                       && !latest->cutoff
                       &&  latest->slavesMask == latest->allSlavesMask
-                      && !single_bit(latest->allSlavesMask))
+                      &&  more_than_one(latest->allSlavesMask))
                   {
                       latest->slavesMask |= 1ULL << idx; // allSlavesMask is not updated
                       curSplitPoint = latest;
