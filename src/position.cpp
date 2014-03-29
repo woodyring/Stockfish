@@ -52,7 +52,6 @@ using std::string;
 using std::cout;
 using std::endl;
 
-// To convert a Piece to and from a FEN char
 #ifdef GPSFISH
 static const string PieceToChar(".PLNSGBRK  plnsgbrk");
 #else
@@ -61,7 +60,10 @@ static const string PieceToChar(" PNBRQK  pnbrqk");
 
 // Material values arrays, indexed by Piece
 #ifdef GPSFISH
-const Value PieceValueMidgame[osl::PTYPE_SIZE] = {
+CACHE_LINE_ALIGNMENT
+//Value PieceValue[2][18] = {     // [Mg / Eg][piece / pieceType]
+const Value PieceValue[2][osl::PTYPE_SIZE] = {
+{
   VALUE_ZERO,VALUE_ZERO,
   Value(PtypeEvalTraits<osl::PPAWN>::val), Value(PtypeEvalTraits<osl::PLANCE>::val), 
   Value(PtypeEvalTraits<osl::PKNIGHT>::val), Value(PtypeEvalTraits<osl::PSILVER>::val), 
@@ -74,9 +76,8 @@ const Value PieceValueMidgame[osl::PTYPE_SIZE] = {
   Value(PtypeEvalTraits<osl::PAWN>::val), Value(PtypeEvalTraits<osl::LANCE>::val), 
   Value(PtypeEvalTraits<osl::KNIGHT>::val), Value(PtypeEvalTraits<osl::SILVER>::val), 
   Value(PtypeEvalTraits<osl::BISHOP>::val), Value(PtypeEvalTraits<osl::ROOK>::val), 
-};
-
-const Value PieceValueEndgame[osl::PTYPE_SIZE] = {
+},
+{
   VALUE_ZERO,VALUE_ZERO,
   Value(PtypeEvalTraits<osl::PPAWN>::val+PtypeEvalTraits<osl::PAWN>::val), 
   Value(PtypeEvalTraits<osl::PLANCE>::val+PtypeEvalTraits<osl::LANCE>::val), 
@@ -97,6 +98,7 @@ const Value PieceValueEndgame[osl::PTYPE_SIZE] = {
   Value(PtypeEvalTraits<osl::SILVER>::val*2), 
   Value(PtypeEvalTraits<osl::BISHOP>::val*2), 
   Value(PtypeEvalTraits<osl::ROOK>::val*2), 
+}
 };
 
 const Value PromoteValue[osl::PTYPE_SIZE] = {
@@ -126,41 +128,23 @@ const Value PieceValueType[osl::PTYPE_SIZE] = {
 
 
 #else
-const Value PieceValueMidgame[17] = {
-  VALUE_ZERO,
-  PawnValueMidgame, KnightValueMidgame, BishopValueMidgame,
-  RookValueMidgame, QueenValueMidgame,
-  VALUE_ZERO, VALUE_ZERO, VALUE_ZERO,
-  PawnValueMidgame, KnightValueMidgame, BishopValueMidgame,
-  RookValueMidgame, QueenValueMidgame
-};
 
-const Value PieceValueEndgame[17] = {
-  VALUE_ZERO,
-  PawnValueEndgame, KnightValueEndgame, BishopValueEndgame,
-  RookValueEndgame, QueenValueEndgame,
-  VALUE_ZERO, VALUE_ZERO, VALUE_ZERO,
-  PawnValueEndgame, KnightValueEndgame, BishopValueEndgame,
-  RookValueEndgame, QueenValueEndgame
-};
-#endif
 
-#ifndef GPSFISH
 CACHE_LINE_ALIGNMENT
 
-Score pieceSquareTable[16][64];
+Score pieceSquareTable[16][64]; // [piece][square]
+Value PieceValue[2][18] = {     // [Mg / Eg][piece / pieceType]
+{ VALUE_ZERO, PawnValueMg, KnightValueMg, BishopValueMg, RookValueMg, QueenValueMg },
+{ VALUE_ZERO, PawnValueEg, KnightValueEg, BishopValueEg, RookValueEg, QueenValueEg } };
+
 #endif
 
 namespace Zobrist {
 
-#ifndef GPSFISH
-Score Position::pieceSquareTable[16][64];
-#endif
-
 #ifdef GPSFISH
 osl::misc::CArray3d<Key,2,osl::PTYPE_SIZE,osl::Square::SIZE> psq;
 #else
-Key psq[2][8][64]; // [color][pieceType][square]/[piece count]
+Key psq[2][8][64]; // [color][pieceType][square / piece count]
 Key enpassant[8];  // [file]
 Key castle[16];    // [castleRight]
 #endif
@@ -211,7 +195,10 @@ void init() {
 
   for (PieceType pt = PAWN; pt <= KING; pt++)
   {
-      Score v = make_score(PieceValueMidgame[pt], PieceValueEndgame[pt]);
+      PieceValue[Mg][make_piece(BLACK, pt)] = PieceValue[Mg][pt];
+      PieceValue[Eg][make_piece(BLACK, pt)] = PieceValue[Eg][pt];
+
+      Score v = make_score(PieceValue[Mg][pt], PieceValue[Eg][pt]);
 
       for (Square s = SQ_A1; s <= SQ_H8; s++)
       {
@@ -1053,7 +1040,7 @@ void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveI
           st->pawnKey ^= Zobrist::psq[them][PAWN][capsq];
       }
       else
-          st->npMaterial[them] -= PieceValueMidgame[capture];
+          st->npMaterial[them] -= PieceValue[Mg][capture];
 
       // Remove the captured piece
       byTypeBB[ALL_PIECES] ^= capsq;
@@ -1161,7 +1148,7 @@ void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveI
                          - pieceSquareTable[make_piece(us, PAWN)][to];
 
           // Update material
-          st->npMaterial[us] += PieceValueMidgame[promotion];
+          st->npMaterial[us] += PieceValue[Mg][promotion];
       }
 
       // Update pawn hash key
@@ -1467,7 +1454,7 @@ int Position::see_sign(Move m) const {
   // Early return if SEE cannot be negative because captured piece value
   // is not less then capturing one. Note that king moves always return
   // here because king midgame value is set to 0.
-  if (PieceValueMidgame[piece_on(to_sq(m))] >= PieceValueMidgame[piece_moved(m)])
+  if (PieceValue[Mg][piece_on(to_sq(m))] >= PieceValue[Mg][piece_moved(m)])
       return 1;
 
   return see(m);
@@ -1522,7 +1509,7 @@ int Position::see(Move m) const {
   stm = ~color_of(piece_on(from));
   stmAttackers = attackers & pieces(stm);
   if (!stmAttackers)
-      return PieceValueMidgame[capturedType];
+      return PieceValue[Mg][capturedType];
 
   // The destination square is defended, which makes things rather more
   // difficult to compute. We proceed by building up a "swap list" containing
@@ -1530,7 +1517,7 @@ int Position::see(Move m) const {
   // destination square, where the sides alternately capture, and always
   // capture with the least valuable piece. After each capture, we look for
   // new X-ray attacks from behind the capturing piece.
-  swapList[0] = PieceValueMidgame[capturedType];
+  swapList[0] = PieceValue[Mg][capturedType];
   capturedType = type_of(piece_on(from));
 
   do {
@@ -1551,7 +1538,7 @@ int Position::see(Move m) const {
 
       // Add the new entry to the swap list
       assert(slIndex < 32);
-      swapList[slIndex] = -swapList[slIndex - 1] + PieceValueMidgame[capturedType];
+      swapList[slIndex] = -swapList[slIndex - 1] + PieceValue[Mg][capturedType];
       slIndex++;
 
       // Remember the value of the capturing piece, and change the side to
@@ -1564,7 +1551,7 @@ int Position::see(Move m) const {
       if (capturedType == KING && stmAttackers)
       {
           assert(slIndex < 32);
-          swapList[slIndex++] = QueenValueMidgame*10;
+          swapList[slIndex++] = QueenValueMg * 16;
           break;
       }
   } while (stmAttackers);
@@ -1736,7 +1723,7 @@ Value Position::compute_non_pawn_material(Color c) const {
   Value value = VALUE_ZERO;
 
   for (PieceType pt = KNIGHT; pt <= QUEEN; pt++)
-      value += piece_count(c, pt) * PieceValueMidgame[pt];
+      value += piece_count(c, pt) * PieceValue[Mg][pt];
 
   return value;
 }
@@ -1773,7 +1760,7 @@ bool Position::is_draw() const {
 #ifndef GPSFISH
   // Draw by material?
   if (   !pieces(PAWN)
-      && (non_pawn_material(WHITE) + non_pawn_material(BLACK) <= BishopValueMidgame))
+      && (non_pawn_material(WHITE) + non_pawn_material(BLACK) <= BishopValueMg))
       return true;
 
   // Draw by the 50 moves rule?

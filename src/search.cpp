@@ -195,7 +195,7 @@ namespace {
         &&  type_of(pos.piece_on(to_sq(m))) != PAWN
         &&  type_of(m) == NORMAL
         && (  pos.non_pawn_material(WHITE) + pos.non_pawn_material(BLACK)
-            - PieceValueMidgame[pos.piece_on(to_sq(m))] == VALUE_ZERO))
+            - PieceValue[Mg][pos.piece_on(to_sq(m))] == VALUE_ZERO))
         return true;
 #endif
 
@@ -1050,7 +1050,7 @@ namespace {
         Depth R = 3 * ONE_PLY + depth / 4;
 
         // Null move dynamic reduction based on value
-        if (refinedValue - PawnValueMidgame > beta)
+        if (refinedValue - PawnValueMg > beta)
             R += ONE_PLY;
 
 #ifdef GPSFISH
@@ -1645,7 +1645,7 @@ split_point_start: // At split points actual search starts from here
 
         futilityBase = ss->eval + evalMargin + FutilityMarginQS;
 #ifndef GPSFISH
-        enoughMaterial = pos.non_pawn_material(pos.side_to_move()) > RookValueMidgame;
+        enoughMaterial = pos.non_pawn_material(pos.side_to_move()) > RookValueMg;
 #endif
     }
 
@@ -1682,12 +1682,12 @@ split_point_start: // At split points actual search starts from here
       {
 #ifdef GPSFISH
           futilityValue =  futilityBase
-                         + PieceValueEndgame[pos.piece_on(to_sq(move))]
+                         + PieceValue[Eg][pos.piece_on(to_sq(move))]
                          + (type_of(move) == PROMOTION ? promote_value_of_piece_on(pos.piece_on(from_sq(move))) : VALUE_ZERO);
 #else
           futilityValue =  futilityBase
-                         + PieceValueEndgame[pos.piece_on(to_sq(move))]
-                         + (type_of(move) == ENPASSANT ? PawnValueEndgame : VALUE_ZERO);
+                         + PieceValue[Eg][pos.piece_on(to_sq(move))]
+                         + (type_of(move) == ENPASSANT ? PawnValueEg : VALUE_ZERO);
 #endif
 
           if (futilityValue < beta)
@@ -1731,7 +1731,7 @@ split_point_start: // At split points actual search starts from here
           &&  givesCheck
           &&  move != ttMove
           && !pos.is_capture_or_promotion(move)
-          &&  ss->eval + PawnValueMidgame / 4 < beta
+          &&  ss->eval + PawnValueMg / 4 < beta
           && !check_is_dangerous(pos, move, futilityBase, beta))
           continue;
 
@@ -1855,7 +1855,7 @@ split_point_start: // At split points actual search starts from here
     while (b)
     {
         // Note that here we generate illegal "double move"!
-        if (futilityBase + PieceValueEndgame[pos.piece_on(pop_lsb(&b))] >= beta)
+        if (futilityBase + PieceValue[Eg][pos.piece_on(pop_lsb(&b))] >= beta)
             return true;
     }
 
@@ -1992,7 +1992,7 @@ split_point_start: // At split points actual search starts from here
     // Case 2: If the threatened piece has value less than or equal to the
     // value of the threatening piece, don't prune moves which defend it.
     if (   pos.is_capture(threat)
-        && (   PieceValueMidgame[pos.piece_on(tfrom)] >= PieceValueMidgame[pos.piece_on(tto)]
+        && (   PieceValue[Mg][pos.piece_on(tfrom)] >= PieceValue[Mg][pos.piece_on(tto)]
 #ifdef GPSFISH
             || type_of(pos.piece_on(tfrom)) == osl::KING)
 #else
@@ -2063,7 +2063,7 @@ split_point_start: // At split points actual search starts from here
 
     // RootMoves are already sorted by score in descending order
     size_t size = std::min(MultiPV, RootMoves.size());
-    int variance = std::min(RootMoves[0].score - RootMoves[size - 1].score, PawnValueMidgame);
+    int variance = std::min(RootMoves[0].score - RootMoves[size - 1].score, PawnValueMg);
     int weakness = 120 - 2 * SkillLevel;
     int max_s = -VALUE_INFINITE;
     Move best = MOVE_NONE;

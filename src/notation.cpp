@@ -59,7 +59,7 @@ string score_to_uci(Value v, Value alpha, Value beta) {
       s << "mate " << int(v);
 #else
   if (abs(v) < VALUE_MATE_IN_MAX_PLY)
-      s << "cp " << v * 100 / int(PawnValueMidgame);
+      s << "cp " << v * 100 / int(PawnValueMg);
   else
       s << "mate " << (v > 0 ? VALUE_MATE - v + 1 : -VALUE_MATE - v) / 2;
 
@@ -246,7 +246,7 @@ static string score_to_string(Value v) {
       s << "-#" << (VALUE_MATE + v) / 2;
 
   else
-      s << setprecision(2) << fixed << showpos << float(v) / PawnValueMidgame;
+      s << setprecision(2) << fixed << showpos << float(v) / PawnValueMg;
 
   return s.str();
 }

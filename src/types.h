@@ -184,17 +184,14 @@ enum Value {
   VALUE_ENSURE_INTEGER_SIZE_P = INT_MAX,
   VALUE_ENSURE_INTEGER_SIZE_N = INT_MIN,
 
+  Mg = 0, Eg = 1,
+
 #ifndef GPSFISH
-  PawnValueMidgame   = 198,
-  PawnValueEndgame   = 258,
-  KnightValueMidgame = 817,
-  KnightValueEndgame = 846,
-  BishopValueMidgame = 836,
-  BishopValueEndgame = 857,
-  RookValueMidgame   = 1270,
-  RookValueEndgame   = 1278,
-  QueenValueMidgame  = 2521,
-  QueenValueEndgame  = 2558
+  PawnValueMg   = 198,   PawnValueEg   = 258,
+  KnightValueMg = 817,   KnightValueEg = 846,
+  BishopValueMg = 836,   BishopValueEg = 857,
+  RookValueMg   = 1270,  RookValueEg   = 1278,
+  QueenValueMg  = 2521,  QueenValueEg  = 2558
 #endif
 };
 
@@ -381,7 +378,7 @@ namespace Zobrist {
 #ifdef GPSFISH
   extern osl::misc::CArray3d<Key,2,osl::PTYPE_SIZE,osl::Square::SIZE> psq;
 #else
-  extern Key psq[2][8][64]; // [color][pieceType][square]/[piece count]
+  extern Key psq[2][8][64]; // [color][pieceType][square / piece count]
   extern Key enpassant[8];  // [file]
   extern Key castle[16];    // [castleRight]
 #endif
@@ -392,23 +389,24 @@ namespace Zobrist {
 }
 
 #ifdef GPSFISH
-extern const Value PieceValueMidgame[osl::PTYPE_SIZE];
-extern const Value PieceValueEndgame[osl::PTYPE_SIZE];
+CACHE_LINE_ALIGNMENT
+
+extern const Value PieceValue[2][osl::PTYPE_SIZE];
 #else
-extern Score pieceSquareTable[16][64];
-extern int SquareDistance[64][64];
-extern const Value PieceValueMidgame[17]; // Indexed by Piece or PieceType
-extern const Value PieceValueEndgame[17];
+CACHE_LINE_ALIGNMENT
+
+extern Score pieceSquareTable[16][64]; // [piece][square]
+extern Value PieceValue[2][18];        // [Mg / Eg][piece / pieceType]
+extern int SquareDistance[64][64];     // [square][square]
 #endif
 
 
 #ifdef GPSFISH
+
 #include "osl/eval/ptypeEvalTraits.h"
 using osl::PAWN;
-const Value PawnValueMidgame   = (Value)osl::eval::PtypeEvalTraits<osl::PAWN>::val;
-#endif
+const Value PawnValueMg   = (Value)osl::eval::PtypeEvalTraits<osl::PAWN>::val;
 
-#ifdef GPSFISH
 extern const Value PromoteValue[osl::PTYPE_SIZE];
 extern const Value PieceValueType[osl::PTYPE_SIZE];
 
@@ -419,6 +417,7 @@ inline Value promote_value_of_piece_on(Piece p) {
 inline Value type_value_of_piece_on(Piece p) {
   return PieceValueType[p];
 }
+
 #endif
 
 struct MoveStack {
