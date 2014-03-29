@@ -294,21 +294,17 @@ void Search::init() {
 /// Search::perft() is our utility to verify move generation. All the leaf nodes
 /// up to the given depth are generated and counted and the sum returned.
 
-int64_t Search::perft(Position& pos, Depth depth) {
+size_t Search::perft(Position& pos, Depth depth) {
+
+  // At the last ply just return the number of legal moves (leaf nodes)
+  if (depth == ONE_PLY)
+      return MoveList<LEGAL>(pos).size();
 
   StateInfo st;
-  int64_t cnt = 0;
-
-  MoveList<LEGAL> ml(pos);
-
-  // At the last ply just return the number of moves (leaf nodes)
-  if (depth == ONE_PLY)
-      return ml.size();
-
-#ifndef GPSFISH
+  size_t cnt = 0;
   CheckInfo ci(pos);
-#endif
-  for ( ; !ml.end(); ++ml)
+
+  for (MoveList<LEGAL> ml(pos); !ml.end(); ++ml)
   {
 #ifdef GPSFISH
       pos.do_undo_move(ml.move(),st,
@@ -324,6 +320,7 @@ int64_t Search::perft(Position& pos, Depth depth) {
       pos.undo_move(ml.move());
 #endif
   }
+
   return cnt;
 }
 
@@ -2106,7 +2103,7 @@ split_point_start: // At split points actual search starts from here
     int t = SearchTime.elapsed();
     int selDepth = 0;
 
-    for (int i = 0; i < Threads.size(); i++)
+    for (size_t i = 0; i < Threads.size(); i++)
         if (Threads[i].maxPly > selDepth)
             selDepth = Threads[i].maxPly;
 
