@@ -512,7 +512,7 @@ inline Rank relative_rank(Color c, Square s) {
 
 #ifndef GPSFISH
 inline bool opposite_colors(Square s1, Square s2) {
-  int s = s1 ^ s2;
+  int s = int(s1) ^ int(s2);
   return ((s >> 3) ^ s) & 1;
 }
 #endif
