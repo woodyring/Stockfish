@@ -131,15 +131,14 @@ enum Move {
 };
 #endif
 
-struct MoveStack {
-  Move move;
-  int score;
+enum MoveType {
+  NORMAL    = 0,
+  PROMOTION = 1 << 14,
+  ENPASSANT = 2 << 14,
+  CASTLE    = 3 << 14
 };
 
-inline bool operator<(const MoveStack& f, const MoveStack& s) {
-  return f.score < s.score;
-}
-
+#ifdef GPSFISH
 enum CastleRight {  // Defined as in PolyGlot book hash key
   CASTLES_NONE = 0,
   WHITE_OO     = 1,
@@ -160,6 +159,7 @@ enum ScaleFactor {
   SCALE_FACTOR_MAX    = 128,
   SCALE_FACTOR_NONE   = 255
 };
+#endif
 
 enum Bound {
   BOUND_NONE  = 0,
@@ -398,6 +398,15 @@ inline Value type_value_of_piece_on(Piece p) {
 }
 #endif
 
+struct MoveStack {
+  Move move;
+  int score;
+};
+
+inline bool operator<(const MoveStack& f, const MoveStack& s) {
+  return f.score < s.score;
+}
+
 inline Color operator~(Color c) {
 #ifdef GPSFISH
   return alt(c);
@@ -571,35 +580,11 @@ inline Square to_sq(Move m) {
 #endif
 }
 
-inline bool is_special(Move m) {
+inline MoveType type_of(Move m) {
 #ifdef GPSFISH
-  return false;
+  return (m.isPromotion()) ? PROMOTION : NORMAL;
 #else
-  return m & (3 << 14);
-#endif
-}
-
-inline bool is_promotion(Move m) {
-#ifdef GPSFISH
-  return m.isPromotion();
-#else
-  return (m & (3 << 14)) == (1 << 14);
-#endif
-}
-
-inline int is_enpassant(Move m) {
-#ifdef GPSFISH
-  return false;
-#else
-  return (m & (3 << 14)) == (2 << 14);
-#endif
-}
-
-inline int is_castle(Move m) {
-#ifdef GPSFISH
-  return false;
-#else
-  return (m & (3 << 14)) == (3 << 14);
+  return MoveType(m & (3 << 14));
 #endif
 }
 

@@ -44,7 +44,7 @@ void Position::do_undo_move(Move m, StateInfo& newSt,F const& f){
     key += zobrist[us][unpromote(capture)][Square::STAND().index()];
   }
   // Update hash key
-  if(is_promotion(m))
+  if(type_of(m)==PROMOTION)
     key += zobrist[us][(int)pt][to.index()]-zobrist[us][(int)unpromote(pt)][from.index()];
   else
     key += zobrist[us][(int)pt][to.index()]-zobrist[us][(int)pt][from.index()];

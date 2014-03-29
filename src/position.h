@@ -543,7 +543,7 @@ inline bool Position::is_chess960() const {
 inline bool Position::is_capture_or_promotion(Move m) const {
 
   assert(is_ok(m));
-  return is_special(m) ? !is_castle(m) : !is_empty(to_sq(m));
+  return type_of(m) ? type_of(m) != CASTLE : !is_empty(to_sq(m));
 }
 
 inline bool Position::is_capture(Move m) const {
@@ -552,7 +552,7 @@ inline bool Position::is_capture(Move m) const {
 #else
   // Note that castle is coded as "king captures the rook"
   assert(is_ok(m));
-  return (!is_empty(to_sq(m)) && !is_castle(m)) || is_enpassant(m);
+  return (!is_empty(to_sq(m)) && type_of(m) != CASTLE) || type_of(m) == ENPASSANT;
 #endif
 }
 

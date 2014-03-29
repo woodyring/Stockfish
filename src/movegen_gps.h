@@ -80,10 +80,10 @@ struct NoCaptureStore{
     }
 };
 
-template<osl::Player P,MoveType Type>
+template<osl::Player P,GenType Type>
 MoveStack* generateC(const Position& pos, MoveStack* mlist) {
     const osl::Player altP=osl::PlayerTraits<P>::opponent;
-    if(Type==MV_CAPTURE){
+    if(Type==CAPTURES){
         Store store(mlist);
         for(int num=0;num<osl::Piece::SIZE;num++){
             osl::Piece p=pos.osl_state.pieceOf(num);
@@ -96,23 +96,23 @@ MoveStack* generateC(const Position& pos, MoveStack* mlist) {
 #endif
         return store.mlist;
     }
-    else if(Type==MV_QUIET){
+    else if(Type==QUIETS){
         NoCaptureStore store(mlist);
         osl::move_generator::AllMoves<NoCaptureStore>::generate<P>(pos.osl_state,store);
         return store.mlist;
     }
-    else if(Type==MV_NON_EVASION){
+    else if(Type==NON_EVASIONS){
         Store store(mlist);
         osl::move_generator::AllMoves<Store>::generate<P>(pos.osl_state,store);
         return store.mlist;
     }
-    else if(Type==MV_QUIET_CHECK){
+    else if(Type==QUIET_CHECKS){
         NoCaptureStore store(mlist);
         osl::move_generator::AddEffectWithEffect<NoCaptureStore>::generate<P,true>(pos.osl_state,pos.king_square(altP),store);
         return store.mlist;
     }
     else{
-        assert(Type==MV_EVASION);
+        assert(Type==EVASIONS);
         Store store(mlist);
         osl::move_generator::Escape<Store>::generateKingEscape<P,false>(pos.osl_state,store);
         return store.mlist;

@@ -219,7 +219,7 @@ namespace {
     // Test for a capture that triggers a pawn endgame
     if (    captureOrPromotion
         &&  type_of(pos.piece_on(to_sq(m))) != PAWN
-        && !is_special(m)
+        &&  type_of(m) == NORMAL
         && (  pos.non_pawn_material(WHITE) + pos.non_pawn_material(BLACK)
             - PieceValueMidgame[pos.piece_on(to_sq(m))] == VALUE_ZERO))
         return true;
@@ -325,7 +325,7 @@ int64_t Search::perft(Position& pos, Depth depth) {
   StateInfo st;
   int64_t cnt = 0;
 
-  MoveList<MV_LEGAL> ml(pos);
+  MoveList<LEGAL> ml(pos);
 
   // At the last ply just return the number of moves (leaf nodes)
   if (depth == ONE_PLY)
@@ -1006,7 +1006,7 @@ namespace {
         &&  (ss-1)->eval != VALUE_NONE
         &&  ss->eval != VALUE_NONE
         && !pos.captured_piece_type()
-        && !is_special(move))
+        &&  type_of(move) == NORMAL)
     {
         Square to = to_sq(move);
 #ifdef GPSFISH
@@ -1312,7 +1312,7 @@ split_point_start: // At split points actual search starts from here
           && !inCheck
           && !dangerous
           &&  move != ttMove
-          && !is_castle(move)
+          &&  type_of(move) != CASTLE
           && (bestValue > VALUE_MATED_IN_MAX_PLY || bestValue == -VALUE_INFINITE))
       {
           // Move count based pruning
@@ -1395,7 +1395,7 @@ split_point_start: // At split points actual search starts from here
           && !isPvMove
           && !captureOrPromotion
           && !dangerous
-          && !is_castle(move)
+          &&  type_of(move) != CASTLE
           &&  ss->killers[0] != move
           &&  ss->killers[1] != move)
       {
@@ -1703,7 +1703,7 @@ split_point_start: // At split points actual search starts from here
           &&  move != ttMove
 #ifndef GPSFISH
           &&  enoughMaterial
-          && !is_promotion(move)
+          &&  type_of(move) != PROMOTION
           && !pos.is_passed_pawn_push(move))
 #endif
          )
@@ -1711,11 +1711,11 @@ split_point_start: // At split points actual search starts from here
 #ifdef GPSFISH
           futilityValue =  futilityBase
                          + PieceValueEndgame[pos.piece_on(to_sq(move))]
-                         + (is_promotion(move) ? promote_value_of_piece_on(pos.piece_on(from_sq(move))) : VALUE_ZERO);
+                         + (type_of(move) == PROMOTION ? promote_value_of_piece_on(pos.piece_on(from_sq(move))) : VALUE_ZERO);
 #else
           futilityValue =  futilityBase
                          + PieceValueEndgame[pos.piece_on(to_sq(move))]
-                         + (is_enpassant(move) ? PawnValueEndgame : VALUE_ZERO);
+                         + (type_of(move) == ENPASSANT ? PawnValueEndgame : VALUE_ZERO);
 #endif
 
           if (futilityValue < beta)
@@ -1748,7 +1748,7 @@ split_point_start: // At split points actual search starts from here
           && (!inCheck || evasionPrunable)
           &&  move != ttMove
 #ifndef GPSFISH
-          && !is_promotion(move)
+          &&  type_of(move) != PROMOTION
 #endif
           &&  pos.see_sign(move) < 0)
           continue;
