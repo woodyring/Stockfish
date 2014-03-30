@@ -31,6 +31,7 @@ class Position;
 namespace Eval {
 
 extern Color RootColor;
+extern Value ValueDrawContempt;
 
 extern void init();
 extern Value evaluate(const Position& pos, Value& margin);
