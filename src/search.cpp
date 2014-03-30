@@ -85,6 +85,9 @@ namespace {
   // Set to true to force running with one thread. Used for debugging
   const bool FakeSplit = false;
 
+  // This is the minimum interval in msec between two check_time() calls
+  const int TimerResolution = 5;
+
   // Different node types, used as template parameter
   enum NodeType { Root, PV, NonPV, SplitPointRoot, SplitPointPV, SplitPointNonPV };
 
@@ -120,10 +123,6 @@ namespace {
     return (Depth) Reductions[PvNode][std::min(int(d) / ONE_PLY, 63)][std::min(mn, 63)];
   }
 
-  // This is the minimum interval in msec between two check_time() calls
-  const int TimerResolution = 5;
-
-
   size_t MultiPV, UCIMultiPV, PVIdx;
 
 #ifdef GPSFISH
@@ -134,7 +133,6 @@ namespace {
   int SkillLevel;
   bool SkillLevelEnabled, Chess960;
   History H;
-
 
   template <NodeType NT>
   Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth);
@@ -777,7 +775,7 @@ namespace {
     Key posKey;
     Move ttMove, move, excludedMove, bestMove, threatMove;
     Depth ext, newDepth;
-    Value bestValue, value, oldAlpha, ttValue;
+    Value bestValue, value, ttValue;
     Value refinedValue, nullValue, futilityValue;
     bool pvMove, inCheck, singularExtensionNode, givesCheck;
     bool captureOrPromotion, dangerous, doFullDepthSearch;
@@ -795,8 +793,6 @@ namespace {
     }
 #endif
 
-
-    oldAlpha = alpha;
     inCheck = pos.in_check();
 
     if (SpNode)
@@ -1172,10 +1168,7 @@ split_point_start: // At split points actual search starts from here
 
     // Step 11. Loop through moves
     // Loop through all pseudo-legal moves until no moves remain or a beta cutoff occurs
-    while (    bestValue < beta
-           && (move = mp.next_move<SpNode>()) != MOVE_NONE
-           && !thisThread->cutoff_occurred()
-           && !Signals.stop)
+    while (bestValue < beta && (move = mp.next_move<SpNode>()) != MOVE_NONE)
     {
       assert(is_ok(move));
 
@@ -1397,7 +1390,10 @@ split_point_start: // At split points actual search starts from here
       // was aborted because the user interrupted the search or because we
       // ran out of time. In this case, the return value of the search cannot
       // be trusted, and we don't update the best move and/or PV.
-      if (RootNode && !Signals.stop)
+      if (Signals.stop || thisThread->cutoff_occurred())
+          return bestValue;
+
+      if (RootNode)
       {
           RootMove& rm = *std::find(RootMoves.begin(), RootMoves.end(), move);
 
@@ -1434,16 +1430,16 @@ split_point_start: // At split points actual search starts from here
       if (value > bestValue)
       {
           bestValue = value;
-          bestMove = move;
 
-          if (   PvNode
-              && value > alpha
-              && value < beta) // We want always alpha < beta
+          if (value > alpha)
           {
-              alpha = bestValue; // Update alpha here!
+              bestMove = move;
+
+              if (PvNode && value < beta)
+                  alpha = bestValue; // Update alpha here! Always alpha < beta
           }
 
-          if (SpNode && !thisThread->cutoff_occurred())
+          if (SpNode)
           {
               sp->bestValue = bestValue;
               sp->bestMove = bestMove;
@@ -1454,16 +1450,17 @@ split_point_start: // At split points actual search starts from here
           }
       }
 
-      // Step 19. Check for split
+      // Step 19. Check for splitting the search
       if (   !SpNode
           &&  depth >= Threads.min_split_depth()
           &&  bestValue < beta
-          &&  Threads.available_slave_exists(thisThread)
-          && !Signals.stop
-          && !thisThread->cutoff_occurred())
+          &&  Threads.available_slave_exists(thisThread))
           bestValue = Threads.split<FakeSplit>(pos, ss, alpha, beta, bestValue, &bestMove,
                                                depth, threatMove, moveCount, mp, NT);
     }
+
+    if (SpNode)
+        return bestValue;
 
     // Step 20. Check for mate and stalemate
     // All legal moves have been searched and if there are no legal moves, it
@@ -1472,7 +1469,7 @@ split_point_start: // At split points actual search starts from here
     // harmless because return value is discarded anyhow in the parent nodes.
     // If we are in a singular extension search then return a fail low score.
     // A split node has at least one move, the one tried before to be splitted.
-    if (!SpNode && !moveCount)
+    if (!moveCount)
 #ifdef GPSFISH
         return excludedMove!=MOVE_NONE ? alpha : (inCheck ? (move_is_pawn_drop((ss-1)->currentMove) ? mate_in(ss->ply) : mated_in(ss->ply) ): VALUE_DRAW);
 #else
@@ -1487,20 +1484,12 @@ split_point_start: // At split points actual search starts from here
         bestValue = alpha;
     }
 
-    // Step 21. Update tables
-    // Update transposition table entry, killers and history
-    if (!SpNode && !Signals.stop && !thisThread->cutoff_occurred())
+    if (bestValue >= beta) // Failed high
     {
-        Move ttm = bestValue <= oldAlpha ? MOVE_NONE : bestMove;
-        Bound bt = bestValue <= oldAlpha ? BOUND_UPPER
-                 : bestValue >= beta ? BOUND_LOWER : BOUND_EXACT;
+        TT.store(posKey, value_to_tt(bestValue, ss->ply), BOUND_LOWER, depth,
+                 bestMove, ss->eval, ss->evalMargin);
 
-        TT.store(posKey, value_to_tt(bestValue, ss->ply), bt, depth, ttm, ss->eval, ss->evalMargin);
-
-        // Update killers and history for non capture cut-off moves
-        if (    bestValue >= beta
-            && !pos.is_capture_or_promotion(bestMove)
-            && !inCheck)
+        if (!pos.is_capture_or_promotion(bestMove) && !inCheck)
         {
             if (bestMove != ss->killers[0])
             {
@@ -1520,6 +1509,10 @@ split_point_start: // At split points actual search starts from here
             }
         }
     }
+    else // Failed low or PV search
+        TT.store(posKey, value_to_tt(bestValue, ss->ply),
+                 PvNode && bestMove != MOVE_NONE ? BOUND_EXACT : BOUND_UPPER,
+                 depth, bestMove, ss->eval, ss->evalMargin);
 
     assert(bestValue > -VALUE_INFINITE && bestValue < VALUE_INFINITE);
 
