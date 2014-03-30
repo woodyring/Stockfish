@@ -243,7 +243,9 @@ void prefetch(char*) {}
 
 #else
 
+#  if defined(__INTEL_COMPILER) || defined(__ICL) || defined(_MSC_VER)
 #   include <xmmintrin.h>
+#  endif
 
 void prefetch(char* addr) {
 
