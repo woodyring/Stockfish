@@ -799,7 +799,7 @@ namespace {
     Bound bt;
     Value bestValue, value, oldAlpha, ttValue;
     Value refinedValue, nullValue, futilityBase, futilityValue;
-    bool isPvMove, inCheck, singularExtensionNode, givesCheck;
+    bool pvMove, inCheck, singularExtensionNode, givesCheck;
     bool captureOrPromotion, dangerous, doFullDepthSearch;
     int moveCount = 0, playedMoveCount = 0;
     Thread* thisThread = pos.this_thread();
@@ -1209,12 +1209,12 @@ split_point_start: // At split points actual search starts from here
       if (RootNode && !std::count(RootMoves.begin() + PVIdx, RootMoves.end(), move))
           continue;
 
-      // At PV and SpNode nodes we want all moves to be legal since the beginning
-      if ((PvNode || SpNode) && !pos.pl_move_is_legal(move, ci.pinned))
-          continue;
-
       if (SpNode)
       {
+          // Shared counter cannot be decremented later if move turns out to be illegal
+          if (!pos.pl_move_is_legal(move, ci.pinned))
+              continue;
+
           moveCount = ++sp->moveCount;
           sp->mutex.unlock();
       }
@@ -1240,7 +1240,6 @@ split_point_start: // At split points actual search starts from here
 #endif
       }
 
-      isPvMove = (PvNode && moveCount <= 1);
       captureOrPromotion = pos.is_capture_or_promotion(move);
       givesCheck = pos.move_gives_check(move, ci);
       dangerous = givesCheck || is_dangerous(pos, move, captureOrPromotion);
@@ -1337,6 +1336,7 @@ split_point_start: // At split points actual search starts from here
           continue;
       }
 
+      pvMove = PvNode ? moveCount <= 1 : false;
       ss->currentMove = move;
       if (!SpNode && !captureOrPromotion && playedMoveCount < 64)
           movesSearched[playedMoveCount++] = move;
@@ -1363,7 +1363,7 @@ split_point_start: // At split points actual search starts from here
       // Step 15. Reduced depth search (LMR). If the move fails high will be
       // re-searched at full depth.
       if (    depth > 3 * ONE_PLY
-          && !isPvMove
+          && !pvMove
           && !captureOrPromotion
           && !dangerous
           &&  ss->killers[0] != move
@@ -1379,7 +1379,7 @@ split_point_start: // At split points actual search starts from here
           ss->reduction = DEPTH_ZERO;
       }
       else
-          doFullDepthSearch = !isPvMove;
+          doFullDepthSearch = !pvMove;
 
       // Step 16. Full depth search, when LMR is skipped or fails high
       if (doFullDepthSearch)
@@ -1392,7 +1392,7 @@ split_point_start: // At split points actual search starts from here
       // Only for PV nodes do a full PV search on the first move or after a fail
       // high, in the latter case search only if value < beta, otherwise let the
       // parent node to fail low with value <= alpha and to try another move.
-      if (PvNode && (isPvMove || (value > alpha && (RootNode || value < beta))))
+      if (PvNode && (pvMove || (value > alpha && (RootNode || value < beta))))
           value = newDepth < ONE_PLY ? -qsearch<PV>(pos, ss+1, -beta, -alpha, DEPTH_ZERO)
                                      : - search<PV>(pos, ss+1, -beta, -alpha, newDepth);
 
@@ -1423,7 +1423,7 @@ split_point_start: // At split points actual search starts from here
           RootMove& rm = *std::find(RootMoves.begin(), RootMoves.end(), move);
 
           // PV move or new best move ?
-          if (isPvMove || value > alpha)
+          if (pvMove || value > alpha)
           {
               rm.score = value;
               rm.extract_pv_from_tt(pos);
@@ -1431,7 +1431,7 @@ split_point_start: // At split points actual search starts from here
               // We record how often the best move has been changed in each
               // iteration. This information is used for time management: When
               // the best move changes frequently, we allocate some more time.
-              if (!isPvMove && MultiPV == 1)
+              if (!pvMove && MultiPV == 1)
                   BestMoveChanges++;
 
 #if 0 //def GPSFISH
