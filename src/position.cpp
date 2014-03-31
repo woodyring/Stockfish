@@ -469,8 +469,6 @@ void Position::set_castle_right(Color c, Square rfrom) {
 const string Position::fen() const {
 
   std::ostringstream ss;
-  Square sq;
-  int emptyCnt;
 
 #ifdef GPSFISH
   for (Rank rank = RANK_1; rank <= RANK_9; rank++)
@@ -478,31 +476,30 @@ const string Position::fen() const {
   for (Rank rank = RANK_8; rank >= RANK_1; rank--)
 #endif
   {
-      emptyCnt = 0;
-
 #ifdef GPSFISH
       for (File file = FILE_9; file >= FILE_1; file--)
 #else
       for (File file = FILE_A; file <= FILE_H; file++)
 #endif
       {
-          sq = file | rank;
+          Square sq = file | rank;
 
           if (is_empty(sq))
-              emptyCnt++;
-          else
           {
-              if (emptyCnt > 0)
-              {
-                  ss << emptyCnt;
-                  emptyCnt = 0;
-              }
-              ss << PieceToChar[piece_on(sq)];
-          }
-      }
+              int emptyCnt = 1;
 
-      if (emptyCnt > 0)
-          ss << emptyCnt;
+#ifdef GPSFISH
+              for ( ; file >= FILE_1 && is_empty(sq--); file--)
+#else
+              for ( ; file < FILE_H && is_empty(sq++); file++)
+#endif
+                  emptyCnt++;
+
+              ss << emptyCnt;
+          }
+          else
+              ss << PieceToChar[piece_on(sq)];
+      }
 
       if (rank > RANK_1)
           ss << '/';
@@ -1753,7 +1750,7 @@ bool Position::is_draw() const {
 
           for (cnt = 0; i <= e; i += 2)
           {
-              stp = st->previous->previous;
+              stp = stp->previous->previous;
 #ifdef GPSFISH
               if (stp->key == st->key && (!CheckThreeFold || ++cnt >= 2))
 #else
