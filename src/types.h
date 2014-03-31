@@ -35,6 +35,7 @@
 ///               | only in 64-bit mode. For compiling requires hardware with
 ///               | popcnt support.
 
+#include <cassert>
 #include <cctype>
 #include <climits>
 #include <cstdlib>
@@ -505,7 +506,8 @@ inline Color color_of(Piece p) {
 #ifdef GPSFISH
   return getOwner(p); // XXX : should return NO_COLOR ?
 #else
-  return p == NO_PIECE ? NO_COLOR : Color(p >> 3);
+  assert(p != NO_PIECE);
+  return Color(p >> 3);
 #endif
 }
 
