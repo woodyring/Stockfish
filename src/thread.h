@@ -115,7 +115,8 @@ public:
   SplitPoint splitPoints[MAX_SPLITPOINTS_PER_THREAD];
 #ifndef GPSFISH
   Eval::Table evalTable;
-  MaterialTable materialTable;
+  Material::Table materialTable;
+  Endgames endgames;
   PawnTable pawnTable;
 #endif
   size_t idx;
