@@ -88,13 +88,13 @@ struct RootMove {
 struct LimitsType {
 
   LimitsType() { memset(this, 0, sizeof(LimitsType)); }
-  bool use_time_management() const { return !(movetime | depth | nodes | infinite); }
+  bool use_time_management() const { return !(mate | movetime | depth | nodes | infinite); }
 
 #ifdef GPSFISH
     //osl::CArray<int,COLOR_NB> time={{0,0}},inc={{0,0}};
 #endif
 
-  int time[COLOR_NB], inc[COLOR_NB], movestogo, depth, nodes, movetime, infinite, ponder;
+  int time[COLOR_NB], inc[COLOR_NB], movestogo, depth, nodes, movetime, mate, infinite, ponder;
 };
 
 

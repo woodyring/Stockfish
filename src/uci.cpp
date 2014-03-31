@@ -305,6 +305,7 @@ namespace {
 #else
         else if (token == "movetime")  is >> limits.movetime;
 #endif
+        else if (token == "mate")      is >> limits.mate;
         else if (token == "infinite")  limits.infinite = true;
         else if (token == "ponder")    limits.ponder = true;
     }
