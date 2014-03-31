@@ -555,7 +555,7 @@ const string Position::pretty(Move move) const {
 #else
   if (move)
 #endif
-      ss << "\nMove is: " << (sideToMove == BLACK ? ".." : "")
+      ss << "\nMove: " << (sideToMove == BLACK ? ".." : "")
          << move_to_san(*const_cast<Position*>(this), move);
 
 #ifdef GPSFISH
@@ -566,7 +566,14 @@ const string Position::pretty(Move move) const {
       if (piece_on(sq) != NO_PIECE)
           brd[513 - 68*rank_of(sq) + 4*file_of(sq)] = PieceToChar[piece_on(sq)];
 
-  ss << brd << "\nFen is: " << fen() << "\nKey is: " << st->key;
+  ss << brd << "\nFen: " << fen() << "\nKey: " << st->key;
+
+  if (checkers())
+  {
+      ss << "\nCheckers: ";
+      for (Bitboard b = checkers(); b; )
+          ss << square_to_string(pop_lsb(&b)) << " ";
+  }
 
 #endif
 
