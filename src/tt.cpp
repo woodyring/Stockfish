@@ -105,13 +105,13 @@ void TranspositionTable::clear() {
 /// a previous search, or if the depth of t1 is bigger than the depth of t2.
 
 #ifdef GPSFISH
-void TranspositionTable::store(const Key posKey, Value v, Bound b, Depth d, Move m) {
-  store(posKey,v,b,d,toMove16(m));
+void TranspositionTable::store(const Key posKey, Value v, Bound b, Depth d, Move m, Value statV, Value kingD) {
+  store(posKey,v,b,d,toMove16(m),statV,kingD);
 }
 
-void TranspositionTable::store(const Key posKey, Value v, Bound t, Depth d, Move16 m) {
+void TranspositionTable::store(const Key posKey, Value v, Bound t, Depth d, Move16 m, Value statV, Value kingD) {
 #else
-void TranspositionTable::store(const Key posKey, Value v, Bound t, Depth d, Move m) {
+void TranspositionTable::store(const Key posKey, Value v, Bound t, Depth d, Move m, Value statV, Value kingD) {
 #endif
 
   int c1, c2, c3;
@@ -135,7 +135,7 @@ void TranspositionTable::store(const Key posKey, Value v, Bound t, Depth d, Move
               m = tte->move();
 #endif
 
-          tte->save(posKey32, v, t, d, m, generation);
+          tte->save(posKey32, v, t, d, m, generation, statV, kingD);
           return;
       }
 
@@ -147,7 +147,7 @@ void TranspositionTable::store(const Key posKey, Value v, Bound t, Depth d, Move
       if (c1 + c2 + c3 > 0)
           replace = tte;
   }
-  replace->save(posKey32, v, t, d, m, generation);
+  replace->save(posKey32, v, t, d, m, generation, statV, kingD);
 }
 
 

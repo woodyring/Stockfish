@@ -20,7 +20,6 @@
 #if !defined(EVALUATE_H_INCLUDED)
 #define EVALUATE_H_INCLUDED
 
-#include "misc.h"
 #include "types.h"
 #ifdef GPSFISH
 #include "osl/eval/ml/openMidEndingEval.h"
@@ -37,16 +36,6 @@ extern std::string trace(const Position& pos);
 #ifndef GPSFISH
 extern void eval_init();
 #endif
-
-const int TableSize = 262144;
-
-struct Entry {
-  Key key;
-  Value value;
-  int16_t margins[2];
-};
-
-struct Table : HashTable<Entry, TableSize> {};
 
 }
 

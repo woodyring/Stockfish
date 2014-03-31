@@ -23,7 +23,6 @@
 #include <vector>
 
 #ifndef GPSFISH
-#include "evaluate.h"
 #include "material.h"
 #endif
 #include "movepick.h"
@@ -114,7 +113,6 @@ public:
 
   SplitPoint splitPoints[MAX_SPLITPOINTS_PER_THREAD];
 #ifndef GPSFISH
-  Eval::Table evalTable;
   Material::Table materialTable;
   Endgames endgames;
   Pawns::Table pawnsTable;

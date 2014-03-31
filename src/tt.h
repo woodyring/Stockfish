@@ -84,12 +84,12 @@ class TTEntry {
 
 public:
 #ifdef GPSFISH
-  void save(uint32_t k, Value v, Bound b, Depth d, Move m, int g) {
-    return save(k,v,b,d,toMove16(m),g);
+  void save(uint32_t k, Value v, Bound b, Depth d, Move m, int g, Value statV, Value statM) {
+    return save(k,v,b,d,toMove16(m),g,statV,statM);
   }
-  void save(uint32_t k, Value v, Bound b, Depth d, Move16 m, int g) {
+  void save(uint32_t k, Value v, Bound b, Depth d, Move16 m, int g, Value statV, Value statM) {
 #else
-  void save(uint32_t k, Value v, Bound b, Depth d, Move m, int g) {
+  void save(uint32_t k, Value v, Bound b, Depth d, Move m, int g, Value statV, Value statM) {
 #endif
 
     key32        = (uint32_t)k;
@@ -98,6 +98,8 @@ public:
     generation8  = (uint8_t)g;
     value16      = (int16_t)v;
     depth16      = (int16_t)d;
+    staticValue  = (int16_t)statV;
+    staticMargin = (int16_t)statM;
   }
 
   void set_generation(int g) { generation8 = (uint8_t)g; }
@@ -113,12 +115,14 @@ public:
   Value value() const               { return (Value)value16; }
   Bound type() const                { return (Bound)bound; }
   int generation() const            { return (int)generation8; }
+  Value static_value() const        { return (Value)staticValue; }
+  Value static_value_margin() const { return (Value)staticMargin; }
 
 private:
   uint32_t key32;
   uint16_t move16;
   uint8_t bound, generation8;
-  int16_t value16, depth16;
+  int16_t value16, depth16, staticValue, staticMargin;
 };
 
 
@@ -149,10 +153,10 @@ public:
   void set_size(size_t mbSize);
   void clear();
 #ifdef GPSFISH
-  void store(const Key posKey, Value v, Bound b, Depth d, Move16 m);
-  void store(const Key posKey, Value v, Bound b, Depth d, Move m);
+  void store(const Key posKey, Value v, Bound b, Depth d, Move16 m, Value statV, Value kingD);
+  void store(const Key posKey, Value v, Bound b, Depth d, Move m, Value statV, Value kingD);
 #else
-  void store(const Key posKey, Value v, Bound type, Depth d, Move m);
+  void store(const Key posKey, Value v, Bound type, Depth d, Move m, Value statV, Value kingD);
 #endif
   TTEntry* probe(const Key posKey) const;
   void new_search();
