@@ -132,11 +132,11 @@ namespace {
   Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth);
 
   void id_loop(Position& pos);
-  bool check_is_dangerous(Position& pos, Move move, Value futilityBase, Value beta);
-  bool yields_to_threat(const Position& pos, Move move, Move threat);
   Value value_to_tt(Value v, int ply);
   Value value_from_tt(Value v, int ply);
-  bool connected_threat(const Position& pos, Move m, Move threat);
+  bool check_is_dangerous(Position& pos, Move move, Value futilityBase, Value beta);
+  bool yields_to_threat(const Position& pos, Move move, Move threat);
+  bool prevents_threat(const Position& pos, Move move, Move threat);
   string uci_pv(const Position& pos, int depth, Value alpha, Value beta);
 
   struct Skill {
@@ -1276,9 +1276,9 @@ split_point_start: // At split points actual search starts from here
           if (   depth < 16 * ONE_PLY
               && moveCount >= FutilityMoveCounts[depth]
 #ifdef GPSFISH
-              && (threatMove==MOVE_NONE || !connected_threat(pos, move, threatMove)))
+              && (threatMove==MOVE_NONE || !prevents_threat(pos, move, threatMove)))
 #else
-              && (!threatMove || !connected_threat(pos, move, threatMove)))
+              && (!threatMove || !prevents_threat(pos, move, threatMove)))
 #endif
           {
               if (SpNode)
@@ -1905,54 +1905,52 @@ split_point_start: // At split points actual search starts from here
 
     assert(is_ok(move));
     assert(is_ok(threat));
+    assert(color_of(pos.piece_on(from_sq(threat))) == ~pos.side_to_move());
 
-    Square t1 = to_sq(move);
-    Square f1 = from_sq(move);
-    Square t2 = to_sq(threat);
-    Square f2 = from_sq(threat);
-
-    // We are suposed to be called upon returning from a null search
-    assert(color_of(pos.piece_on(f2)) == ~pos.side_to_move());
+    Square mfrom = from_sq(move);
+    Square mto = to_sq(move);
+    Square tfrom = from_sq(threat);
+    Square tto = to_sq(threat);
 
     // The piece is the same or threat's destination was vacated by the move
-    if (t1 == f2 || t2 == f1)
+    if (mto == tfrom || tto == mfrom)
         return true;
 
     // Threat moves through the vacated square
 #ifdef GPSFISH
-    if(!f2.isPieceStand() && !f1.isPieceStand() &&
-       Board_Table.getShortOffset(Offset32(f2,t2)) ==
-       Board_Table.getShortOffset(Offset32(f2,f1)) &&
-       abs((f2-t2).intValue())>abs((f2-f1).intValue())) return true;
+    if(!tfrom.isPieceStand() && !mfrom.isPieceStand() &&
+       Board_Table.getShortOffset(Offset32(tfrom,tto)) ==
+       Board_Table.getShortOffset(Offset32(tfrom,mfrom)) &&
+       abs((tfrom-tto).intValue())>abs((tfrom-mfrom).intValue())) return true;
 #else
-    if (between_bb(f2, t2) & f1)
+    if (between_bb(tfrom, tto) & mfrom)
       return true;
 #endif
 
     // Threat's destination is defended by the move's piece
 #ifdef GPSFISH
-    osl::Piece pc=pos.osl_state.pieceAt(t1);
-    if (pos.osl_state.hasEffectByPiece(pc,t2))
+    osl::Piece pc=pos.osl_state.pieceAt(mto);
+    if (pos.osl_state.hasEffectByPiece(pc,tto))
         return true;
 #else
-    Bitboard t1_att = pos.attacks_from(pos.piece_on(t1), t1, pos.pieces() ^ f2);
-    if (t1_att & t2)
+    Bitboard matt = pos.attacks_from(pos.piece_on(mto), mto, pos.pieces() ^ tfrom);
+    if (matt & tto)
         return true;
 #endif
 
     // Threat gives a discovered check through the move's checking piece
 #ifdef GPSFISH
-    pc=pos.osl_state.pieceAt(t2);
-    if(pc.isPiece() && pos.osl_state.hasEffectByPiece(pc,f2) &&
-       Ptype_Table.getEffect(pos.piece_on(t1),t1,pos.king_square(pos.side_to_move())).hasBlockableEffect() &&
-       Board_Table.isBetweenSafe(f2,t1,pos.king_square(pos.side_to_move())) &&
-       !Board_Table.isBetweenSafe(t2,t1,pos.king_square(pos.side_to_move())) &&
-       pos.osl_state.pinOrOpen(pos.side_to_move()).test(pos.osl_state.pieceAt(t1).number()))
+    pc=pos.osl_state.pieceAt(tto);
+    if(pc.isPiece() && pos.osl_state.hasEffectByPiece(pc,tfrom) &&
+       Ptype_Table.getEffect(pos.piece_on(mto),mto,pos.king_square(pos.side_to_move())).hasBlockableEffect() &&
+       Board_Table.isBetweenSafe(tfrom,mto,pos.king_square(pos.side_to_move())) &&
+       !Board_Table.isBetweenSafe(tto,mto,pos.king_square(pos.side_to_move())) &&
+       pos.osl_state.pinOrOpen(pos.side_to_move()).test(pos.osl_state.pieceAt(mto).number()))
         return true;
 #else
-    if (t1_att & pos.king_square(pos.side_to_move()))
+    if (matt & pos.king_square(pos.side_to_move()))
     {
-        assert(between_bb(t1, pos.king_square(pos.side_to_move())) & f2);
+        assert(between_bb(mto, pos.king_square(pos.side_to_move())) & tfrom);
         return true;
     }
 #endif
@@ -1961,29 +1959,31 @@ split_point_start: // At split points actual search starts from here
   }
 
 
-  // connected_threat() tests whether it is safe to forward prune a move or if
-  // is somehow connected to the threat move returned by null search.
+  // prevents_threat() tests whether a move is able to defend against the so
+  // called threat move (the best move returned from a null search that fails
+  // low). In this case will not be pruned.
 
-  bool connected_threat(const Position& pos, Move m, Move threat) {
+  bool prevents_threat(const Position& pos, Move move, Move threat) {
 
-    assert(is_ok(m));
+    assert(is_ok(move));
     assert(is_ok(threat));
-    assert(!pos.is_capture_or_promotion(m));
+    assert(!pos.is_capture_or_promotion(move));
 #ifndef GPSFISH
     assert(!pos.is_passed_pawn_push(m));
+    assert(!pos.is_passed_pawn_push(move));
 #endif
 
-    Square mfrom = from_sq(m);
-    Square mto = to_sq(m);
+    Square mfrom = from_sq(move);
+    Square mto = to_sq(move);
     Square tfrom = from_sq(threat);
     Square tto = to_sq(threat);
 
-    // Case 1: Don't prune moves which move the threatened piece
+    // Don't prune moves of the threatened piece
     if (mfrom == tto)
         return true;
 
-    // Case 2: If the threatened piece has value less than or equal to the
-    // value of the threatening piece, don't prune moves which defend it.
+    // If the threatened piece has value less than or equal to the value of the
+    // threat piece, don't prune moves which defend it.
     if (    pos.is_capture(threat)
         && (   PieceValue[MG][pos.piece_on(tfrom)] >= PieceValue[MG][pos.piece_on(tto)]
 #ifdef GPSFISH
@@ -1993,7 +1993,7 @@ split_point_start: // At split points actual search starts from here
 #endif
     {
 #ifdef GPSFISH
-        if( pos.osl_state.hasEffectIf(m.ptypeO(), m.to(), tto) )
+        if( pos.osl_state.hasEffectIf(move.ptypeO(), move.to(), tto) )
             return true;
 #else
         // Update occupancy as if the piece and the threat are moving
@@ -2014,19 +2014,16 @@ split_point_start: // At split points actual search starts from here
 #endif
     }
 
-    // Case 3: If the moving piece in the threatened move is a slider, don't
-    // prune safe moves which block its ray.
+    // If the threat piece is a slider, don't prune safe moves which block it
 #ifdef GPSFISH
     if (   !tfrom.isPieceStand()
         && Board_Table.isBetweenSafe(mto,tfrom,tto)
-        && pos.see_sign(m) >= 0)
-        return true;
 #else
     if (    piece_is_slider(pos.piece_on(tfrom))
         && (between_bb(tfrom, tto) & mto)
-        &&  pos.see_sign(m) >= 0)
-        return true;
 #endif
+        &&  pos.see_sign(move) >= 0)
+        return true;
 
     return false;
   }
