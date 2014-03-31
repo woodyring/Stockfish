@@ -801,7 +801,7 @@ namespace {
     // Step X. Check for aborted search and immediate draw
     // Check for an instant draw or maximum ply reached
     if (Signals.stop || ss->ply > MAX_PLY || pos.is_draw(repeat_check))
-        return value_draw(pos);
+        return VALUE_DRAW;
 
     if(repeat_check<0)
         return mated_in(ss->ply+1);
@@ -1473,9 +1473,11 @@ split_point_start: // At split points actual search starts from here
     // A split node has at least one move, the one tried before to be splitted.
     if (!moveCount)
 #ifdef GPSFISH
-        return excludedMove!=MOVE_NONE ? alpha : (inCheck ? (move_is_pawn_drop((ss-1)->currentMove) ? mate_in(ss->ply) : mated_in(ss->ply) ): VALUE_DRAW);
+        return  (excludedMove != MOVE_NONE) ? alpha
+              : (inCheck ? (move_is_pawn_drop((ss-1)->currentMove) ? mate_in(ss->ply) : mated_in(ss->ply) ) : VALUE_DRAW); // XXX : checking checkmate by pawn drop
 #else
-        return excludedMove ? alpha : inCheck ? mated_in(ss->ply) : VALUE_DRAW;
+        return  excludedMove ? alpha
+              : inCheck ? mated_in(ss->ply) : DrawValue[pos.side_to_move()];
 #endif
 
     // If we have pruned all the moves without searching return a fail-low score
