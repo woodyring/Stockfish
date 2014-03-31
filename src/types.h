@@ -582,11 +582,11 @@ inline int square_distance(Square s1, Square s2) {
 }
 #endif
 
-inline char file_to_char(File f) {
+inline char file_to_char(File f, bool tolower = true) {
 #ifdef GPSFISH
-  return char('a' + FILE_9 - f);
+  return char((tolower ? 'a' : 'A') + FILE_9 - f);
 #else
-  return char(f - FILE_A + 'a');
+  return char(f - FILE_A + (tolower ? 'a' : 'A'));
 #endif
 }
 
