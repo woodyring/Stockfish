@@ -161,7 +161,8 @@ enum CastlingSide {
 
 enum Phase {
   PHASE_ENDGAME = 0,
-  PHASE_MIDGAME = 128
+  PHASE_MIDGAME = 128,
+  MG = 0, EG = 1, PHASE_NB = 2
 };
 
 enum ScaleFactor {
@@ -194,8 +195,6 @@ enum Value {
 
   VALUE_ENSURE_INTEGER_SIZE_P = INT_MAX,
   VALUE_ENSURE_INTEGER_SIZE_N = INT_MIN,
-
-  Mg = 0, Eg = 1,
 
 #ifndef GPSFISH
   PawnValueMg   = 198,   PawnValueEg   = 258,
@@ -231,7 +230,7 @@ enum PieceType {
   PIECE_TYPE_NB = 8
 };
 enum Piece {
-  NO_PIECE = 16, // color_of(NO_PIECE) == NO_COLOR
+  NO_PIECE = 0,
   W_PAWN = 1, W_KNIGHT =  2, W_BISHOP =  3, W_ROOK =  4, W_QUEEN =  5, W_KING =  6,
   B_PAWN = 9, B_KNIGHT = 10, B_BISHOP = 11, B_ROOK = 12, B_QUEEN = 13, B_KING = 14,
   PIECE_NB = 16
@@ -415,7 +414,7 @@ extern const Value PieceValue[2][osl::PTYPE_SIZE];
 CACHE_LINE_ALIGNMENT
 
 extern Score pieceSquareTable[PIECE_NB][SQUARE_NB];
-extern Value PieceValue[2][18]; // [Mg / Eg][piece / pieceType]
+extern Value PieceValue[PHASE_NB][PIECE_NB];
 extern int SquareDistance[SQUARE_NB][SQUARE_NB];
 #endif
 
@@ -505,9 +504,9 @@ inline PieceType type_of(Piece p)  {
 
 inline Color color_of(Piece p) {
 #ifdef GPSFISH
-  return getOwner(p);
+  return getOwner(p); // XXX : should return NO_COLOR ?
 #else
-  return Color(p >> 3);
+  return p == NO_PIECE ? NO_COLOR : Color(p >> 3);
 #endif
 }
 
