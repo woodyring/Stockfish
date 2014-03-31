@@ -1565,7 +1565,11 @@ split_point_start: // At split points actual search starts from here
     Key posKey;
     Move ttMove, move, bestMove;
     Value bestValue, value, ttValue, futilityValue, futilityBase;
+#ifdef GPSFISH
+    bool givesCheck, evasionPrunable;
+#else
     bool givesCheck, enoughMaterial, evasionPrunable;
+#endif
     Depth ttDepth;
 
     ss->currentMove = bestMove = MOVE_NONE;
@@ -1903,23 +1907,16 @@ split_point_start: // At split points actual search starts from here
 
   bool connected_moves(const Position& pos, Move m1, Move m2) {
 
-    Square f1, t1, f2, t2;
-    Piece p1; //, p2;
-    Square ksq;
-
     assert(is_ok(m1));
     assert(is_ok(m2));
 
-    // Case 1: The moving piece is the same in both moves
-    f2 = from_sq(m2);
-    t1 = to_sq(m1);
-    if (f2 == t1)
-        return true;
+    Square t1 = to_sq(m1);
+    Square f1 = from_sq(m1);
+    Square t2 = to_sq(m2);
+    Square f2 = from_sq(m2);
 
-    // Case 2: The destination square for m2 was vacated by m1
-    t2 = to_sq(m2);
-    f1 = from_sq(m1);
-    if (t2 == f1)
+    // The moving piece is the same or its destination square was vacated by m1
+    if (t1 == f2 || t2 == f1)
         return true;
 
     // Case 3: Moving through the vacated square
@@ -1929,19 +1926,20 @@ split_point_start: // At split points actual search starts from here
        Board_Table.getShortOffset(Offset32(f2,f1)) &&
        abs((f2-t2).intValue())>abs((f2-f1).intValue())) return true;
 #else
-    p2 = pos.piece_on(f2);
-    if (piece_is_slider(p2) && (between_bb(f2, t2) & f1))
+    // Moving through the vacated square
+    if (piece_is_slider(pos.piece_on(f2)) && (between_bb(f2, t2) & f1))
       return true;
 #endif
 
     // Case 4: The destination square for m2 is defended by the moving piece in m1
-    p1 = pos.piece_on(t1);
 #ifdef GPSFISH
     osl::Piece pc=pos.osl_state.pieceAt(t1);
     if (pos.osl_state.hasEffectByPiece(pc,t2))
         return true;
 #else
-    if (pos.attacks_from(p1, t1, pos.pieces() ^ f2) & t2)
+    // The destination square for m2 is defended by the moving piece in m1
+    Bitboard t1_att = pos.attacks_from(pos.piece_on(t1), t1, pos.pieces() ^ f2);
+    if (t1_att & t2)
         return true;
 #endif
 
@@ -1949,16 +1947,15 @@ split_point_start: // At split points actual search starts from here
 #ifdef GPSFISH
     pc=pos.osl_state.pieceAt(t2);
     if(pc.isPiece() && pos.osl_state.hasEffectByPiece(pc,f2) &&
-       Ptype_Table.getEffect(p1,t1,pos.king_square(pos.side_to_move())).hasBlockableEffect() &&
+       Ptype_Table.getEffect(pos.piece_on(t1),t1,pos.king_square(pos.side_to_move())).hasBlockableEffect() &&
        Board_Table.isBetweenSafe(f2,t1,pos.king_square(pos.side_to_move())) &&
        !Board_Table.isBetweenSafe(t2,t1,pos.king_square(pos.side_to_move())) &&
        pos.osl_state.pinOrOpen(pos.side_to_move()).test(pos.osl_state.pieceAt(t1).number()))
         return true;
 #else
-    ksq = pos.king_square(pos.side_to_move());
-    if (    piece_is_slider(p1)
-        && (between_bb(t1, ksq) & f2)
-        && (pos.attacks_from(p1, t1, pos.pieces() ^ f2) & ksq))
+    // Discovered check, checking piece is the piece moved in m1
+    Square ksq = pos.king_square(pos.side_to_move());
+    if ((t1_att & ksq) && (between_bb(t1, ksq) & f2))
         return true;
 #endif
 
