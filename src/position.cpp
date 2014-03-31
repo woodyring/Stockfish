@@ -1610,9 +1610,6 @@ void Position::clear() {
       for (int j = 0; j < 16; j++)
           pieceList[0][i][j] = pieceList[1][i][j] = SQ_NONE;
 
-  for (Square sq = SQ_A1; sq <= SQ_H8; sq++)
-      board[sq] = NO_PIECE;
-  }
 #endif
 
 #ifdef GPSFISH
