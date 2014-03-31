@@ -220,7 +220,6 @@ using osl::WHITE;
 using osl::PTYPEO_SIZE;
 using osl::PTYPE_SIZE;
 const PieceType NO_PIECE_TYPE = osl::PTYPE_EMPTY;
-#define VALUE_DRAW  value_draw(pos)
 const int COLOR_NB = 2;
 const int PIECE_NB = PTYPEO_SIZE;
 #else
