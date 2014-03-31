@@ -146,32 +146,6 @@ namespace {
   Move do_skill_level();
   string uci_pv(const Position& pos, int depth, Value alpha, Value beta);
 
-  // is_dangerous() checks whether a move belongs to some classes of known
-  // 'dangerous' moves so that we avoid to prune it.
-  FORCE_INLINE bool is_dangerous(const Position& pos, Move m, bool captureOrPromotion) {
-
-#ifndef GPSFISH
-    // Castle move?
-    if (type_of(m) == CASTLE)
-        return true;
-
-    // Passed pawn move?
-    if (   type_of(pos.piece_moved(m)) == PAWN
-        && pos.pawn_is_passed(pos.side_to_move(), to_sq(m)))
-        return true;
-
-    // Entering a pawn endgame?
-    if (    captureOrPromotion
-        &&  type_of(pos.piece_on(to_sq(m))) != PAWN
-        &&  type_of(m) == NORMAL
-        && (  pos.non_pawn_material(WHITE) + pos.non_pawn_material(BLACK)
-            - PieceValue[Mg][pos.piece_on(to_sq(m))] == VALUE_ZERO))
-        return true;
-#endif
-
-    return false;
-  }
-
 #ifdef GPSFISH
   void show_tree_rec(Position &pos){
     TTEntry* tte;
@@ -194,12 +168,19 @@ namespace {
       }
     }
   }
-#endif
-#ifdef GPSFISH
+
   Value value_draw(Position const& pos){
     if(pos.side_to_move()==osl::BLACK) return DrawValue;
     else return -DrawValue;
   }
+
+  bool can_capture_king(Position const& pos){
+    Color us=pos.side_to_move();
+    Color them=~us;
+    const osl::Square king = pos.king_square(them);
+    return pos.osl_state.hasEffectAt(us, king);
+  }
+
 #endif
 #ifdef MOVE_STACK_REJECTIONS
   osl::container::MoveStack moveStacks[MAX_THREADS];
@@ -221,14 +202,6 @@ namespace {
       ret=osl::search::MoveStackRejections::probe<osl::WHITE>(state,moveStack,ss->ply,m,-alpha,checkCountOfAltP);
     }
     return ret;
-  }
-#endif
-#ifdef GPSFISH
-  bool can_capture_king(Position const& pos){
-    Color us=pos.side_to_move();
-    Color them=~us;
-    const osl::Square king = pos.king_square(them);
-    return pos.osl_state.hasEffectAt(us, king);
   }
 #endif
 } // namespace
@@ -1207,10 +1180,21 @@ split_point_start: // At split points actual search starts from here
 #endif
       }
 
+      ext = DEPTH_ZERO;
       captureOrPromotion = pos.is_capture_or_promotion(move);
       givesCheck = pos.move_gives_check(move, ci);
-      dangerous = givesCheck || is_dangerous(pos, move, captureOrPromotion);
-      ext = DEPTH_ZERO;
+#ifdef GPSFISH
+      dangerous =   givesCheck; // XXX : add other condition ?
+#else
+      dangerous =   givesCheck
+                 || pos.is_passed_pawn_push(move)
+                 || type_of(move) == CASTLE
+                 || (   captureOrPromotion // Entering a pawn endgame?
+                     && type_of(pos.piece_on(to_sq(move))) != PAWN
+                     && type_of(move) == NORMAL
+                     && (  pos.non_pawn_material(WHITE) + pos.non_pawn_material(BLACK)
+                         - PieceValue[Mg][pos.piece_on(to_sq(move))] == VALUE_ZERO));
+#endif
 
       // Step 12. Extend checks and, in PV nodes, also dangerous moves
       if (PvNode && dangerous)
