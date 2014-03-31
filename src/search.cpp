@@ -1547,9 +1547,9 @@ split_point_start: // At split points actual search starts from here
     Move ttMove, move, bestMove;
     Value bestValue, value, ttValue, futilityValue, futilityBase, oldAlpha;
 #ifdef GPSFISH
-    bool givesCheck, evasionPrunable;
+    bool givesCheck, evasionPrunable, fromNull;
 #else
-    bool givesCheck, enoughMaterial, evasionPrunable;
+    bool givesCheck, enoughMaterial, evasionPrunable, fromNull;
 #endif
     Depth ttDepth;
 
@@ -1559,6 +1559,11 @@ split_point_start: // At split points actual search starts from here
 
     ss->currentMove = bestMove = MOVE_NONE;
     ss->ply = (ss-1)->ply + 1;
+#ifdef GPSFISH
+    fromNull = (ss-1)->currentMove.isPass();
+#else
+    fromNull = (ss-1)->currentMove == MOVE_NULL;
+#endif
 
     // Check for an instant draw or maximum ply reached
     if (pos.is_draw<false, false>() || ss->ply > MAX_PLY)
@@ -1613,7 +1618,14 @@ split_point_start: // At split points actual search starts from here
     }
     else
     {
-        ss->staticEval = bestValue = evaluate(pos, ss->evalMargin);
+        if (fromNull)
+        {
+            // Approximated score. Real one is slightly higher due to tempo
+            ss->staticEval = bestValue = -(ss-1)->staticEval;
+            ss->evalMargin = VALUE_ZERO;
+        }
+        else
+            ss->staticEval = bestValue = evaluate(pos, ss->evalMargin);
 
         // Stand pat. Return immediately if static value is at least beta
         if (bestValue >= beta)
@@ -1654,6 +1666,7 @@ split_point_start: // At split points actual search starts from here
       // Futility pruning
       if (   !PvNode
           && !InCheck
+          && !fromNull
           && !givesCheck
           &&  move != ttMove
 #ifndef GPSFISH
