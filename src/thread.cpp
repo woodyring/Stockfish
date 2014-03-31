@@ -144,7 +144,7 @@ void Thread::wait_for_stop_or_ponderhit() {
   Signals.stopOnPonderhit = true;
 
   mutex.lock();
-  while (!Signals.stop) sleepCondition.wait(mutex);;
+  while (!Signals.stop) sleepCondition.wait(mutex);
   mutex.unlock();
 }
 
