@@ -72,6 +72,7 @@ namespace Search {
   LimitsType Limits;
   std::vector<RootMove> RootMoves;
   Position RootPosition;
+  Color RootColor;
   Time::point SearchTime;
   StateStackPtr SetupStates;
 }
@@ -274,7 +275,7 @@ void Search::think() {
 
   Position& pos = RootPosition;
   Chess960 = pos.is_chess960();
-  Eval::RootColor = pos.side_to_move();
+  RootColor = pos.side_to_move();
   TimeMgr.init(Limits, pos.startpos_ply_counter(), pos.side_to_move());
   TT.new_search();
   H.clear();
@@ -296,8 +297,8 @@ void Search::think() {
   {
       int cf = Options["Contempt Factor"] * PawnValueMg / 100;  // In centipawns
       cf = cf * MaterialTable::game_phase(pos) / PHASE_MIDGAME; // Scale down with phase
-      DrawValue[ Eval::RootColor] = VALUE_DRAW - Value(cf);
-      DrawValue[~Eval::RootColor] = VALUE_DRAW + Value(cf);
+      DrawValue[ RootColor] = VALUE_DRAW - Value(cf);
+      DrawValue[~RootColor] = VALUE_DRAW + Value(cf);
   }
   else
       DrawValue[WHITE] = DrawValue[BLACK] = VALUE_DRAW;

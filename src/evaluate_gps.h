@@ -2,8 +2,6 @@
 
 namespace Eval {
 
-Color RootColor;
-
 Value evaluate(const Position& pos, Value& margin) {
     margin=VALUE_ZERO;
     int iret=pos.eval->value();

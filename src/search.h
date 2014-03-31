@@ -111,6 +111,7 @@ extern volatile SignalsType Signals;
 extern LimitsType Limits;
 extern std::vector<RootMove> RootMoves;
 extern Position RootPosition;
+extern Color RootColor;
 extern Time::point SearchTime;
 extern StateStackPtr SetupStates;
 
