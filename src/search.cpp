@@ -1972,12 +1972,10 @@ split_point_start: // At split points actual search starts from here
     assert(!pos.is_passed_pawn_push(m));
 #endif
 
-    Square mfrom, mto, tfrom, tto;
-
-    mfrom = from_sq(m);
-    mto = to_sq(m);
-    tfrom = from_sq(threat);
-    tto = to_sq(threat);
+    Square mfrom = from_sq(m);
+    Square mto = to_sq(m);
+    Square tfrom = from_sq(threat);
+    Square tto = to_sq(threat);
 
     // Case 1: Don't prune moves which move the threatened piece
     if (mfrom == tto)
@@ -1985,15 +1983,35 @@ split_point_start: // At split points actual search starts from here
 
     // Case 2: If the threatened piece has value less than or equal to the
     // value of the threatening piece, don't prune moves which defend it.
-    if (   pos.is_capture(threat)
+    if (    pos.is_capture(threat)
         && (   PieceValue[MG][pos.piece_on(tfrom)] >= PieceValue[MG][pos.piece_on(tto)]
 #ifdef GPSFISH
-            || type_of(pos.piece_on(tfrom)) == osl::KING)
+            || type_of(pos.piece_on(tfrom)) == osl::KING))
 #else
-            || type_of(pos.piece_on(tfrom)) == KING)
+            || type_of(pos.piece_on(tfrom)) == KING))
 #endif
-        && pos.move_attacks_square(m, tto))
-        return true;
+    {
+#ifdef GPSFISH
+        if( pos.osl_state.hasEffectIf(m.ptypeO(), m.to(), tto) )
+            return true;
+#else
+        // Update occupancy as if the piece is moving
+        Bitboard occ = pos.pieces() ^ mfrom ^ mto;
+        Piece piece = pos.piece_on(mfrom);
+
+        // The moved piece attacks the square 'tto' ?
+        if (pos.attacks_from(piece, mto, occ) & tto)
+            return true;
+
+        // Scan for possible X-ray attackers behind the moved piece
+        Bitboard xray =  (attacks_bb<  ROOK>(tto, occ) & pos.pieces(color_of(piece), QUEEN, ROOK))
+                       | (attacks_bb<BISHOP>(tto, occ) & pos.pieces(color_of(piece), QUEEN, BISHOP));
+
+        // Verify attackers are triggered by our move and not already existing
+        if (xray && (xray ^ (xray & pos.attacks_from<QUEEN>(tto))))
+            return true;
+#endif
+    }
 
     // Case 3: If the moving piece in the threatened move is a slider, don't
     // prune safe moves which block its ray.
