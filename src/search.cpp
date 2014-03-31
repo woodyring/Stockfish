@@ -1995,8 +1995,8 @@ split_point_start: // At split points actual search starts from here
         if( pos.osl_state.hasEffectIf(m.ptypeO(), m.to(), tto) )
             return true;
 #else
-        // Update occupancy as if the piece is moving
-        Bitboard occ = pos.pieces() ^ mfrom ^ mto;
+        // Update occupancy as if the piece and the threat are moving
+        Bitboard occ = pos.pieces() ^ mfrom ^ mto ^ tfrom;
         Piece piece = pos.piece_on(mfrom);
 
         // The moved piece attacks the square 'tto' ?
