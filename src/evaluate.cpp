@@ -276,7 +276,8 @@ namespace {
 namespace Eval {
 
   Color RootColor;
-  Value ValueDrawContempt;
+  Value ContemptFactor;
+  Value ValueDraw[2];
 
   /// evaluate() is the main evaluation function. It always computes two
   /// values, an endgame score and a middle game score, and interpolates
@@ -317,7 +318,10 @@ namespace Eval {
         KingDangerTable[0][i] = apply_weight(make_score(t, 0), Weights[KingDangerThem]);
     }
 
-    ValueDrawContempt = VALUE_DRAW - Options["Contempt Factor"] * PawnValueMg / 100;
+    if (Options["UCI_AnalyseMode"])
+        ContemptFactor = VALUE_ZERO;
+    else
+        ContemptFactor = Options["Contempt Factor"] * PawnValueMg / 100;
   }
 
 

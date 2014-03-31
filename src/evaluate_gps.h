@@ -2,7 +2,9 @@
 
 namespace Eval {
 
-Value ValueDrawContempt;
+Color RootColor;
+Value ContemptFactor;
+Value ValueDraw[2];
 
 Value evaluate(const Position& pos, Value& margin) {
     margin=VALUE_ZERO;

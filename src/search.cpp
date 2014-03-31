@@ -305,9 +305,9 @@ void Search::think() {
 
   Position& pos = RootPosition;
   Chess960 = pos.is_chess960();
-#ifndef GPSFISH
   Eval::RootColor = pos.side_to_move();
-#endif
+  Eval::ValueDraw[ Eval::RootColor] = VALUE_DRAW - Eval::ContemptFactor;
+  Eval::ValueDraw[~Eval::RootColor] = VALUE_DRAW + Eval::ContemptFactor;
   TimeMgr.init(Limits, pos.startpos_ply_counter(), pos.side_to_move());
   TT.new_search();
   H.clear();
@@ -870,7 +870,7 @@ namespace {
     {
         // Step 2. Check for aborted search and immediate draw
         if (Signals.stop || pos.is_draw<false>() || ss->ply > MAX_PLY)
-            return Eval::ValueDrawContempt;
+            return Eval::ValueDraw[pos.side_to_move()];
 
         // Step 3. Mate distance pruning. Even if we mate at the next move our score
         // would be at best mate_in(ss->ply+1), but if alpha is already bigger because
@@ -1549,13 +1549,9 @@ split_point_start: // At split points actual search starts from here
     ss->currentMove = bestMove = MOVE_NONE;
     ss->ply = (ss-1)->ply + 1;
 
-#ifdef GPSFISH
-    Eval::ValueDrawContempt = VALUE_DRAW;
-#endif
-
     // Check for an instant draw or maximum ply reached
     if (pos.is_draw<true>() || ss->ply > MAX_PLY)
-        return Eval::ValueDrawContempt;
+        return Eval::ValueDraw[pos.side_to_move()];
 
 #ifdef GPSFISH
     if(can_capture_king(pos)){

@@ -20,7 +20,10 @@
 #include <cstring>
 #include <iostream>
 
-#ifndef GPSFISH
+#ifdef GPSFISH
+#include "types.h"
+#include "bitops.h"
+#else
 #include "bitboard.h"
 #endif
 #include "tt.h"
@@ -41,13 +44,6 @@ TranspositionTable::~TranspositionTable() {
   delete [] entries;
 }
 
-#ifdef GPSFISH
-FORCE_INLINE uint32_t msb(uint64_t b) {
-  unsigned long index;
-  _BitScanReverse64(&index, b);
-  return (uint32_t) index;
-}
-#endif
 
 /// TranspositionTable::set_size() sets the size of the transposition table,
 /// measured in megabytes. Transposition table consists of a power of 2 number of
