@@ -1753,16 +1753,16 @@ bool Position::is_draw() const {
   if (CheckRepetition)
   {
 #ifdef GPSFISH
-      int i = 4, e = st->pliesFromNull;
+      int i = 4, e = st->pliesFromNull, cnt;
 #else
-      int i = 4, e = std::min(st->rule50, st->pliesFromNull);
+      int i = 4, e = std::min(st->rule50, st->pliesFromNull), cnt;
 #endif
 
       if (i <= e)
       {
           StateInfo* stp = st->previous->previous;
 
-          for (int cnt = 0; i <= e; i += 2)
+          for (cnt = 0; i <= e; i += 2)
           {
               stp = st->previous->previous;
 #ifdef GPSFISH
