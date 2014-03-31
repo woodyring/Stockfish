@@ -894,6 +894,8 @@ namespace {
             : ttValue >= beta ? (tte->type() & BOUND_LOWER)
                               : (tte->type() & BOUND_UPPER)))
     {
+        assert(ttValue != VALUE_NONE); // Due to depth > DEPTH_NONE
+
         TT.refresh(tte);
         ss->currentMove = ttMove; // Can be MOVE_NONE
 
@@ -911,6 +913,7 @@ namespace {
     // Step 5. Evaluate the position statically and update parent's gain statistics
     if (inCheck)
         ss->eval = ss->evalMargin = refinedValue = VALUE_NONE;
+
     else if (tte)
     {
         assert(tte->static_value() != VALUE_NONE);
@@ -1227,6 +1230,8 @@ split_point_start: // At split points actual search starts from here
           &&  pos.pl_move_is_legal(move, ci.pinned)
           &&  abs(ttValue) < VALUE_KNOWN_WIN)
       {
+          assert(ttValue != VALUE_NONE);
+
           Value rBeta = ttValue - int(depth);
           ss->excludedMove = move;
           ss->skipNullMove = true;
@@ -1579,6 +1584,8 @@ split_point_start: // At split points actual search starts from here
             : ttValue >= beta ? (tte->type() & BOUND_LOWER)
                               : (tte->type() & BOUND_UPPER)))
     {
+        assert(ttValue != VALUE_NONE); // Due to ttDepth > DEPTH_NONE
+
         ss->currentMove = ttMove; // Can be MOVE_NONE
         return ttValue;
     }
@@ -1920,13 +1927,10 @@ split_point_start: // At split points actual search starts from here
 
   Value value_to_tt(Value v, int ply) {
 
-    if (v >= VALUE_MATE_IN_MAX_PLY)
-      return v + ply;
+    assert(v != VALUE_NONE);
 
-    if (v <= VALUE_MATED_IN_MAX_PLY)
-      return v - ply;
-
-    return v;
+    return  v >= VALUE_MATE_IN_MAX_PLY  ? v + ply
+          : v <= VALUE_MATED_IN_MAX_PLY ? v - ply : v;
   }
 
 
@@ -1936,13 +1940,9 @@ split_point_start: // At split points actual search starts from here
 
   Value value_from_tt(Value v, int ply) {
 
-    if (v >= VALUE_MATE_IN_MAX_PLY)
-      return v - ply;
-
-    if (v <= VALUE_MATED_IN_MAX_PLY)
-      return v + ply;
-
-    return v;
+    return  v == VALUE_NONE             ? VALUE_NONE
+          : v >= VALUE_MATE_IN_MAX_PLY  ? v - ply
+          : v <= VALUE_MATED_IN_MAX_PLY ? v + ply : v;
   }
 
 
@@ -2000,11 +2000,13 @@ split_point_start: // At split points actual search starts from here
 
 
   // refine_eval() returns the transposition table score if possible, otherwise
-  // falls back on static position evaluation.
+  // falls back on static position evaluation. Note that we never return VALUE_NONE
+  // even if v == VALUE_NONE.
 
   Value refine_eval(const TTEntry* tte, Value v, Value defaultEval) {
 
       assert(tte);
+      assert(v != VALUE_NONE || !tte->type());
 
       if (   ((tte->type() & BOUND_LOWER) && v >= defaultEval)
           || ((tte->type() & BOUND_UPPER) && v < defaultEval))
