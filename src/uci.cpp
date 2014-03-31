@@ -142,18 +142,18 @@ void UCI::loop(const string& args) {
 #endif
 
 #ifdef GPSFISH
-      else if (token == "usinewgame") {  pos.from_fen(StartFEN, false, Threads.main_thread()); TT.clear(); }
+      else if (token == "usinewgame") {  pos.set(StartFEN, false, Threads.main_thread()); TT.clear(); }
 #else
       else if (token == "ucinewgame") TT.clear();
 #endif
       else if (token == "go")         go(pos, is);
       else if (token == "position")   set_position(pos, is);
       else if (token == "setoption")  set_option(is);
-      else if (token == "d")          pos.print();
 #ifndef GPSFISH
       else if (token == "flip")       pos.flip();
 #endif
       else if (token == "bench")      benchmark(pos, is);
+      else if (token == "d")          sync_cout << pos.pretty() << sync_endl;
 #ifdef GPSFISH
       else if (token == "isready") {
           bool ok = osl::eval::ml::OpenMidEndingEval::setUp();
@@ -226,10 +226,11 @@ namespace {
         return;
 
 #ifdef GPSFISH
-    pos.from_fen(fen, false, Threads.main_thread());
+    pos.set(fen, false, Threads.main_thread());
 #else
-    pos.from_fen(fen, Options["UCI_Chess960"], Threads.main_thread());
+    pos.set(fen, Options["UCI_Chess960"], Threads.main_thread());
 #endif
+
     SetupStates = Search::StateStackPtr(new std::stack<StateInfo>());
 
     // Parse move list (if any)
