@@ -1938,9 +1938,10 @@ split_point_start: // At split points actual search starts from here
     p1 = pos.piece_on(t1);
 #ifdef GPSFISH
     osl::Piece pc=pos.osl_state.pieceAt(t1);
-    if(pos.osl_state.hasEffectByPiece(pc,t2)) return true;
+    if (pos.osl_state.hasEffectByPiece(pc,t2))
+        return true;
 #else
-    if (pos.attacks_from(p1, t1) & t2)
+    if (pos.attacks_from(p1, t1, pos.pieces() ^ f2) & t2)
         return true;
 #endif
 
