@@ -37,7 +37,7 @@ bool using_tcp_connection = false;
 #endif
 
 #ifndef GPSFISH
-static const char* PieceToChar[COLOR_NB] = { "PNBRQK", "pnbrqk" };
+static const char* PieceToChar[COLOR_NB] = { " PNBRQK", " pnbrqk" };
 #endif
 
 
