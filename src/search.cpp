@@ -140,7 +140,6 @@ namespace {
   Value value_to_tt(Value v, int ply);
   Value value_from_tt(Value v, int ply);
   bool connected_threat(const Position& pos, Move m, Move threat);
-  Value refine_eval(const TTEntry* tte, Value ttValue, Value defaultEval);
   Move do_skill_level();
   string uci_pv(const Position& pos, int depth, Value alpha, Value beta);
 
@@ -754,7 +753,7 @@ namespace {
     Move ttMove, move, excludedMove, bestMove, threatMove;
     Depth ext, newDepth;
     Value bestValue, value, ttValue;
-    Value refinedValue, nullValue, futilityValue;
+    Value eval, nullValue, futilityValue;
     bool inCheck, givesCheck, pvMove, singularExtensionNode;
     bool captureOrPromotion, dangerous, doFullDepthSearch;
     int moveCount, playedMoveCount;
@@ -913,41 +912,46 @@ namespace {
 
     // Step 5. Evaluate the position statically and update parent's gain statistics
     if (inCheck)
-        ss->eval = ss->evalMargin = refinedValue = VALUE_NONE;
+        ss->staticEval = ss->evalMargin = eval = VALUE_NONE;
 
     else if (tte)
     {
         assert(tte->static_value() != VALUE_NONE);
+        assert(ttValue != VALUE_NONE || tte->type() == BOUND_NONE);
 
-        ss->eval = tte->static_value();
+        ss->staticEval = eval = tte->static_value();
         ss->evalMargin = tte->static_value_margin();
-        refinedValue = refine_eval(tte, ttValue, ss->eval);
+
+        // Can ttValue be used as a better position evaluation?
+        if (   ((tte->type() & BOUND_LOWER) && ttValue > eval)
+            || ((tte->type() & BOUND_UPPER) && ttValue < eval))
+            eval = ttValue;
     }
     else
     {
-        refinedValue = ss->eval = evaluate(pos, ss->evalMargin);
+        eval = ss->staticEval = evaluate(pos, ss->evalMargin);
         TT.store(posKey, VALUE_NONE, BOUND_NONE, DEPTH_NONE, MOVE_NONE,
-                 ss->eval, ss->evalMargin);
+                 ss->staticEval, ss->evalMargin);
     }
 
     // Update gain for the parent non-capture move given the static position
     // evaluation before and after the move.
 #ifdef GPSFISH
-    if (   !(move = (ss-1)->currentMove).isPass()
+    if (  !(move = (ss-1)->currentMove).isPass()
 #else
-    if (    (move = (ss-1)->currentMove) != MOVE_NULL
+    if (   (move = (ss-1)->currentMove) != MOVE_NULL
 #endif
-        &&  (ss-1)->eval != VALUE_NONE
-        &&  ss->eval != VALUE_NONE
+        && (ss-1)->staticEval != VALUE_NONE
+        &&  ss->staticEval != VALUE_NONE
         && !pos.captured_piece_type()
         &&  type_of(move) == NORMAL)
     {
         Square to = to_sq(move);
 #ifdef GPSFISH
         //H.update_gain(m.ptypeO(), to_sq(m), -(before + after));
-        H.update_gain(move.ptypeO(), to, -(ss-1)->eval - ss->eval);
+        H.update_gain(move.ptypeO(), to, -(ss-1)->staticEval - ss->staticEval);
 #else
-        H.update_gain(pos.piece_on(to), to, -(ss-1)->eval - ss->eval);
+        H.update_gain(pos.piece_on(to), to, -(ss-1)->staticEval - ss->staticEval);
 #endif
     }
 
@@ -955,7 +959,7 @@ namespace {
     if (   !PvNode
         &&  depth < 4 * ONE_PLY
         && !inCheck
-        &&  refinedValue + razor_margin(depth) < beta
+        &&  eval + razor_margin(depth) < beta
         &&  ttMove == MOVE_NONE
         &&  abs(beta) < VALUE_MATE_IN_MAX_PLY
 #ifndef GPSFISH
@@ -978,20 +982,20 @@ namespace {
         && !ss->skipNullMove
         &&  depth < 4 * ONE_PLY
         && !inCheck
-        &&  refinedValue - FutilityMargins[depth][0] >= beta
+        &&  eval - FutilityMargins[depth][0] >= beta
         &&  abs(beta) < VALUE_MATE_IN_MAX_PLY
 #ifndef GPSFISH
         &&  pos.non_pawn_material(pos.side_to_move())
 #endif
 	   )
-        return refinedValue - FutilityMargins[depth][0];
+        return eval - FutilityMargins[depth][0];
 
     // Step 8. Null move search with verification search (is omitted in PV nodes)
     if (   !PvNode
         && !ss->skipNullMove
         &&  depth > ONE_PLY
         && !inCheck
-        &&  refinedValue >= beta
+        &&  eval >= beta
         &&  abs(beta) < VALUE_MATE_IN_MAX_PLY
 #ifdef GPSFISH
       )
@@ -1009,7 +1013,7 @@ namespace {
         Depth R = 3 * ONE_PLY + depth / 4;
 
         // Null move dynamic reduction based on value
-        if (refinedValue - PawnValueMg > beta)
+        if (eval - PawnValueMg > beta)
             R += ONE_PLY;
 
 #ifdef GPSFISH
@@ -1118,7 +1122,7 @@ namespace {
     // Step 10. Internal iterative deepening
     if (   depth >= (PvNode ? 5 * ONE_PLY : 8 * ONE_PLY)
         && ttMove == MOVE_NONE
-        && (PvNode || (!inCheck && ss->eval + Value(256) >= beta)))
+        && (PvNode || (!inCheck && ss->staticEval + Value(256) >= beta)))
     {
         Depth d = (PvNode ? depth - 2 * ONE_PLY : depth / 2);
 
@@ -1275,7 +1279,7 @@ split_point_start: // At split points actual search starts from here
           // We illogically ignore reduction condition depth >= 3*ONE_PLY for predicted depth,
           // but fixing this made program slightly weaker.
           Depth predictedDepth = newDepth - reduction<PvNode>(depth, moveCount);
-          futilityValue =  ss->eval + ss->evalMargin + futility_margin(predictedDepth, moveCount)
+          futilityValue =  ss->staticEval + ss->evalMargin + futility_margin(predictedDepth, moveCount)
 #ifdef GPSFISH
                          + H.gain(move.ptypeO(), to_sq(move)); // XXX
 #else
@@ -1492,7 +1496,7 @@ split_point_start: // At split points actual search starts from here
     if (bestValue >= beta) // Failed high
     {
         TT.store(posKey, value_to_tt(bestValue, ss->ply), BOUND_LOWER, depth,
-                 bestMove, ss->eval, ss->evalMargin);
+                 bestMove, ss->staticEval, ss->evalMargin);
 
         if (!pos.is_capture_or_promotion(bestMove) && !inCheck)
         {
@@ -1517,7 +1521,7 @@ split_point_start: // At split points actual search starts from here
     else // Failed low or PV search
         TT.store(posKey, value_to_tt(bestValue, ss->ply),
                  PvNode && bestMove != MOVE_NONE ? BOUND_EXACT : BOUND_UPPER,
-                 depth, bestMove, ss->eval, ss->evalMargin);
+                 depth, bestMove, ss->staticEval, ss->evalMargin);
 
     assert(bestValue > -VALUE_INFINITE && bestValue < VALUE_INFINITE);
 
@@ -1596,7 +1600,7 @@ split_point_start: // At split points actual search starts from here
     // Evaluate the position statically
     if (inCheck)
     {
-        ss->eval = ss->evalMargin = VALUE_NONE;
+        ss->staticEval = ss->evalMargin = VALUE_NONE;
         bestValue = futilityBase = -VALUE_INFINITE;
 #ifndef GPSFISH
         enoughMaterial = false;
@@ -1608,18 +1612,18 @@ split_point_start: // At split points actual search starts from here
         {
             assert(tte->static_value() != VALUE_NONE);
 
-            ss->eval = bestValue = tte->static_value();
+            ss->staticEval = bestValue = tte->static_value();
             ss->evalMargin = tte->static_value_margin();
         }
         else
-            ss->eval = bestValue = evaluate(pos, ss->evalMargin);
+            ss->staticEval = bestValue = evaluate(pos, ss->evalMargin);
 
         // Stand pat. Return immediately if static value is at least beta
         if (bestValue >= beta)
         {
             if (!tte)
                 TT.store(pos.key(), value_to_tt(bestValue, ss->ply), BOUND_LOWER,
-                         DEPTH_NONE, MOVE_NONE, ss->eval, ss->evalMargin);
+                         DEPTH_NONE, MOVE_NONE, ss->staticEval, ss->evalMargin);
 
             return bestValue;
         }
@@ -1627,7 +1631,7 @@ split_point_start: // At split points actual search starts from here
         if (PvNode && bestValue > alpha)
             alpha = bestValue;
 
-        futilityBase = ss->eval + ss->evalMargin + Value(128);
+        futilityBase = ss->staticEval + ss->evalMargin + Value(128);
 #ifndef GPSFISH
         enoughMaterial = pos.non_pawn_material(pos.side_to_move()) > RookValueMg;
 #endif
@@ -1714,7 +1718,7 @@ split_point_start: // At split points actual search starts from here
           &&  givesCheck
           &&  move != ttMove
           && !pos.is_capture_or_promotion(move)
-          &&  ss->eval + PawnValueMg / 4 < beta
+          &&  ss->staticEval + PawnValueMg / 4 < beta
           && !check_is_dangerous(pos, move, futilityBase, beta))
           continue;
 
@@ -1762,7 +1766,7 @@ split_point_start: // At split points actual search starts from here
               else // Fail high
               {
                   TT.store(posKey, value_to_tt(value, ss->ply), BOUND_LOWER,
-                           ttDepth, move, ss->eval, ss->evalMargin);
+                           ttDepth, move, ss->staticEval, ss->evalMargin);
 
                   return value;
               }
@@ -1797,7 +1801,7 @@ split_point_start: // At split points actual search starts from here
 
     TT.store(posKey, value_to_tt(bestValue, ss->ply),
              PvNode && bestMove != MOVE_NONE ? BOUND_EXACT : BOUND_UPPER,
-             ttDepth, bestMove, ss->eval, ss->evalMargin);
+             ttDepth, bestMove, ss->staticEval, ss->evalMargin);
 
     assert(bestValue > -VALUE_INFINITE && bestValue < VALUE_INFINITE);
 
@@ -1999,23 +2003,6 @@ split_point_start: // At split points actual search starts from here
 #endif
 
     return false;
-  }
-
-
-  // refine_eval() returns the transposition table score if possible, otherwise
-  // falls back on static position evaluation. Note that we never return VALUE_NONE
-  // even if v == VALUE_NONE.
-
-  Value refine_eval(const TTEntry* tte, Value v, Value defaultEval) {
-
-      assert(tte);
-      assert(v != VALUE_NONE || !tte->type());
-
-      if (   ((tte->type() & BOUND_LOWER) && v >= defaultEval)
-          || ((tte->type() & BOUND_UPPER) && v < defaultEval))
-          return v;
-
-      return defaultEval;
   }
 
 
