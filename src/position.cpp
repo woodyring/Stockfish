@@ -556,10 +556,8 @@ void Position::print(Move move) const {
 #else
   if (move)
 #endif
-  {
-      Position p(*this);
-      cout << "\nMove is: " << (sideToMove == BLACK ? ".." : "") << move_to_san(p, move);
-  }
+      cout << "\nMove is: " << (sideToMove == BLACK ? ".." : "")
+           << move_to_san(*const_cast<Position*>(this), move);
 
 #ifdef GPSFISH
   cout << osl_state << endl;
