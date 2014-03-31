@@ -816,7 +816,7 @@ namespace {
 
     // Step 2. Check for aborted search and immediate draw
     if ((   Signals.stop
-         || pos.is_draw<false,true>()
+         || pos.is_draw<true,PvNode>()
          || ss->ply > MAX_PLY) && !RootNode)
         return VALUE_DRAW;
 
@@ -857,7 +857,7 @@ namespace {
     if (!RootNode)
     {
         // Step 2. Check for aborted search and immediate draw
-        if (Signals.stop || pos.is_draw<false,true>() || ss->ply > MAX_PLY)
+        if (Signals.stop || pos.is_draw<true, PvNode>() || ss->ply > MAX_PLY)
             return DrawValue[pos.side_to_move()];
 
         // Step 3. Mate distance pruning. Even if we mate at the next move our score
@@ -871,10 +871,6 @@ namespace {
         if (alpha >= beta)
             return alpha;
     }
-	else 
-	{
-		if(pos.is_draw<false,false>()) return DrawValue[pos.side_to_move()];
-	}
 
     // Step 4. Transposition table lookup
     // We don't want the score of a partial search to overwrite a previous full search
@@ -1566,7 +1562,7 @@ split_point_start: // At split points actual search starts from here
     ss->ply = (ss-1)->ply + 1;
 
     // Check for an instant draw or maximum ply reached
-    if (pos.is_draw<true,true>() || ss->ply > MAX_PLY)
+    if (pos.is_draw<false, false>() || ss->ply > MAX_PLY)
         return DrawValue[pos.side_to_move()];
 
 #ifdef GPSFISH
@@ -2124,7 +2120,7 @@ void RootMove::extract_pv_from_tt_rec(Position& pos,int ply) {
           && pos.is_pseudo_legal(tte->move(pos))
           && pos.pl_move_is_legal(tte->move(pos), pos.pinned_pieces())
           && ply < MAX_PLY
-          && (!pos.is_draw<false,true>() || ply < 2))
+          && (!pos.is_draw<true,true>() || ply < 2))
   {
       pv.push_back(tte->move(pos));
       StateInfo st;
@@ -2167,7 +2163,7 @@ void RootMove::extract_pv_from_tt(Position& pos) {
          && pos.is_pseudo_legal(m)
          && pos.pl_move_is_legal(m, pos.pinned_pieces())
          && ply < MAX_PLY
-         && (!pos.is_draw<false,true>() || ply < 2))
+         && (!pos.is_draw<true, true>() || ply < 2))
   {
       pv.push_back(m);
       pos.do_move(m, *st++);

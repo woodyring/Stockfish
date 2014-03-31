@@ -1776,49 +1776,40 @@ bool Position::is_draw(int& ret) const {
 }
 #endif
 
-template<bool SkipRepetition, bool SkipThreeFoldCheck>
+template<bool CheckRepetition, bool CheckThreeFold>
 bool Position::is_draw() const {
 
 #ifndef GPSFISH
-  // Draw by material?
   if (   !pieces(PAWN)
       && (non_pawn_material(WHITE) + non_pawn_material(BLACK) <= BishopValueMg))
       return true;
 
-  // Draw by the 50 moves rule?
   if (st->rule50 > 99 && (!in_check() || MoveList<LEGAL>(*this).size()))
       return true;
 #endif
 
-  // Draw by repetition?
-  if (!SkipRepetition)
+  if (CheckRepetition)
   {
 #ifdef GPSFISH
-      int i = 4, e = st->pliesFromNull, rep_count=0;
+      int i = 4, e = st->pliesFromNull;
 #else
-      int i = 4, e = std::min(st->rule50, st->pliesFromNull), rep_count=0;
+      int i = 4, e = std::min(st->rule50, st->pliesFromNull);
 #endif
 
       if (i <= e)
       {
           StateInfo* stp = st->previous->previous;
 
-          do {
-              stp = stp->previous->previous;
-
-              if (stp->key == st->key)
-              {
-                if(SkipThreeFoldCheck) return true;
+          for (int cnt = 0; i <= e; i += 2)
+          {
+              stp = st->previous->previous;
 #ifdef GPSFISH
-                else if(++rep_count>=3) return true; // XXX : draw by 4 moves
+              if (stp->key == st->key && (!CheckThreeFold || ++cnt >= 2))
 #else
-                else if(++rep_count>=2) return true;
+              if (stp->key == st->key && (!CheckThreeFold || ++cnt >= 3))
 #endif
-              }
-
-              i +=2;
-
-          } while (i <= e);
+                  return true;
+          }
       }
   }
 
@@ -1826,8 +1817,8 @@ bool Position::is_draw() const {
 }
 
 // Explicit template instantiations
-template bool Position::is_draw<false,true>() const;
-template bool Position::is_draw<true,true>() const;
+template bool Position::is_draw<true,  true>() const;
+template bool Position::is_draw<true, false>() const;
 template bool Position::is_draw<false,false>() const;
 
 
