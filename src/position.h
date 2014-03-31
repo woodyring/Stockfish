@@ -147,9 +147,8 @@ public:
 #endif
 
   // Checking
-  bool in_check() const;
-#ifndef GPSFISH
   Bitboard checkers() const;
+#ifndef GPSFISH
   Bitboard discovered_check_candidates() const;
 #endif
   Bitboard pinned_pieces() const;
@@ -420,20 +419,15 @@ inline Bitboard Position::attacks_from(Piece p, Square s) const {
 inline Bitboard Position::attackers_to(Square s) const {
   return attackers_to(s, byTypeBB[ALL_PIECES]);
 }
+#endif
 
 inline Bitboard Position::checkers() const {
-  return st->checkersBB;
-}
-#endif
-
-inline bool Position::in_check() const {
 #ifdef GPSFISH
-  return osl_state.inCheck();
+    return osl_state.inCheck();
 #else
-  return st->checkersBB != 0;
+  return st->checkersBB;
 #endif
 }
-
 
 #ifndef GPSFISH
 inline Bitboard Position::discovered_check_candidates() const {

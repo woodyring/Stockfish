@@ -288,7 +288,7 @@ void Search::think() {
   {
       RootMoves.push_back(MOVE_NONE);
       sync_cout << "info depth 0 score "
-                << score_to_uci(RootPos.in_check() ? -VALUE_MATE : VALUE_DRAW)
+                << score_to_uci(RootPos.checkers() ? -VALUE_MATE : VALUE_DRAW)
                 << sync_endl;
 
       goto finalize;
@@ -769,7 +769,7 @@ namespace {
     }
 #endif
 
-    inCheck = pos.in_check();
+    inCheck = pos.checkers();
 
     if (SpNode)
     {
@@ -1537,7 +1537,7 @@ split_point_start: // At split points actual search starts from here
     const bool PvNode = (NT == PV);
 
     assert(NT == PV || NT == NonPV);
-    assert(InCheck == pos.in_check());
+    assert(InCheck == !!pos.checkers());
     assert(alpha >= -VALUE_INFINITE && alpha < beta && beta <= VALUE_INFINITE);
     assert(PvNode || (alpha == beta - 1));
     assert(depth <= DEPTH_ZERO);
