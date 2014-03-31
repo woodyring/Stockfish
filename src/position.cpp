@@ -1809,7 +1809,11 @@ bool Position::is_draw() const {
               if (stp->key == st->key)
               {
                 if(SkipThreeFoldCheck) return true;
+#ifdef GPSFISH
+                else if(++rep_count>=3) return true; // XXX : draw by 4 moves
+#else
                 else if(++rep_count>=2) return true;
+#endif
               }
 
               i +=2;
