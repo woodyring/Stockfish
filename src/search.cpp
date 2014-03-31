@@ -1961,10 +1961,6 @@ split_point_start: // At split points actual search starts from here
 
     assert(is_ok(first));
     assert(is_ok(second));
-    assert(!pos.is_capture_or_promotion(first));
-#ifndef GPSFISH
-    assert(!pos.is_passed_pawn_push(first));
-#endif
 
     Square m1from = from_sq(first);
     Square m2from = from_sq(second);
