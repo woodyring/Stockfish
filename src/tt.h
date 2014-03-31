@@ -149,7 +149,7 @@ class TranspositionTable {
 
 public:
   TranspositionTable();
-  ~TranspositionTable();
+ ~TranspositionTable();
   void set_size(size_t mbSize);
   void clear();
 #ifdef GPSFISH
