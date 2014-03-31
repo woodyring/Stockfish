@@ -149,12 +149,14 @@ enum CastleRight {  // Defined as in PolyGlot book hash key
   WHITE_OOO    = 2,
   BLACK_OO     = 4,
   BLACK_OOO    = 8,
-  ALL_CASTLES  = 15
+  ALL_CASTLES  = 15,
+  CASTLE_RIGHT_NB = 16
 };
 
 enum CastlingSide {
   KING_SIDE,
-  QUEEN_SIDE
+  QUEEN_SIDE,
+  CASTLING_SIDE_NB = 2
 };
 
 enum Phase {
@@ -205,6 +207,7 @@ enum Value {
 };
 
 #ifdef GPSFISH
+
 #include "osl/ptype.h"
 #include "osl/player.h"
 typedef osl::Ptype PieceType;
@@ -219,19 +222,23 @@ using osl::PTYPEO_SIZE;
 using osl::PTYPE_SIZE;
 const PieceType NO_PIECE_TYPE = osl::PTYPE_EMPTY;
 #define VALUE_DRAW  value_draw(pos)
+const int COLOR_NB = 2;
+const int PIECE_NB = PTYPEO_SIZE;
 #else
 enum PieceType {
   NO_PIECE_TYPE = 0, ALL_PIECES = 0,
-  PAWN = 1, KNIGHT = 2, BISHOP = 3, ROOK = 4, QUEEN = 5, KING = 6
+  PAWN = 1, KNIGHT = 2, BISHOP = 3, ROOK = 4, QUEEN = 5, KING = 6,
+  PIECE_TYPE_NB = 8
 };
 enum Piece {
   NO_PIECE = 16, // color_of(NO_PIECE) == NO_COLOR
   W_PAWN = 1, W_KNIGHT =  2, W_BISHOP =  3, W_ROOK =  4, W_QUEEN =  5, W_KING =  6,
-  B_PAWN = 9, B_KNIGHT = 10, B_BISHOP = 11, B_ROOK = 12, B_QUEEN = 13, B_KING = 14
+  B_PAWN = 9, B_KNIGHT = 10, B_BISHOP = 11, B_ROOK = 12, B_QUEEN = 13, B_KING = 14,
+  PIECE_NB = 16
 };
 
 enum Color {
-  WHITE, BLACK, NO_COLOR
+  WHITE, BLACK, NO_COLOR, COLOR_NB = 2
 };
 #endif
 
@@ -251,6 +258,7 @@ enum Depth {
 #ifdef GPSFISH
 #include "osl/square.h"
 typedef osl::Square Square;
+const int SQUARE_NB = Square::SIZE;
 #else
 enum Square {
   SQ_A1, SQ_B1, SQ_C1, SQ_D1, SQ_E1, SQ_F1, SQ_G1, SQ_H1,
@@ -262,6 +270,8 @@ enum Square {
   SQ_A7, SQ_B7, SQ_C7, SQ_D7, SQ_E7, SQ_F7, SQ_G7, SQ_H7,
   SQ_A8, SQ_B8, SQ_C8, SQ_D8, SQ_E8, SQ_F8, SQ_G8, SQ_H8,
   SQ_NONE,
+
+  SQUARE_NB = 64,
 
   DELTA_N =  8,
   DELTA_E =  1,
@@ -279,17 +289,17 @@ enum Square {
 
 enum File {
 #ifdef GPSFISH
-  FILE_0, FILE_1, FILE_2, FILE_3, FILE_4, FILE_5, FILE_6, FILE_7, FILE_8, FILE_9
+  FILE_0, FILE_1, FILE_2, FILE_3, FILE_4, FILE_5, FILE_6, FILE_7, FILE_8, FILE_9, FILE_NB = 9
 #else
-  FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H
+  FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H, FILE_NB = 8
 #endif
 };
 
 enum Rank {
 #ifdef GPSFISH
-  RANK_0, RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9
+  RANK_0, RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9, RANK_NB = 9
 #else
-  RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8
+  RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_NB = 8
 #endif
 };
 
@@ -387,9 +397,9 @@ namespace Zobrist {
 #ifdef GPSFISH
   extern osl::misc::CArray3d<Key,2,osl::PTYPE_SIZE,osl::Square::SIZE> psq;
 #else
-  extern Key psq[2][8][64]; // [color][pieceType][square / piece count]
-  extern Key enpassant[8];  // [file]
-  extern Key castle[16];    // [castleRight]
+  extern Key psq[COLOR_NB][PIECE_TYPE_NB][SQUARE_NB];
+  extern Key enpassant[FILE_NB];
+  extern Key castle[CASTLE_RIGHT_NB];
 #endif
   extern Key side;
   extern Key exclusion;
@@ -404,9 +414,9 @@ extern const Value PieceValue[2][osl::PTYPE_SIZE];
 #else
 CACHE_LINE_ALIGNMENT
 
-extern Score pieceSquareTable[16][64]; // [piece][square]
-extern Value PieceValue[2][18];        // [Mg / Eg][piece / pieceType]
-extern int SquareDistance[64][64];     // [square][square]
+extern Score pieceSquareTable[PIECE_NB][SQUARE_NB];
+extern Value PieceValue[2][18]; // [Mg / Eg][piece / pieceType]
+extern int SquareDistance[SQUARE_NB][SQUARE_NB];
 #endif
 
 

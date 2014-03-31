@@ -49,7 +49,7 @@ struct CheckInfo {
 #endif
   Bitboard pinned;
 #ifndef GPSFISH
-  Bitboard checkSq[8];
+  Bitboard checkSq[PIECE_TYPE_NB];
 #endif
   Square ksq;
 };
@@ -68,7 +68,7 @@ struct StateInfo {
   StateInfo* previous;
 #else
   Key pawnKey, materialKey;
-  Value npMaterial[2];
+  Value npMaterial[COLOR_NB];
   int castleRights, rule50, pliesFromNull;
   Score psqScore;
   Square epSquare;
@@ -82,7 +82,7 @@ struct StateInfo {
 
 struct ReducedStateInfo {
   Key pawnKey, materialKey;
-  Value npMaterial[2];
+  Value npMaterial[COLOR_NB];
   int castleRights, rule50, pliesFromNull;
   Score psqScore;
   Square epSquare;
@@ -276,17 +276,17 @@ private:
   Value compute_non_pawn_material(Color c) const;
 
   // Board and pieces
-  Piece board[64];             // [square]
-  Bitboard byTypeBB[8];        // [pieceType]
-  Bitboard byColorBB[2];       // [color]
-  int pieceCount[2][8];        // [color][pieceType]
-  Square pieceList[2][8][16];  // [color][pieceType][index]
-  int index[64];               // [square]
+  Piece board[SQUARE_NB];
+  Bitboard byTypeBB[PIECE_TYPE_NB];
+  Bitboard byColorBB[COLOR_NB];
+  int pieceCount[COLOR_NB][PIECE_TYPE_NB];
+  Square pieceList[COLOR_NB][PIECE_TYPE_NB][16];
+  int index[SQUARE_NB];
 
   // Other info
-  int castleRightsMask[64];      // [square]
-  Square castleRookSquare[2][2]; // [color][side]
-  Bitboard castlePath[2][2];     // [color][side]
+  int castleRightsMask[SQUARE_NB];
+  Square castleRookSquare[COLOR_NB][CASTLING_SIDE_NB];
+  Bitboard castlePath[COLOR_NB][CASTLING_SIDE_NB];
 #endif
   StateInfo startState;
   int64_t nodes;

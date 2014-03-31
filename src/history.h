@@ -52,13 +52,8 @@ public:
   static const Value MaxValue = Value(2000);
 
 private:
-#ifdef GPSFISH
-  Value history[PTYPEO_SIZE][Square::SIZE];  // [piece][to_square]
-  Value maxGains[PTYPEO_SIZE][Square::SIZE]; // [piece][to_square]
-#else
-  Value history[16][64];  // [piece][to_square]
-  Value maxGains[16][64]; // [piece][to_square]
-#endif
+  Value history[PIECE_NB][SQUARE_NB];
+  Value maxGains[PIECE_NB][SQUARE_NB];
 };
 
 inline void History::clear() {
