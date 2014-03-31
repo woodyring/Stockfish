@@ -92,12 +92,6 @@ namespace {
   // Different node types, used as template parameter
   enum NodeType { Root, PV, NonPV, SplitPointRoot, SplitPointPV, SplitPointNonPV };
 
-  // Lookup table to check if a Piece is a slider and its access function
-#ifndef GPSFISH
-  const bool Slidings[18] = { 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1 };
-  inline bool piece_is_slider(Piece p) { return Slidings[p]; }
-#endif
-
   // Dynamic razoring margin based on depth
   inline Value razor_margin(Depth d) { return Value(512 + 16 * int(d)); }
 
@@ -2014,15 +2008,14 @@ split_point_start: // At split points actual search starts from here
 #endif
     }
 
-    // If the threat piece is a slider, don't prune safe moves which block it
+    // Don't prune safe moves which block the threat path
 #ifdef GPSFISH
-    if (   !tfrom.isPieceStand()
+    if (   !tfrom.isPieceStand() // XXX : should remove this ?
         && Board_Table.isBetweenSafe(mto,tfrom,tto)
+        && pos.see_sign(move) >= 0)
 #else
-    if (    piece_is_slider(pos.piece_on(tfrom))
-        && (between_bb(tfrom, tto) & mto)
+    if ((between_bb(tfrom, tto) & mto) && pos.see_sign(move) >= 0)
 #endif
-        &&  pos.see_sign(move) >= 0)
         return true;
 
     return false;
