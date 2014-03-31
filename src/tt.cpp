@@ -109,9 +109,9 @@ void TranspositionTable::store(const Key posKey, Value v, Bound b, Depth d, Move
   store(posKey,v,b,d,toMove16(m));
 }
 
-void TranspositionTable::store(const Key posKey, Value v, Bound t, Depth d, Move16 m) {
+void TranspositionTable::store(const Key posKey, Value v, Bound b, Depth d, Move16 m) {
 #else
-void TranspositionTable::store(const Key posKey, Value v, Bound t, Depth d, Move m) {
+void TranspositionTable::store(const Key posKey, Value v, Bound b, Depth d, Move m) {
 #endif
 
   int c1, c2, c3;
@@ -122,7 +122,10 @@ void TranspositionTable::store(const Key posKey, Value v, Bound t, Depth d, Move
 
   for (int i = 0; i < ClusterSize; i++, tte++)
   {
-      if (!tte->key() || tte->key() == posKey32) // Empty or overwrite old
+      if (!tte->key())
+          tte->save(posKey32, v, b, d, m, generation);
+
+      if (tte->key() == posKey32)
       {
           // Preserve any existing ttMove
 #ifdef GPSFISH
@@ -135,7 +138,7 @@ void TranspositionTable::store(const Key posKey, Value v, Bound t, Depth d, Move
               m = tte->move();
 #endif
 
-          tte->save(posKey32, v, t, d, m, generation);
+          tte->update(v, b, d, m, generation);
           return;
       }
 
@@ -147,7 +150,7 @@ void TranspositionTable::store(const Key posKey, Value v, Bound t, Depth d, Move
       if (c1 + c2 + c3 > 0)
           replace = tte;
   }
-  replace->save(posKey32, v, t, d, m, generation);
+  replace->save(posKey32, v, b, d, m, generation);
 }
 
 
