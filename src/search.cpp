@@ -2165,7 +2165,8 @@ void RootMove::extract_pv_from_tt(Position& pos) {
   do {
       pv.push_back(m);
 
-      assert(pos.move_is_legal(pv[ply]));
+      assert(MoveList<LEGAL>(pos).contains(pv[ply]));
+
       pos.do_move(pv[ply++], *st++);
       tte = TT.probe(pos.key());
 
@@ -2227,7 +2228,8 @@ void RootMove::insert_pv_in_tt(Position& pos) {
       if (!tte || tte->move() != pv[ply]) // Don't overwrite correct entries
           TT.store(pos.key(), VALUE_NONE, BOUND_NONE, DEPTH_NONE, pv[ply]);
 
-      assert(pos.move_is_legal(pv[ply]));
+      assert(MoveList<LEGAL>(pos).contains(pv[ply]));
+
       pos.do_move(pv[ply++], *st++);
 
   } while (pv[ply] != MOVE_NONE);
