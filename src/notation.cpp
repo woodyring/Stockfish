@@ -20,7 +20,7 @@
 #include <cassert>
 #include <iomanip>
 #include <sstream>
-#include <string>
+#include <stack>
 
 #include "movegen.h"
 #include "notation.h"
@@ -256,7 +256,7 @@ string pretty_pv(Position& pos, int depth, Value value, int64_t msecs, Move pv[]
   const int64_t K = 1000;
   const int64_t M = 1000000;
 
-  StateInfo state[MAX_PLY_PLUS_2], *st = state;
+  std::stack<StateInfo> st;
   Move* m = pv;
   string san, padding;
   size_t length;
@@ -291,7 +291,8 @@ string pretty_pv(Position& pos, int depth, Value value, int64_t msecs, Move pv[]
       s << san << ' ';
       length += san.length() + 1;
 
-      pos.do_move(*m++, *st++);
+      st.push(StateInfo());
+      pos.do_move(*m++, st.top());
   }
 
 #ifndef GPSFISH
