@@ -1927,7 +1927,7 @@ split_point_start: // At split points actual search starts from here
        abs((f2-t2).intValue())>abs((f2-f1).intValue())) return true;
 #else
     // Moving through the vacated square
-    if (piece_is_slider(pos.piece_on(f2)) && (between_bb(f2, t2) & f1))
+    if (between_bb(f2, t2) & f1)
       return true;
 #endif
 
