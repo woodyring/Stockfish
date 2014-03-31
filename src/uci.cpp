@@ -113,95 +113,7 @@ void UCI::loop(const string& args) {
           }
       }
 
-      else if (token == "go")
-          go(pos, is);
-
-#ifdef GPSFISH
-      else if (token == "usinewgame") {
-          pos.from_fen(StartFEN, false, Threads.main_thread());
-          TT.clear();
-      }
-#else
-      else if (token == "ucinewgame")
-          TT.clear();
-#endif
-
-      else if (token == "isready")
-      {
-#ifdef GPSFISH
-          bool ok = osl::eval::ml::OpenMidEndingEval::setUp();
-          ok &= osl::progress::ml::NewProgress::setUp();
-          if (! ok) {
-              std::cerr << "set up failed\n";
-              return;
-          }
-#endif
-          sync_cout << "readyok" << sync_endl;
-      }
-
-      else if (token == "position")
-          set_position(pos, is);
-
-      else if (token == "setoption")
-          set_option(is);
-
-      else if (token == "d")
-          pos.print();
-
-#ifndef GPSFISH
-      else if (token == "flip")
-          pos.flip();
-
-      else if (token == "eval")
-          sync_cout << Eval::trace(pos) << sync_endl;
-#endif
-
-      else if (token == "bench")
-          benchmark(pos, is);
-
-      else if (token == "key")
-#ifdef GPSFISH
-          sync_cout << "key: " << hex     << pos.key() << sync_endl;
-#else
-          sync_cout << "key: " << hex     << pos.key()
-                    << "\nmaterial key: " << pos.material_key()
-                    << "\npawn key: "     << pos.pawn_key() << sync_endl;
-#endif
-
-#ifdef GPSFISH
-      else if ( token == "ignore_moves"){
-          ignore_moves.clear();
-          while(is >> token) ignore_moves.push_back(move_from_uci(pos, token));
-      }
-#endif
-
-#ifdef GPSFISH
-      else if (token == "usi")
-#else
-      else if (token == "uci")
-#endif
-          sync_cout << "id name " << engine_info(true)
-#ifdef GPSFISH
-                    << Options
-                    << "\nusiok"  << sync_endl;
-#else
-                    << "\n"       << Options
-                    << "\nuciok"  << sync_endl;
-#endif
-
-#ifdef GPSFISH
-      else if (token == "stop"){
-      }
-      else if (token == "echo"){
-          is >> token;
-          cout << token << endl;
-      }
-      else if (token == "show_tree"){
-          show_tree(pos);
-      }
-#endif
-
-      else if (token == "perft" && (is >> token)) // Read depth
+      else if (token == "perft" && (is >> token)) // Read requested depth
       {
           stringstream ss;
 
@@ -211,6 +123,64 @@ void UCI::loop(const string& args) {
           benchmark(pos, ss);
       }
 
+#ifdef GPSFISH
+      else if (token == "key") sync_cout <<   "position key: " << hex << pos.key() << sync_endl;
+#else
+      else if (token == "key") sync_cout <<   "position key: " << hex << pos.key()
+                                         << "\nmaterial key: " << pos.material_key()
+                                         << "\npawn key:     " << pos.pawn_key()
+                                         << sync_endl;
+#endif
+#ifdef GPSFISH
+      else if (token == "usi") sync_cout << "id name " << engine_info(true)
+                                         << Options
+                                         << "\nusiok"  << sync_endl;
+#else
+      else if (token == "uci") sync_cout << "id name " << engine_info(true)
+                                         << "\n"       << Options
+                                         << "\nuciok"  << sync_endl;
+#endif
+
+#ifdef GPSFISH
+      else if (token == "usinewgame") {  pos.from_fen(StartFEN, false, Threads.main_thread()); TT.clear(); }
+#else
+      else if (token == "ucinewgame") TT.clear();
+#endif
+      else if (token == "go")         go(pos, is);
+      else if (token == "position")   set_position(pos, is);
+      else if (token == "setoption")  set_option(is);
+      else if (token == "d")          pos.print();
+#ifndef GPSFISH
+      else if (token == "flip")       pos.flip();
+#endif
+      else if (token == "bench")      benchmark(pos, is);
+#ifdef GPSFISH
+      else if (token == "isready") {
+          bool ok = osl::eval::ml::OpenMidEndingEval::setUp();
+          ok &= osl::progress::ml::NewProgress::setUp();
+          if (! ok) {
+              std::cerr << "set up failed\n";
+              return;
+          }
+          sync_cout << "readyok" << sync_endl;
+      }
+      else if ( token == "ignore_moves"){
+          ignore_moves.clear();
+          while(is >> token) ignore_moves.push_back(move_from_uci(pos, token));
+      }
+      else if (token == "stop"){
+      }
+      else if (token == "echo"){
+          is >> token;
+          cout << token << endl;
+      }
+      else if (token == "show_tree"){
+          show_tree(pos);
+      }
+#else
+      else if (token == "isready")    sync_cout << "readyok" << sync_endl;
+      else if (token == "eval")       sync_cout << Eval::trace(pos) << sync_endl;
+#endif
       else
           sync_cout << "Unknown command: " << cmd << sync_endl;
 
@@ -312,20 +282,17 @@ namespace {
 
     while (is >> token)
     {
-        if (token == "wtime")
-            is >> limits.time[WHITE];
-        else if (token == "btime")
-            is >> limits.time[BLACK];
-        else if (token == "winc")
-            is >> limits.inc[WHITE];
-        else if (token == "binc")
-            is >> limits.inc[BLACK];
-        else if (token == "movestogo")
-            is >> limits.movestogo;
-        else if (token == "depth")
-            is >> limits.depth;
-        else if (token == "nodes")
-            is >> limits.nodes;
+        if (token == "searchmoves")
+            while (is >> token)
+                searchMoves.push_back(move_from_uci(pos, token));
+
+        else if (token == "wtime")     is >> limits.time[WHITE];
+        else if (token == "btime")     is >> limits.time[BLACK];
+        else if (token == "winc")      is >> limits.inc[WHITE];
+        else if (token == "binc")      is >> limits.inc[BLACK];
+        else if (token == "movestogo") is >> limits.movestogo;
+        else if (token == "depth")     is >> limits.depth;
+        else if (token == "nodes")     is >> limits.nodes;
 #ifdef GPSFISH
         else if (token == "mate"){
             int mateTime;
@@ -333,18 +300,12 @@ namespace {
             do_checkmate(pos, mateTime);
             return;
         }
-        else if (token == "movetime" || token=="byoyomi")
+        else if (token == "movetime" || token=="byoyomi") is >> limits.movetime;
 #else
-        else if (token == "movetime")
+        else if (token == "movetime")  is >> limits.movetime;
 #endif
-            is >> limits.movetime;
-        else if (token == "infinite")
-            limits.infinite = true;
-        else if (token == "ponder")
-            limits.ponder = true;
-        else if (token == "searchmoves")
-            while (is >> token)
-                searchMoves.push_back(move_from_uci(pos, token));
+        else if (token == "infinite")  limits.infinite = true;
+        else if (token == "ponder")    limits.ponder = true;
     }
 
 #if 0 //def GPSFISH
