@@ -941,11 +941,6 @@ namespace {
                  ss->staticEval, ss->evalMargin);
     }
 
-    // Handling of UCI command 'mate in x moves'. We simply return if after
-    // 'x' moves we still have not checkmated the opponent.
-    if (PvNode && !RootNode && !inCheck && Limits.mate && ss->ply > 2 * Limits.mate)
-        return eval;
-
     // Update gain for the parent non-capture move given the static position
     // evaluation before and after the move.
 #ifdef GPSFISH
