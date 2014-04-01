@@ -1000,13 +1000,13 @@ namespace {
         && !ss->skipNullMove
         &&  depth < 4 * ONE_PLY
         && !inCheck
-        &&  eval - futility_margin(depth, (ss-1)->futMc) >= beta
+        &&  eval - futility_margin(depth, (ss-1)->futilityMoveCount) >= beta
         &&  abs(beta) < VALUE_MATE_IN_MAX_PLY
 #ifndef GPSFISH
         &&  pos.non_pawn_material(pos.side_to_move())
 #endif
 	   )
-        return eval - futility_margin(depth, (ss-1)->futMc);
+        return eval - futility_margin(depth, (ss-1)->futilityMoveCount);
 
     // Step 8. Null move search with verification search (is omitted in PV nodes)
     if (   !PvNode
@@ -1219,6 +1219,7 @@ split_point_start: // At split points actual search starts from here
 #endif
       }
 
+      ss->futilityMoveCount = 0;
       ext = DEPTH_ZERO;
       captureOrPromotion = pos.is_capture_or_promotion(move);
       givesCheck = pos.move_gives_check(move, ci);
@@ -1269,8 +1270,6 @@ split_point_start: // At split points actual search starts from here
       // Update current move (this must be done after singular extension search)
       newDepth = depth - ONE_PLY + ext;
 
-      ss->futMc = 0;
-
       // Step 13. Futility pruning (is omitted in PV nodes)
       if (   !PvNode
           && !captureOrPromotion
@@ -1293,8 +1292,6 @@ split_point_start: // At split points actual search starts from here
           // Value based pruning
           // We illogically ignore reduction condition depth >= 3*ONE_PLY for predicted depth,
           // but fixing this made program slightly weaker.
-          ss->futMc = moveCount;
-
           Depth predictedDepth = newDepth - reduction<PvNode>(depth, moveCount);
           futilityValue =  ss->staticEval + ss->evalMargin + futility_margin(predictedDepth, moveCount)
 #ifdef GPSFISH
@@ -1325,6 +1322,10 @@ split_point_start: // At split points actual search starts from here
 
               continue;
           }
+
+          // We have not pruned the move that will be searched, but remember how
+          // far in the move list we are to be more aggressive in the child node.
+          ss->futilityMoveCount = moveCount;
       }
 
       // Check for legality only before to do the move

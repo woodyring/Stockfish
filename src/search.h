@@ -47,7 +47,7 @@ struct Stack {
   Value staticEval;
   Value evalMargin;
   int skipNullMove;
-  int futMc;
+  int futilityMoveCount;
 #ifdef GPSFISH
   bool checkmateTested;
 #endif
