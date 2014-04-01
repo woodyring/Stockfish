@@ -589,6 +589,11 @@ Value do_evaluate(const Position& pos, Value& margin) {
         // of threat evaluation must be done later when we have full attack info.
         if (ei.attackedBy[Them][PAWN] & s)
             score -= ThreatenedByPawnPenalty[Piece];
+        else if (Piece == BISHOP && (PseudoAttacks[Piece][pos.king_square(Them)] & s)) {
+             const Bitboard between = BetweenBB[s][pos.king_square(Them)] & pos.pieces();
+             if (!more_than_one(between))
+                 score += make_score(15, 25);
+        }
 
         // Bishop and knight outposts squares
         if (    (Piece == BISHOP || Piece == KNIGHT)
