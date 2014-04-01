@@ -2,7 +2,7 @@
 
 namespace Eval {
 
-Value evaluate(const Position& pos, Value& margin) {
+Value evaluate(const Position& pos, Value& margin, Eval::Info *) {
     margin=VALUE_ZERO;
     int iret=pos.eval->value();
     assert(iret==eval_t(pos.osl_state,false).value());
