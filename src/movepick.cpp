@@ -18,7 +18,6 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <algorithm>
 #include <cassert>
 
 #include "movegen.h"
@@ -52,32 +51,6 @@ namespace {
 }
 
 
-/// History class method definitions
-
-void History::clear() {
-  memset(history, 0, sizeof(history));
-  memset(gains, 0, sizeof(gains));
-}
-
-void History::update(Piece p, Square to, Value bonus) {
-#ifdef GPSFISH
-  if (abs(history[ptypeOIndex(p)][to.index()] + bonus) < History::Max)
-      history[ptypeOIndex(p)][to.index()] += bonus;
-#else
-  if (abs(history[p][to] + bonus) < History::Max)
-      history[p][to] += bonus;
-#endif
-}
-
-void History::update_gain(Piece p, Square to, Value gain) {
-#ifdef GPSFISH
-  gains[ptypeOIndex(p)][to.index()] = std::max(gain, gains[ptypeOIndex(p)][to.index()] - 1);
-#else
-  gains[p][to] = std::max(gain, gains[p][to] - 1);
-#endif
-}
-
-
 /// Constructors of the MovePicker class. As arguments we pass information
 /// to help it to return the presumably good moves first, to decide which
 /// moves to return (in the quiescence search, for instance, we only want to
@@ -85,7 +58,7 @@ void History::update_gain(Piece p, Square to, Value gain) {
 /// move ordering is at the current node.
 
 MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h,
-                       Search::Stack* s, Value beta) : pos(p), H(h), depth(d) {
+                       Search::Stack* s, Value beta) : pos(p), Hist(h), depth(d) {
 
   assert(d > DEPTH_ZERO);
 
@@ -118,7 +91,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h,
 }
 
 MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h,
-                       Square sq) : pos(p), H(h), cur(moves), end(moves) {
+                       Square sq) : pos(p), Hist(h), cur(moves), end(moves) {
 
   assert(d <= DEPTH_ZERO);
 
@@ -150,7 +123,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h,
 }
 
 MovePicker::MovePicker(const Position& p, Move ttm, const History& h, PieceType pt)
-                       : pos(p), H(h), cur(moves), end(moves) {
+                       : pos(p), Hist(h), cur(moves), end(moves) {
 
   assert(!pos.checkers());
 
@@ -211,9 +184,9 @@ void MovePicker::score_noncaptures() {
   {
       m = it->move;
 #ifdef GPSFISH
-      it->score = H[m.ptypeO()][to_sq(m).index()]; // XXX
+      it->score = Hist[m.ptypeO()][to_sq(m).index()]; // XXX
 #else
-      it->score = H[pos.piece_moved(m)][to_sq(m)];
+      it->score = Hist[pos.piece_moved(m)][to_sq(m)];
 #endif
   }
 }
@@ -242,9 +215,9 @@ void MovePicker::score_evasions() {
 #endif
       else
 #ifdef GPSFISH
-          it->score = H[m.ptypeO()][to_sq(m).index()]; // XXX
+          it->score = Hist[m.ptypeO()][to_sq(m).index()]; // XXX
 #else
-          it->score = H[pos.piece_moved(m)][to_sq(m)];
+          it->score = Hist[pos.piece_moved(m)][to_sq(m)];
 #endif
   }
 }
