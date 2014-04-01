@@ -1665,40 +1665,43 @@ bool Position::is_draw(int& ret) const {
 }
 #endif
 
-template<bool CheckRepetition, bool CheckThreeFold>
+template<bool SkipRepetition>
 bool Position::is_draw() const {
 
 #ifndef GPSFISH
+
+  // Draw by material?
   if (   !pieces(PAWN)
       && (non_pawn_material(WHITE) + non_pawn_material(BLACK) <= BishopValueMg))
       return true;
 
+  // Draw by the 50 moves rule?
   if (st->rule50 > 99 && (!checkers() || MoveList<LEGAL>(*this).size()))
       return true;
 #endif
 
-  if (CheckRepetition)
+  // Draw by repetition?
+  if (!SkipRepetition)
   {
 #ifdef GPSFISH
-      int i = 4, e = st->pliesFromNull, cnt;
+      int i = 4, e = st->pliesFromNull;
 #else
-      int i = 4, e = std::min(st->rule50, st->pliesFromNull), cnt;
+      int i = 4, e = std::min(st->rule50, st->pliesFromNull);
 #endif
 
       if (i <= e)
       {
           StateInfo* stp = st->previous->previous;
 
-          for (cnt = 0; i <= e; i += 2)
-          {
+          do {
               stp = stp->previous->previous;
-#ifdef GPSFISH
-              if (stp->key == st->key && (!CheckThreeFold || ++cnt >= 2))
-#else
-              if (stp->key == st->key && (!CheckThreeFold || ++cnt >= 3))
-#endif
+
+              if (stp->key == st->key)
                   return true;
-          }
+
+              i += 2;
+
+          } while (i <= e);
       }
   }
 
@@ -1706,9 +1709,8 @@ bool Position::is_draw() const {
 }
 
 // Explicit template instantiations
-template bool Position::is_draw<true,  true>() const;
-template bool Position::is_draw<true, false>() const;
-template bool Position::is_draw<false,false>() const;
+template bool Position::is_draw<false>() const;
+template bool Position::is_draw<true>() const;
 
 
 /// Position::flip() flips position with the white and black sides reversed. This
