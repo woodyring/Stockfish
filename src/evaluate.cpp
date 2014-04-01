@@ -96,7 +96,7 @@ namespace {
   //
   // Values modified by Joona Kiiski
   const Score WeightsInternal[] = {
-      S(252, 344), S(216, 266), S(46, 0), S(247, 0), S(259, 0)
+      S(289, 344), S(221, 273), S(46, 0), S(271, 0), S(307, 0)
   };
 
   // MobilityBonus[PieceType][attacked] contains mobility bonuses for middle and
@@ -296,14 +296,6 @@ namespace Eval {
     Weights[Space]          = weight_option("Space", "Space", WeightsInternal[Space]);
     Weights[KingDangerUs]   = weight_option("Cowardice", "Cowardice", WeightsInternal[KingDangerUs]);
     Weights[KingDangerThem] = weight_option("Aggressiveness", "Aggressiveness", WeightsInternal[KingDangerThem]);
-
-    // King safety is asymmetrical. Our king danger level is weighted by
-    // "Cowardice" UCI parameter, instead the opponent one by "Aggressiveness".
-    // If running in analysis mode, make sure we use symmetrical king safety. We
-    // do this by replacing both Weights[kingDangerUs] and Weights[kingDangerThem]
-    // by their average.
-    if (Options["UCI_AnalyseMode"])
-        Weights[KingDangerUs] = Weights[KingDangerThem] = (Weights[KingDangerUs] + Weights[KingDangerThem]) / 2;
 
     const int MaxSlope = 30;
     const int Peak = 1280;

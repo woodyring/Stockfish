@@ -198,10 +198,8 @@ public:
 #endif
 
   // Static exchange evaluation
-  int see(Move m) const;
+  int see(Move m, int asymmThreshold = 0) const;
   int see_sign(Move m) const;
-  int see_asymm(Move m, int asymmThreshold) const;
-  template <bool Asymmetric> int do_see(Move m, int asymmThreshold) const; //FIXME: private!!
 
   // Accessing hash keys
   Key key() const;
