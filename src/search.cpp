@@ -1274,16 +1274,14 @@ split_point_start: // At split points actual search starts from here
       newDepth = depth - ONE_PLY + ext;
 
       // Step 13. Futility pruning (is omitted in PV nodes)
-      if (   !PvNode
-          && !captureOrPromotion
+      if (   !captureOrPromotion
           && !inCheck
           && !dangerous
-          &&  move != ttMove
-          && (bestValue > VALUE_MATED_IN_MAX_PLY || (   bestValue == -VALUE_INFINITE
-                                                     && alpha > VALUE_MATED_IN_MAX_PLY)))
+          &&  move != ttMove)
       {
           // Move count based pruning
-          if (   depth < 16 * ONE_PLY
+          if (   !PvNode
+              && depth < 16 * ONE_PLY
               && moveCount >= FutilityMoveCounts[depth]
               && (!threatMove || !refutes(pos, move, threatMove)))
           {
@@ -1304,7 +1302,7 @@ split_point_start: // At split points actual search starts from here
                          + Gain[pos.piece_moved(move)][to_sq(move)];
 #endif
 
-          if (futilityValue < beta)
+          if (!PvNode && futilityValue < beta)
           {
               if (SpNode)
                   sp->mutex.lock();
