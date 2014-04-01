@@ -56,6 +56,7 @@ namespace {
   // Keep track of position keys along the setup moves (from start position to the
   // position just before to start searching). Needed by repetition draw detection.
   Search::StateStackPtr SetupStates;
+  Search::MovesVectPtr SetupMoves;
 
   void set_option(istringstream& up);
   void set_position(Position& pos, istringstream& up);
@@ -227,10 +228,13 @@ namespace {
 #endif
 
     SetupStates = Search::StateStackPtr(new std::stack<StateInfo>());
+    SetupMoves = Search::MovesVectPtr(new std::vector<Move>());
+    SetupMoves->reserve(200); // Try to avoid reallocations
 
     // Parse move list (if any)
     while (is >> token && (m = move_from_uci(pos, token)) != MOVE_NONE)
     {
+        SetupMoves->push_back(m);
         SetupStates->push(StateInfo());
         pos.do_move(m, SetupStates->top());
     }
@@ -326,6 +330,6 @@ namespace {
     }
 #endif
 
-    Threads.start_thinking(pos, limits, searchMoves, SetupStates);
+    Threads.start_thinking(pos, limits, searchMoves, SetupStates, SetupMoves);
   }
 }
