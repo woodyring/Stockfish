@@ -775,7 +775,7 @@ namespace {
     moveCount = playedMoveCount = 0;
 
 #ifdef GPSFISH
-    int repeat_check = 0;
+    //int repeat_check = 0;
     const Value VALUE_DRAW = value_draw(pos);
 
     if(can_capture_king(pos)){
@@ -1880,6 +1880,7 @@ split_point_start: // At split points actual search starts from here
     Bitboard b = (enemies ^ ksq) & newAtt & ~oldAtt;
     while (b)
     {
+        // Note that here we generate illegal "double move"!
         if (futilityBase + PieceValue[EG][pos.piece_on(pop_lsb(&b))] >= beta)
             return true;
     }
