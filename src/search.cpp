@@ -1036,7 +1036,7 @@ namespace {
                 pos.eval++;
                 pos.eval->update(pos.osl_state,ss->currentMove);
 #else
-        pos.do_null_move<true>(st);
+        pos.do_null_move(st);
 #endif
         (ss+1)->skipNullMove = true;
         nullValue = depth-R < ONE_PLY ? -qsearch<NonPV, false>(pos, ss+1, -beta, -alpha, DEPTH_ZERO)
@@ -1047,7 +1047,7 @@ namespace {
 	  }
 	  );
 #else
-        pos.do_null_move<false>(st);
+        pos.undo_null_move();
 #endif
 
         if (nullValue >= beta)

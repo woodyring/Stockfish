@@ -193,7 +193,8 @@ public:
 #else
   void do_move(Move m, StateInfo& st, const CheckInfo& ci, bool moveIsCheck);
   void undo_move(Move m);
-  template<bool Do> void do_null_move(StateInfo& st);
+  void do_null_move(StateInfo& st);
+  void undo_null_move();
 #endif
 
   // Static exchange evaluation
