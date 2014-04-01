@@ -591,11 +591,13 @@ Value do_evaluate(const Position& pos, Value& margin) {
         // of threat evaluation must be done later when we have full attack info.
         if (ei.attackedBy[Them][PAWN] & s)
             score -= ThreatenedByPawnPenalty[Piece];
-        else if (Piece == BISHOP && (PseudoAttacks[Piece][pos.king_square(Them)] & s)) {
-             const Bitboard between = BetweenBB[s][pos.king_square(Them)] & pos.pieces();
-             if (!more_than_one(between))
+
+        // Otherwise give a bonus if we are a bishop and can pin a piece or
+        // can give a discovered check through an x-ray attack.
+        else if (    Piece == BISHOP
+                 && (PseudoAttacks[Piece][pos.king_square(Them)] & s)
+                 && !more_than_one(BetweenBB[s][pos.king_square(Them)] & pos.pieces()))
                  score += BishopPinBonus;
-        }
 
         // Bishop and knight outposts squares
         if (    (Piece == BISHOP || Piece == KNIGHT)
