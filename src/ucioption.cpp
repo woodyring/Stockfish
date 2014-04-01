@@ -132,9 +132,9 @@ void init(OptionsMap& o) {
   o["Use Sleeping Threads"]        = Option(true);
 
 #ifdef GPSFISH
-  o["Hash"]                        = Option(get_memory(), 4, 8192, on_hash_size);
+  o["Hash"]                        = Option(get_memory(), 1, 8192, on_hash_size);
 #else
-  o["Hash"]                        = Option(32, 4, 8192, on_hash_size);
+  o["Hash"]                        = Option(32, 1, 8192, on_hash_size);
 #endif
   o["Clear Hash"]                  = Option(on_clear_hash);
 #ifdef GPSFISH
