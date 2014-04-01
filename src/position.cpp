@@ -1678,7 +1678,6 @@ bool Position::is_draw(int& ret) const {
 }
 #endif
 
-template<bool SkipRepetition>
 bool Position::is_draw() const {
 
 #ifndef GPSFISH
@@ -1694,36 +1693,29 @@ bool Position::is_draw() const {
 #endif
 
   // Draw by repetition?
-  if (!SkipRepetition)
-  {
 #ifdef GPSFISH
-      int i = 4, e = st->pliesFromNull;
+  int i = 4, e = st->pliesFromNull;
 #else
-      int i = 4, e = std::min(st->rule50, st->pliesFromNull);
+  int i = 4, e = std::min(st->rule50, st->pliesFromNull);
 #endif
 
-      if (i <= e)
-      {
-          StateInfo* stp = st->previous->previous;
+  if (i <= e)
+  {
+      StateInfo* stp = st->previous->previous;
 
-          do {
-              stp = stp->previous->previous;
+      do {
+          stp = stp->previous->previous;
 
-              if (stp->key == st->key)
-                  return true;
+          if (stp->key == st->key)
+              return true;
 
-              i += 2;
+          i += 2;
 
-          } while (i <= e);
-      }
+      } while (i <= e);
   }
 
   return false;
 }
-
-// Explicit template instantiations
-template bool Position::is_draw<false>() const;
-template bool Position::is_draw<true>() const;
 
 
 /// Position::flip() flips position with the white and black sides reversed. This
