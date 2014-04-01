@@ -1926,20 +1926,44 @@ split_point_start: // At split points actual search starts from here
         return true;
 
     // Second one moves through the square vacated by first one
+#ifdef GPSFISH
+    if(!m2from.isPieceStand() && !m1from.isPieceStand() &&
+       Board_Table.getShortOffset(Offset32(m2from,m2to)) ==
+       Board_Table.getShortOffset(Offset32(m2from,m1from)) &&
+       abs((m2from-m2to).intValue())>abs((m2from-m1from).intValue()))
+        return true;
+#else
     if (between_bb(m2from, m2to) & m1from)
       return true;
+#endif
 
     // Second's destination is defended by the first move's piece
+#ifdef GPSFISH
+    osl::Piece pc = pos.osl_state.pieceAt(m1to);
+    if(pos.osl_state.hasEffectByPiece(pc,m2to))
+        return true;
+#else
     Bitboard m1att = pos.attacks_from(pos.piece_on(m1to), m1to, pos.pieces() ^ m2from);
     if (m1att & m2to)
         return true;
+#endif
 
     // Second move gives a discovered check through the first's checking piece
+#ifdef GPSFISH
+    pc = pos.osl_state.pieceAt(m2to);
+    if(pc.isPiece() && pos.osl_state.hasEffectByPiece(pc,m2from) &&
+       Ptype_Table.getEffect(pos.piece_on(m1to),m1to,pos.king_square(pos.side_to_move())).hasBlockableEffect() &&
+       Board_Table.isBetweenSafe(m2from,m1to,pos.king_square(pos.side_to_move())) &&
+       !Board_Table.isBetweenSafe(m2to,m1to,pos.king_square(pos.side_to_move())) &&
+       pos.osl_state.pinOrOpen(pos.side_to_move()).test(pos.osl_state.pieceAt(m1to).number()))
+        return true;
+#else
     if (m1att & pos.king_square(pos.side_to_move()))
     {
         assert(between_bb(m1to, pos.king_square(pos.side_to_move())) & m2from);
         return true;
     }
+#endif
 
     return false;
   }
