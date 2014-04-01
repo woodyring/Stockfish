@@ -153,12 +153,12 @@ public:
   void set_size(size_t mbSize);
   void clear();
 #ifdef GPSFISH
-  void store(const Key posKey, Value v, Bound b, Depth d, Move16 m, Value statV, Value kingD);
-  void store(const Key posKey, Value v, Bound b, Depth d, Move m, Value statV, Value kingD);
+  void store(const Key key, Value v, Bound b, Depth d, Move16 m, Value statV, Value kingD);
+  void store(const Key key, Value v, Bound b, Depth d, Move m, Value statV, Value kingD);
 #else
-  void store(const Key posKey, Value v, Bound type, Depth d, Move m, Value statV, Value kingD);
+  void store(const Key key, Value v, Bound type, Depth d, Move m, Value statV, Value kingD);
 #endif
-  TTEntry* probe(const Key posKey) const;
+  TTEntry* probe(const Key key) const;
   void new_search();
   TTEntry* first_entry(const Key posKey) const;
   void refresh(const TTEntry* tte) const;

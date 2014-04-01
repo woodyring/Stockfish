@@ -105,24 +105,24 @@ void TranspositionTable::clear() {
 /// a previous search, or if the depth of t1 is bigger than the depth of t2.
 
 #ifdef GPSFISH
-void TranspositionTable::store(const Key posKey, Value v, Bound b, Depth d, Move m, Value statV, Value kingD) {
-  store(posKey,v,b,d,toMove16(m),statV,kingD);
+void TranspositionTable::store(const Key key, Value v, Bound b, Depth d, Move m, Value statV, Value kingD) {
+  store(key,v,b,d,toMove16(m),statV,kingD);
 }
 
-void TranspositionTable::store(const Key posKey, Value v, Bound t, Depth d, Move16 m, Value statV, Value kingD) {
+void TranspositionTable::store(const Key key, Value v, Bound t, Depth d, Move16 m, Value statV, Value kingD) {
 #else
-void TranspositionTable::store(const Key posKey, Value v, Bound t, Depth d, Move m, Value statV, Value kingD) {
+void TranspositionTable::store(const Key key, Value v, Bound t, Depth d, Move m, Value statV, Value kingD) {
 #endif
 
   int c1, c2, c3;
   TTEntry *tte, *replace;
-  uint32_t posKey32 = posKey >> 32; // Use the high 32 bits as key inside the cluster
+  uint32_t key32 = key >> 32; // Use the high 32 bits as key inside the cluster
 
-  tte = replace = first_entry(posKey);
+  tte = replace = first_entry(key);
 
   for (int i = 0; i < ClusterSize; i++, tte++)
   {
-      if (!tte->key() || tte->key() == posKey32) // Empty or overwrite old
+      if (!tte->key() || tte->key() == key32) // Empty or overwrite old
       {
           // Preserve any existing ttMove
 #ifdef GPSFISH
@@ -135,7 +135,7 @@ void TranspositionTable::store(const Key posKey, Value v, Bound t, Depth d, Move
               m = tte->move();
 #endif
 
-          tte->save(posKey32, v, t, d, m, generation, statV, kingD);
+          tte->save(key32, v, t, d, m, generation, statV, kingD);
           return;
       }
 
@@ -147,7 +147,7 @@ void TranspositionTable::store(const Key posKey, Value v, Bound t, Depth d, Move
       if (c1 + c2 + c3 > 0)
           replace = tte;
   }
-  replace->save(posKey32, v, t, d, m, generation, statV, kingD);
+  replace->save(key32, v, t, d, m, generation, statV, kingD);
 }
 
 
@@ -155,13 +155,13 @@ void TranspositionTable::store(const Key posKey, Value v, Bound t, Depth d, Move
 /// transposition table. Returns a pointer to the TTEntry or NULL if
 /// position is not found.
 
-TTEntry* TranspositionTable::probe(const Key posKey) const {
+TTEntry* TranspositionTable::probe(const Key key) const {
 
-  uint32_t posKey32 = posKey >> 32;
-  TTEntry* tte = first_entry(posKey);
+  TTEntry* tte = first_entry(key);
+  uint32_t key32 = key >> 32;
 
   for (int i = 0; i < ClusterSize; i++, tte++)
-      if (tte->key() == posKey32)
+      if (tte->key() == key32)
           return tte;
 
   return NULL;
