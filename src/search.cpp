@@ -74,7 +74,6 @@ namespace Search {
   Color RootColor;
   Time::point SearchTime;
   StateStackPtr SetupStates;
-  MovesVectPtr SetupMoves;
 }
 
 using std::string;
@@ -540,7 +539,6 @@ namespace {
 
     int depth, prevBestMoveChanges;
     Value bestValue, alpha, beta, delta;
-    bool bestMoveNeverChanged = true;
 
     memset(ss, 0, 4 * sizeof(Stack));
     depth = BestMoveChanges = 0;
@@ -690,10 +688,6 @@ namespace {
                 << std::endl;
         }
 
-        // Filter out startup noise when monitoring best move stability
-        if (depth > 2 && BestMoveChanges)
-            bestMoveNeverChanged = false;
-
         // Do we have found a "mate in x"?
         if (   Limits.mate
             && bestValue >= VALUE_MATE_IN_MAX_PLY
@@ -719,8 +713,8 @@ namespace {
             if (    depth >= 12
                 && !stop
                 &&  PVSize == 1
-                && (   (bestMoveNeverChanged &&  pos.captured_piece_type())
-                    || Time::now() - SearchTime > (TimeMgr.available_time() * 40) / 100))
+                && (   RootMoves.size() == 1
+                    || Time::now() - SearchTime > (TimeMgr.available_time() * 20) / 100))
             {
                 Value rBeta = bestValue - 2 * PawnValueMg;
                 (ss+1)->excludedMove = RootMoves[0].pv[0];
@@ -2273,13 +2267,11 @@ void Thread::idle_loop() {
 
   // Pointer 'this_sp' is not null only if we are called from split(), and not
   // at the thread creation. So it means we are the split point's master.
-  const SplitPoint* this_sp = splitPointsSize ? activeSplitPoint : NULL;
+  SplitPoint* this_sp = splitPointsSize ? activeSplitPoint : NULL;
 
   assert(!this_sp || (this_sp->masterThread == this && searching));
 
-  // If this thread is the master of a split point and all slaves have finished
-  // their work at this split point, return from the idle loop.
-  while (!this_sp || this_sp->slavesMask)
+  while (true)
   {
       // If we are not searching, wait for a condition to be signaled instead of
       // wasting CPU time polling for work.
@@ -2392,6 +2384,17 @@ void Thread::idle_loop() {
           // our feet by the sp master. Also accessing other Thread objects is
           // unsafe because if we are exiting there is a chance are already freed.
           sp->mutex.unlock();
+      }
+
+      // If this thread is the master of a split point and all slaves have finished
+      // their work at this split point, return from the idle loop.
+      if (this_sp && !this_sp->slavesMask)
+      {
+          this_sp->mutex.lock();
+          bool finished = !this_sp->slavesMask; // Retest under lock protection
+          this_sp->mutex.unlock();
+          if (finished)
+              return;
       }
   }
 }
