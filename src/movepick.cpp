@@ -171,7 +171,9 @@ void MovePicker::score_captures() {
 #ifdef GPSFISH
           it->score ++; // XXX , calc correct value ?
 #else
-          it->score += PieceValue[MG][promotion_type(m)];
+          it->score += PieceValue[MG][promotion_type(m)] - PieceValue[MG][PAWN];
+      else if (type_of(m) == ENPASSANT)
+          it->score += PieceValue[MG][PAWN];
 #endif
   }
 }
