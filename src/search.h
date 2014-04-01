@@ -91,10 +91,11 @@ struct LimitsType {
   bool use_time_management() const { return !(mate | movetime | depth | nodes | infinite); }
 
 #ifdef GPSFISH
-    //osl::CArray<int,COLOR_NB> time={{0,0}},inc={{0,0}};
-#endif
-
+  osl::CArray<int,COLOR_NB> time,inc; // osl::BLACK is not Zero
+  int movestogo, depth, nodes, movetime, mate, infinite, ponder;
+#else
   int time[COLOR_NB], inc[COLOR_NB], movestogo, depth, nodes, movetime, mate, infinite, ponder;
+#endif
 };
 
 

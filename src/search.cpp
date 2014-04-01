@@ -115,7 +115,11 @@ namespace {
   size_t PVSize, PVIdx;
   TimeManager TimeMgr;
   int BestMoveChanges;
+#ifdef GPSFISH
+  osl::CArray<Value,COLOR_NB> DrawValue;
+#else
   Value DrawValue[COLOR_NB];
+#endif
   History Hist;
   Gains Gain;
 
