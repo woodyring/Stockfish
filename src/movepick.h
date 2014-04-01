@@ -23,6 +23,7 @@
 #include <algorithm> // For std::max
 #include <cstring>   // For memset
 
+#include "movegen.h"
 #include "position.h"
 #include "search.h"
 #include "types.h"
@@ -89,9 +90,7 @@ public:
   template<bool SpNode> Move next_move();
 
 private:
-  void score_captures();
-  void score_noncaptures();
-  void score_evasions();
+  template<GenType> void score();
   void generate_next();
 
   const Position& pos;
