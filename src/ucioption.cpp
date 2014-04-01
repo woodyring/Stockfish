@@ -162,6 +162,8 @@ void init(OptionsMap& o) {
 #ifndef GPSFISH
   o["UCI_Chess960"]                = Option(false);
   o["UCI_AnalyseMode"]             = Option(false, on_eval);
+  o["pin_open"] = Option(15, -100, 100, on_eval);
+  o["pin_end"] = Option(25, -100, 100, on_eval);
 #endif
 
 #ifdef GPSFISH
