@@ -222,7 +222,7 @@ public:
 
   // Other properties of the position
   Color side_to_move() const;
-  int startpos_ply_counter() const;
+  int game_ply() const;
   bool is_chess960() const;
 
 #ifdef GPSFISH
@@ -286,7 +286,7 @@ private:
 #endif
   StateInfo startState;
   int64_t nodes;
-  int startPosPly;
+  int gamePly;
   Color sideToMove;
   Thread* thisThread;
   StateInfo* st;
@@ -486,8 +486,8 @@ inline bool Position::is_passed_pawn_push(Move m) const {
 }
 #endif
 
-inline int Position::startpos_ply_counter() const {
-  return startPosPly + st->pliesFromNull; // HACK
+inline int Position::game_ply() const {
+  return gamePly;
 }
 
 #ifndef GPSFISH
