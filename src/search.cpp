@@ -1591,6 +1591,12 @@ split_point_start: // At split points actual search starts from here
     if (pos.is_draw<true>() || ss->ply > MAX_PLY)
         return DrawValue[pos.side_to_move()];
 
+    // Decide whether or not to include checks, this fixes also the type of
+    // TT entry depth that we are going to use. Note that in qsearch we use
+    // only two types of depth in TT: DEPTH_QS_CHECKS or DEPTH_QS_NO_CHECKS.
+    ttDepth = InCheck || depth >= DEPTH_QS_CHECKS ? DEPTH_QS_CHECKS
+                                                  : DEPTH_QS_NO_CHECKS;
+
 #ifdef GPSFISH
     if(can_capture_king(pos)){
         return mate_in(0);
@@ -1613,11 +1619,6 @@ split_point_start: // At split points actual search starts from here
 #endif
     ttValue = tte ? value_from_tt(tte->value(),ss->ply) : VALUE_NONE;
 
-    // Decide whether or not to include checks, this fixes also the type of
-    // TT entry depth that we are going to use. Note that in qsearch we use
-    // only two types of depth in TT: DEPTH_QS_CHECKS or DEPTH_QS_NO_CHECKS.
-    ttDepth = InCheck || depth >= DEPTH_QS_CHECKS ? DEPTH_QS_CHECKS
-                                                  : DEPTH_QS_NO_CHECKS;
     if (   tte
         && tte->depth() >= ttDepth
         && ttValue != VALUE_NONE // Only in case of TT access race
