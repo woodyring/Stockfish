@@ -2395,12 +2395,12 @@ void Thread::idle_loop() {
 }
 
 #ifdef GPSFISHONE
-void do_checkmate(Position& pos, int mateTime){
+void do_checkmate(const Position& pos, int mateTime){
     sync_cout << "checkmate notimplemented";
     return;
 }
 #else
-void do_checkmate(Position& pos, int mateTime){
+void do_checkmate(const Position& pos, int mateTime){
     Signals.stop=false;
     osl::state::NumEffectState state(pos.osl_state);
 #if (! defined ALLOW_KING_ABSENCE)

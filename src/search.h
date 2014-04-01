@@ -123,7 +123,7 @@ extern void think();
 } // namespace Search
 
 #ifdef GPSFISH
-extern void do_checkmate(Position& pos, int mateTime);
+extern void do_checkmate(const Position& pos, int mateTime);
 extern void show_tree(Position& pos);
 #endif
 
