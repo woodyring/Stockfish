@@ -79,7 +79,6 @@ struct SplitPoint {
 
   // Shared data
   Mutex mutex;
-  Position* slavesPositions[MAX_THREADS];
   volatile uint64_t slavesMask;
   volatile int64_t nodes;
   volatile Value alpha;
@@ -116,6 +115,7 @@ struct Thread {
   Endgames endgames;
   Pawns::Table pawnsTable;
 #endif
+  Position* activePosition;
   size_t idx;
   int maxPly;
   Mutex mutex;
