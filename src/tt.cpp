@@ -37,23 +37,26 @@ TranspositionTable TT; // Our global transposition table
 
 void TranspositionTable::set_size(size_t mbSize) {
 
+  assert(msb((mbSize << 20) / sizeof(TTEntry)) < 32);
+
 #ifdef GPSFISH
-  size_t newSize = 1024;
-  while (2ULL * newSize * sizeof(TTEntry[ClusterSize]) <= (mbSize << 20))
-      newSize *= 2;
+  size_t size = 1024;
+  while (2ULL * size * sizeof(TTEntry[ClusterSize]) <= (mbSize << 20))
+      size *= 2;
 #else
-  size_t newSize = 1ULL << msb((mbSize << 20) / sizeof(TTEntry[ClusterSize]));
+  uint32_t size = 1 << msb((mbSize << 20) / sizeof(TTEntry[ClusterSize]));
 #endif
 #if 1
   std::cout << "info string mbsize " << mbSize
             << " shift " << (mbSize<<20)
-            << " msb " << msb((mbSize<<20)) << " newSize " << newSize << std::endl;
+            << " msb " << msb((mbSize<<20)) << " size " << size << std::endl;
 #endif
 
-  if (newSize == size)
+
+  if (clusterMask == size - 1)
       return;
 
-  size = newSize;
+  clusterMask = size - 1;
   delete [] entries;
   entries = new (std::nothrow) TTEntry[size * ClusterSize];
 
@@ -74,7 +77,7 @@ void TranspositionTable::set_size(size_t mbSize) {
 
 void TranspositionTable::clear() {
 
-  memset(entries, 0, size * sizeof(TTEntry[ClusterSize]));
+  memset(entries, 0, (clusterMask + 1) * sizeof(TTEntry[ClusterSize]));
 #ifdef GPSFISH
   used = 0;
 #endif

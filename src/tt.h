@@ -153,10 +153,10 @@ public:
 #endif
 
 #ifdef GPSFISH
-  size_t get_hashfull() { return (size)?(1000ll*used/size):1000; }
+  size_t get_hashfull() { return (clusterMask+1)?(1000ll*used/(clusterMask+1)):1000; }
 #endif
 private:
-  size_t size;
+  uint32_t clusterMask;
 #ifdef GPSFISH
   size_t used;
 #endif
@@ -173,7 +173,7 @@ extern TranspositionTable TT;
 
 inline TTEntry* TranspositionTable::first_entry(const Key key) const {
 
-  return entries + ((uint32_t)key & (size - 1)) * ClusterSize;
+  return entries + ((uint32_t)key & clusterMask) * ClusterSize;
 }
 
 
