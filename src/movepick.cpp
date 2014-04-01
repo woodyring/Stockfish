@@ -52,6 +52,32 @@ namespace {
 }
 
 
+/// History class method definitions
+
+void History::clear() {
+  memset(history, 0, sizeof(history));
+  memset(gains, 0, sizeof(gains));
+}
+
+void History::update(Piece p, Square to, Value bonus) {
+#ifdef GPSFISH
+  if (abs(history[ptypeOIndex(p)][to.index()] + bonus) < History::Max)
+      history[ptypeOIndex(p)][to.index()] += bonus;
+#else
+  if (abs(history[p][to] + bonus) < History::Max)
+      history[p][to] += bonus;
+#endif
+}
+
+void History::update_gain(Piece p, Square to, Value gain) {
+#ifdef GPSFISH
+  gains[ptypeOIndex(p)][to.index()] = std::max(gain, gains[ptypeOIndex(p)][to.index()] - 1);
+#else
+  gains[p][to] = std::max(gain, gains[p][to] - 1);
+#endif
+}
+
+
 /// Constructors of the MovePicker class. As arguments we pass information
 /// to help it to return the presumably good moves first, to decide which
 /// moves to return (in the quiescence search, for instance, we only want to
@@ -185,9 +211,9 @@ void MovePicker::score_noncaptures() {
   {
       m = it->move;
 #ifdef GPSFISH
-      it->score = H.value(m.ptypeO(), to_sq(m)); // XXX
+      it->score = H[m.ptypeO()][to_sq(m).index()]; // XXX
 #else
-      it->score = H.value(pos.piece_moved(m), to_sq(m));
+      it->score = H[pos.piece_moved(m)][to_sq(m)];
 #endif
   }
 }
@@ -206,19 +232,19 @@ void MovePicker::score_evasions() {
   {
       m = it->move;
       if ((seeScore = pos.see_sign(m)) < 0)
-          it->score = seeScore - History::MaxValue; // Be sure we are at the bottom
+          it->score = seeScore - History::Max; // Be sure we are at the bottom
       else if (pos.is_capture(m))
           it->score =  PieceValue[MG][pos.piece_on(to_sq(m))]
 #ifdef GPSFISH
-                     - type_value_of_piece_on(pos.piece_moved(m)) + History::MaxValue; // XXX : why
+                     - type_value_of_piece_on(pos.piece_moved(m)) + History::Max; // XXX : why
 #else
-                     - type_of(pos.piece_moved(m)) + History::MaxValue;
+                     - type_of(pos.piece_moved(m)) + History::Max;
 #endif
       else
 #ifdef GPSFISH
-          it->score = H.value(m.ptypeO(), to_sq(m));
+          it->score = H[m.ptypeO()][to_sq(m).index()]; // XXX
 #else
-          it->score = H.value(pos.piece_moved(m), to_sq(m));
+          it->score = H[pos.piece_moved(m)][to_sq(m)];
 #endif
   }
 }
