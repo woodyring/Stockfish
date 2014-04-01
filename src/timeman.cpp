@@ -33,7 +33,7 @@ namespace {
 #else
   const int MoveHorizon  = 50;    // Plan time management at most this many moves ahead
 #endif
-  const float MaxRatio   = 3.0f;  // When in trouble, we can step over reserved time with this ratio
+  const float MaxRatio   = 7.0f;  // When in trouble, we can step over reserved time with this ratio
   const float StealRatio = 0.33f; // However we must not steal time from remaining moves over this ratio
 
 
