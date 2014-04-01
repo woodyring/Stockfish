@@ -137,7 +137,7 @@ class TranspositionTable {
   static const unsigned ClusterSize = 4; // A cluster is 64 Bytes
 
 public:
- ~TranspositionTable() { delete [] table; }
+ ~TranspositionTable() { free(mem); }
   void new_search() { generation++; }
 
   TTEntry* probe(const Key key) const;
@@ -158,6 +158,7 @@ public:
 private:
   uint32_t hashMask;
   TTEntry* table;
+  void* mem;
   uint8_t generation; // Size must be not bigger then TTEntry::generation8
 #ifdef GPSFISH
   size_t size, used;
