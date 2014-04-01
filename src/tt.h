@@ -137,7 +137,7 @@ class TranspositionTable {
   static const unsigned ClusterSize = 4; // A cluster is 64 Bytes
 
 public:
- ~TranspositionTable() { delete [] entries; }
+ ~TranspositionTable() { delete [] table; }
   void new_search() { generation++; }
 
   TTEntry* probe(const Key key) const;
@@ -153,15 +153,15 @@ public:
 #endif
 
 #ifdef GPSFISH
-  size_t get_hashfull() { return (clusterMask+1)?(1000ll*used/(clusterMask+1)):1000; }
+  size_t get_hashfull() { return (size)?(1000ll*used/size):1000; }
 #endif
 private:
-  uint32_t clusterMask;
-#ifdef GPSFISH
-  size_t used;
-#endif
-  TTEntry* entries;
+  uint32_t hashMask;
+  TTEntry* table;
   uint8_t generation; // Size must be not bigger then TTEntry::generation8
+#ifdef GPSFISH
+  size_t size, used;
+#endif
 };
 
 extern TranspositionTable TT;
@@ -173,7 +173,7 @@ extern TranspositionTable TT;
 
 inline TTEntry* TranspositionTable::first_entry(const Key key) const {
 
-  return entries + ((uint32_t)key & clusterMask) * ClusterSize;
+  return table + ((uint32_t)key & hashMask);
 }
 
 
