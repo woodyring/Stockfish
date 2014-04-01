@@ -177,7 +177,7 @@ void UCI::loop(const string& args) {
 
   } while (token != "quit" && args.empty()); // Args have one-shot behaviour
 
-  Threads.wait_for_search_finished(); // Cannot quit while search is running
+  Threads.wait_for_think_finished(); // Cannot quit while search is running
 }
 
 
@@ -319,6 +319,6 @@ namespace {
     }
 #endif
 
-    Threads.start_searching(pos, limits, searchMoves, SetupStates);
+    Threads.start_thinking(pos, limits, searchMoves, SetupStates);
   }
 }

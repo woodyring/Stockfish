@@ -39,7 +39,7 @@ typedef osl::eval::ml::OpenMidEndingEval eval_t;
 /// The checkInfo struct is initialized at c'tor time and keeps info used
 /// to detect if a move gives check.
 class Position;
-class Thread;
+struct Thread;
 
 struct CheckInfo {
 
