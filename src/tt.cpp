@@ -30,34 +30,19 @@
 
 TranspositionTable TT; // Our global transposition table
 
-TranspositionTable::TranspositionTable() {
-
-  size = generation = 0;
-  entries = NULL;
-#ifdef GPSFISH
-  used = 0;
-#endif
-}
-
-TranspositionTable::~TranspositionTable() {
-
-  delete [] entries;
-}
-
 
 /// TranspositionTable::set_size() sets the size of the transposition table,
-/// measured in megabytes. Transposition table consists of a power of 2 number of
-/// TTCluster and each cluster consists of ClusterSize number of TTEntries. Each
-/// non-empty entry contains information of exactly one position.
+/// measured in megabytes. Transposition table consists of a power of 2 number
+/// of clusters and each cluster consists of ClusterSize number of TTEntry.
 
 void TranspositionTable::set_size(size_t mbSize) {
 
 #ifdef GPSFISH
   size_t newSize = 1024;
-  while (2ULL * newSize * sizeof(TTCluster) <= (mbSize << 20))
+  while (2ULL * newSize * sizeof(TTEntry[ClusterSize]) <= (mbSize << 20))
       newSize *= 2;
 #else
-  size_t newSize = 1ULL << msb((mbSize << 20) / sizeof(TTCluster));
+  size_t newSize = 1ULL << msb((mbSize << 20) / sizeof(TTEntry[ClusterSize]));
 #endif
 #if 1
   std::cout << "info string mbsize " << mbSize
@@ -70,7 +55,7 @@ void TranspositionTable::set_size(size_t mbSize) {
 
   size = newSize;
   delete [] entries;
-  entries = new (std::nothrow) TTCluster[size];
+  entries = new (std::nothrow) TTEntry[size * ClusterSize];
 
   if (!entries)
   {
@@ -89,7 +74,7 @@ void TranspositionTable::set_size(size_t mbSize) {
 
 void TranspositionTable::clear() {
 
-  memset(entries, 0, size * sizeof(TTCluster));
+  memset(entries, 0, size * sizeof(TTEntry[ClusterSize]));
 #ifdef GPSFISH
   used = 0;
 #endif
@@ -120,7 +105,7 @@ void TranspositionTable::store(const Key key, Value v, Bound t, Depth d, Move m,
 
   tte = replace = first_entry(key);
 
-  for (int i = 0; i < ClusterSize; i++, tte++)
+  for (unsigned i = 0; i < ClusterSize; i++, tte++)
   {
       if (!tte->key() || tte->key() == key32) // Empty or overwrite old
       {
@@ -160,19 +145,9 @@ TTEntry* TranspositionTable::probe(const Key key) const {
   TTEntry* tte = first_entry(key);
   uint32_t key32 = key >> 32;
 
-  for (int i = 0; i < ClusterSize; i++, tte++)
+  for (unsigned i = 0; i < ClusterSize; i++, tte++)
       if (tte->key() == key32)
           return tte;
 
   return NULL;
-}
-
-
-/// TranspositionTable::new_search() is called at the beginning of every new
-/// search. It increments the "generation" variable, which is used to
-/// distinguish transposition table entries from previous searches from
-/// entries from the current search.
-
-void TranspositionTable::new_search() {
-  generation++;
 }
