@@ -843,6 +843,7 @@ namespace {
     }
 #endif
 
+#if 0
     if (!ss->checkmateTested) {
         ss->checkmateTested = true;
         if(!pos.osl_state.inCheck()
@@ -866,6 +867,7 @@ namespace {
         }
 #  endif
     }
+#endif
 #endif
 
     if (!RootNode)

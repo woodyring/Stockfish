@@ -1665,14 +1665,20 @@ bool Position::is_draw(int& ret) const {
     // should use st->previous
 #if 0
   ret=0;
-  for (int i = 4, e = Min(st->gamePly,st->pliesFromNull); i <= e; i += 2)
-    if (history[st->gamePly - i] == st->key){
-      Color us = side_to_move();
-      Color them = flip(us);
-      if(continuous_check[us]*2>=i) {ret= -1; return false;}
-      else if(continuous_check[them]*2>=i) {ret= 1; return false;}
-      else return true;
-    }
+  StateInfo* stp = st->previous->previous;
+  for (int i = 4, e = std::min(st->gamePly,st->pliesFromNull); i <= e; i += 2)
+  {
+      stp = stp->previous->previous;
+      if (stp->key == st->key)
+      //if (history[st->gamePly - i] == st->key)
+      {
+          Color us = side_to_move();
+          Color them = ~us;
+          if(continuous_check[us]*2>=i) {ret= -1; return false;}
+          else if(continuous_check[them]*2>=i) {ret= 1; return false;}
+          else return true;
+      }
+  }
 #endif
   return false;
 }
@@ -1680,7 +1686,10 @@ bool Position::is_draw(int& ret) const {
 
 bool Position::is_draw() const {
 
-#ifndef GPSFISH
+#ifdef GPSFISH
+  int dummy;
+  return is_draw(dummy);
+#else
 
   // Draw by material?
   if (   !pieces(PAWN)
@@ -1690,14 +1699,9 @@ bool Position::is_draw() const {
   // Draw by the 50 moves rule?
   if (st->rule50 > 99 && (!checkers() || MoveList<LEGAL>(*this).size()))
       return true;
-#endif
 
   // Draw by repetition?
-#ifdef GPSFISH
-  int i = 4, e = st->pliesFromNull;
-#else
   int i = 4, e = std::min(st->rule50, st->pliesFromNull);
-#endif
 
   if (i <= e)
   {
@@ -1715,6 +1719,7 @@ bool Position::is_draw() const {
   }
 
   return false;
+#endif
 }
 
 
