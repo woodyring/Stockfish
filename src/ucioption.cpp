@@ -171,6 +171,17 @@ void init(OptionsMap& o) {
 #endif
 }
 
+#ifdef GPSFISH
+std::string strReplace (const std::string& orig, const std::string& from, const std::string& to) {
+  std::string str(orig);
+  std::string::size_type pos = 0;
+  while(pos = str.find(from, pos), pos != std::string::npos) {
+      str.replace(pos, from.length(), to);
+      pos += to.length();
+  }
+  return str;
+}
+#endif
 
 /// operator<<() is used to print all the options default values in chronological
 /// insertion order (the idx field) and in the format defined by the UCI protocol.
@@ -182,7 +193,13 @@ std::ostream& operator<<(std::ostream& os, const OptionsMap& om) {
           if (it->second.idx == idx)
           {
               const Option& o = it->second;
+#ifdef GPSFISH
+              // shogidokoro hack
+              std::string str = strReplace(it->first," ","_");
+              os << "\noption name " << str << " type " << o.type;
+#else
               os << "\noption name " << it->first << " type " << o.type;
+#endif
 
               if (o.type != "button")
                   os << " default " << o.defaultValue;

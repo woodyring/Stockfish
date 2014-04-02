@@ -254,6 +254,14 @@ namespace {
     while (is >> token && token != "value")
         name += string(" ", !name.empty()) + token;
 
+#ifdef GPSFISH
+    // shogidokoro hack
+    if( strncmp("UCI_",name.c_str(),4) != 0 ) {
+        std::string newName = UCI::strReplace( name, "_", " " );
+        name = newName;
+    }
+#endif
+
     // Read option value (can contain spaces)
     while (is >> token)
         value += string(" ", !value.empty()) + token;
