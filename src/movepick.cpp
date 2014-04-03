@@ -90,7 +90,11 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h, c
       killers[0].move = ss->killers[0];
       killers[1].move = ss->killers[1];
       Square prevSq = to_sq((ss-1)->currentMove);
+#ifdef GPSFISH
+      killers[2].move = r[pos.piece_on(prevSq)][prevSq.index()];
+#else
       killers[2].move = r[pos.piece_on(prevSq)][prevSq];
+#endif
 
       // Consider sligtly negative captures as good if at low depth and far from beta
       if (ss && ss->staticEval < beta - PawnValueMg && d < 3 * ONE_PLY)
@@ -254,7 +258,7 @@ void MovePicker::generate_next() {
 
   case KILLERS_S1:
       cur = killers;
-      end = cur + 3;
+      end = cur + 3 - (killers[2].move == killers[0].move || killers[2].move == killers[1].move);
       return;
 
   case QUIETS_1_S1:
