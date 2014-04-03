@@ -1170,7 +1170,7 @@ moves_loop: // When in check and at SpNode search starts from here
                             Countermoves[pos.piece_on(prevMoveSq)][prevMoveSq].second };
 #endif
 
-    MovePicker mp(pos, ttMove, depth, History, countermoves, ss, PvNode ? -VALUE_INFINITE : beta);
+    MovePicker mp(pos, ttMove, depth, History, countermoves, ss);
     CheckInfo ci(pos);
     value = bestValue; // Workaround a bogus 'uninitialized' warning under gcc
     singularExtensionNode =   !RootNode
