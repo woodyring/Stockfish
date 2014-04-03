@@ -532,7 +532,7 @@ namespace {
 
   void id_loop(Position& pos) {
 
-    Stack ss[MAX_PLY_PLUS_2];
+    Stack stack[MAX_PLY_PLUS_2], *ss = stack+1; // To allow referencing (ss-1)
 #ifdef GPSFISH
     uint64_t es_base[(MAX_PLY_PLUS_2*sizeof(eval_t)+sizeof(uint64_t)-1)/sizeof(uint64_t)]
 #ifdef __GNUC__
@@ -545,13 +545,13 @@ namespace {
     int depth, prevBestMoveChanges;
     Value bestValue, alpha, beta, delta;
 
-    memset(ss, 0, 4 * sizeof(Stack));
+    memset(ss-1, 0, 4 * sizeof(Stack));
     depth = BestMoveChanges = 0;
     bestValue = delta = -VALUE_INFINITE;
 #ifdef GPSFISH
-    ss->currentMove = osl::Move::PASS(pos.side_to_move()); // Hack to skip update_gains
+    (ss-1)->currentMove = osl::Move::PASS(pos.side_to_move()); // Hack to skip update_gains
 #else
-    ss->currentMove = MOVE_NULL; // Hack to skip update gains
+    (ss-1)->currentMove = MOVE_NULL; // Hack to skip update gains
 #endif
     TT.new_search();
     History.clear();
@@ -622,9 +622,7 @@ namespace {
             // research with bigger window until not failing high/low anymore.
             while (true)
             {
-                // Search starts from ss+1 to allow referencing (ss-1). This is
-                // needed by update gains and ss copy when splitting at Root.
-                bestValue = search<Root>(pos, ss+1, alpha, beta, depth * ONE_PLY);
+                bestValue = search<Root>(pos, ss, alpha, beta, depth * ONE_PLY);
 
                 // Bring to front the best move. It is critical that sorting is
                 // done with a stable algorithm because all the values but the first
@@ -2367,12 +2365,12 @@ void Thread::idle_loop() {
 
           Threads.mutex.unlock();
 
-          Stack ss[MAX_PLY_PLUS_2];
+          Stack stack[MAX_PLY_PLUS_2], *ss = stack+1; // To allow referencing (ss-1)
           Position pos(*sp->pos, this);
 #endif
 
-          memcpy(ss, sp->ss - 1, 4 * sizeof(Stack));
-          (ss+1)->splitPoint = sp;
+          memcpy(ss-1, sp->ss-1, 4 * sizeof(Stack));
+          ss->splitPoint = sp;
 
 #ifdef GPSFISH
           uint64_t es_base[(MAX_PLY_PLUS_2*sizeof(eval_t)+sizeof(uint64_t)-1)/sizeof(uint64_t)];
@@ -2390,13 +2388,13 @@ void Thread::idle_loop() {
 
           switch (sp->nodeType) {
           case Root:
-              search<SplitPointRoot>(pos, ss+1, sp->alpha, sp->beta, sp->depth);
+              search<SplitPointRoot>(pos, ss, sp->alpha, sp->beta, sp->depth);
               break;
           case PV:
-              search<SplitPointPV>(pos, ss+1, sp->alpha, sp->beta, sp->depth);
+              search<SplitPointPV>(pos, ss, sp->alpha, sp->beta, sp->depth);
               break;
           case NonPV:
-              search<SplitPointNonPV>(pos, ss+1, sp->alpha, sp->beta, sp->depth);
+              search<SplitPointNonPV>(pos, ss, sp->alpha, sp->beta, sp->depth);
               break;
           default:
               assert(false);
