@@ -366,7 +366,6 @@ inline Score operator/(Score s, int i) {
 extern const Value PieceValue[PHASE_NB][osl::PTYPE_SIZE];
 #else
 extern Value PieceValue[PHASE_NB][PIECE_NB];
-extern int SquareDistance[SQUARE_NB][SQUARE_NB];
 #endif
 
 
@@ -388,6 +387,7 @@ inline Value type_value_of_piece_on(Piece p) {
 }
 
 #endif
+
 
 struct MoveStack {
   Move move;
@@ -517,20 +517,6 @@ inline Rank relative_rank(Color c, Square s) {
 inline bool opposite_colors(Square s1, Square s2) {
   int s = int(s1) ^ int(s2);
   return ((s >> 3) ^ s) & 1;
-}
-#endif
-
-inline int file_distance(Square s1, Square s2) {
-  return abs(file_of(s1) - file_of(s2));
-}
-
-inline int rank_distance(Square s1, Square s2) {
-  return abs(rank_of(s1) - rank_of(s2));
-}
-
-#ifndef GPSFISH
-inline int square_distance(Square s1, Square s2) {
-  return SquareDistance[s1][s2];
 }
 #endif
 
