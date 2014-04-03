@@ -541,12 +541,12 @@ namespace {
 
   void id_loop(Position& pos) {
 
-    Stack stack[MAX_PLY_PLUS_3], *ss = stack+2; // To allow referencing (ss-2)
+    Stack stack[MAX_PLY_PLUS_6], *ss = stack+2; // To allow referencing (ss-2)
     int depth, prevBestMoveChanges;
     Value bestValue, alpha, beta, delta;
 
 #ifdef GPSFISH
-    uint64_t es_base[(MAX_PLY_PLUS_3*sizeof(eval_t)+sizeof(uint64_t)-1)/sizeof(uint64_t)]
+    uint64_t es_base[(MAX_PLY_PLUS_6*sizeof(eval_t)+sizeof(uint64_t)-1)/sizeof(uint64_t)]
 #ifdef __GNUC__
       __attribute__((aligned(16)))
 #endif
@@ -2187,7 +2187,7 @@ void RootMove::extract_pv_from_tt_rec(Position& pos,int ply)
 void RootMove::extract_pv_from_tt(Position& pos) {
 
 #ifndef GPSFISH
-  StateInfo state[MAX_PLY_PLUS_3], *st = state;
+  StateInfo state[MAX_PLY_PLUS_6], *st = state;
   const TTEntry* tte;
   int ply = 0;
 #endif
@@ -2259,7 +2259,7 @@ void RootMove::insert_pv_in_tt(Position& pos) {
   insert_pv_in_tt_rec(pos,0);
 #else
 
-  StateInfo state[MAX_PLY_PLUS_3], *st = state;
+  StateInfo state[MAX_PLY_PLUS_6], *st = state;
   const TTEntry* tte;
   int ply = 0;
 
@@ -2339,11 +2339,11 @@ void Thread::idle_loop() {
 
           // Copy split point position and search stack and call search()
 #ifdef MOVE_STACK_REJECTIONS
-          SearchStack ss_base[MAX_PLY_PLUS_3];
+          SearchStack ss_base[MAX_PLY_PLUS_6];
           SplitPoint* tsp = threads[threadID].splitPoint;
           Position pos(*tsp->pos, threadID);
           int ply=tsp->ss->ply;
-          assert(0< ply && ply+3<MAX_PLY_PLUS_3);
+          assert(0< ply && ply+3<MAX_PLY_PLUS_6);
           for(int i=0;i<ply-1;i++)
               ss_base[i].currentMove=(tsp->ss-ply+i)->currentMove;
           SearchStack *ss= &ss_base[ply-1];
@@ -2352,7 +2352,7 @@ void Thread::idle_loop() {
 
           Threads.mutex.unlock();
 
-          Stack stack[MAX_PLY_PLUS_3], *ss = stack+2; // To allow referencing (ss-2)
+          Stack stack[MAX_PLY_PLUS_6], *ss = stack+2; // To allow referencing (ss-2)
           Position pos(*sp->pos, this);
 #endif
 
@@ -2360,7 +2360,7 @@ void Thread::idle_loop() {
           ss->splitPoint = sp;
 
 #ifdef GPSFISH
-          uint64_t es_base[(MAX_PLY_PLUS_3*sizeof(eval_t)+sizeof(uint64_t)-1)/sizeof(uint64_t)];
+          uint64_t es_base[(MAX_PLY_PLUS_6*sizeof(eval_t)+sizeof(uint64_t)-1)/sizeof(uint64_t)];
           eval_t *es=(eval_t *)&es_base[0];
           assert(sp->pos->eval);
           es[0]= *(sp->pos->eval);

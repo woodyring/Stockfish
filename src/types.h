@@ -95,7 +95,7 @@ const int MAX_PLY        = 256;
 const int MAX_MOVES      = 192;
 const int MAX_PLY        = 100;
 #endif
-const int MAX_PLY_PLUS_3 = MAX_PLY + 3;
+const int MAX_PLY_PLUS_6 = MAX_PLY + 6;
 
 /// A move needs 16 bits to be stored
 ///
