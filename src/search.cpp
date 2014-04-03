@@ -253,20 +253,20 @@ size_t Search::perft(Position& pos, Depth depth) {
   size_t cnt = 0;
   CheckInfo ci(pos);
 
-  for (MoveList<LEGAL> ml(pos); !ml.end(); ++ml)
+  for (MoveList<LEGAL> it(pos); !it.end(); ++it)
   {
 #ifdef GPSFISH
-      pos.do_undo_move(ml.move(),st,
+      pos.do_undo_move(*it,st,
               [&](osl::Square){
               assert(pos.is_ok());
 #else
-      pos.do_move(ml.move(), st, ci, pos.move_gives_check(ml.move(), ci));
+      pos.do_move(*it, st, ci, pos.move_gives_check(*it, ci));
 #endif
       cnt += perft(pos, depth - ONE_PLY);
 #ifdef GPSFISH
       } );
 #else
-      pos.undo_move(ml.move());
+      pos.undo_move(*it);
 #endif
   }
 
