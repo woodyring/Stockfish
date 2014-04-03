@@ -453,10 +453,6 @@ inline Square operator~(Square s) {
 #endif
 }
 
-inline Piece operator~(Piece c) {
-  return Piece(c ^ 8);
-}
-
 inline Square operator|(File f, Rank r) {
 #ifdef GPSFISH
   return Square(f,r);

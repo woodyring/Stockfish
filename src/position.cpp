@@ -133,7 +133,7 @@ const Value PieceValueType[osl::PTYPE_SIZE] = {
 
 CACHE_LINE_ALIGNMENT
 
-Score pieceSquareTable[PIECE_NB][SQUARE_NB];
+Score pieceSquareTable[COLOR_NB][PIECE_TYPE_NB][SQUARE_NB];
 Value PieceValue[PHASE_NB][PIECE_NB] = {
 { VALUE_ZERO, PawnValueMg, KnightValueMg, BishopValueMg, RookValueMg, QueenValueMg },
 { VALUE_ZERO, PawnValueEg, KnightValueEg, BishopValueEg, RookValueEg, QueenValueEg } };
@@ -204,17 +204,17 @@ void init() {
 #endif
 
 #ifndef GPSFISH
-  for (Piece pc = W_PAWN; pc <= W_KING; pc++)
+  for (PieceType pt = PAWN; pt <= KING; pt++)
   {
-      PieceValue[MG][~pc] = PieceValue[MG][pc];
-      PieceValue[EG][~pc] = PieceValue[EG][pc];
+      PieceValue[MG][make_piece(BLACK, pt)] = PieceValue[MG][pt];
+      PieceValue[EG][make_piece(BLACK, pt)] = PieceValue[EG][pt];
 
-      Score v = make_score(PieceValue[MG][pc], PieceValue[EG][pc]);
+      Score v = make_score(PieceValue[MG][pt], PieceValue[EG][pt]);
 
       for (Square s = SQ_A1; s <= SQ_H8; s++)
       {
-          pieceSquareTable[ pc][ s] =  (v + PSQT[pc][s]);
-          pieceSquareTable[~pc][~s] = -(v + PSQT[pc][s]);
+          pieceSquareTable[WHITE][pt][ s] =  (v + PSQT[pt][s]);
+          pieceSquareTable[BLACK][pt][~s] = -(v + PSQT[pt][s]);
       }
   }
 #endif
@@ -1020,9 +1020,8 @@ void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveI
 
       do_castle(from, to, rfrom, rto);
 
+      st->psqScore += pieceSquareTable[us][ROOK][rto] - pieceSquareTable[us][ROOK][rfrom];
       k ^= Zobrist::psq[us][ROOK][rfrom] ^ Zobrist::psq[us][ROOK][rto];
-      st->psqScore += pieceSquareTable[make_piece(us, ROOK)][rto]
-                    - pieceSquareTable[make_piece(us, ROOK)][rfrom];
   }
 
   if (capture)
@@ -1074,7 +1073,7 @@ void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveI
       prefetch((char*)thisThread->materialTable[st->materialKey]);
 
       // Update incremental scores
-      st->psqScore -= pieceSquareTable[make_piece(them, capture)][capsq];
+      st->psqScore -= pieceSquareTable[them][capture][capsq];
 
       // Reset rule 50 counter
       st->rule50 = 0;
@@ -1157,8 +1156,7 @@ void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveI
                             ^ Zobrist::psq[us][PAWN][pieceCount[us][PAWN]];
 
           // Update incremental score
-          st->psqScore +=  pieceSquareTable[make_piece(us, promotion)][to]
-                         - pieceSquareTable[make_piece(us, PAWN)][to];
+          st->psqScore += pieceSquareTable[us][promotion][to] - pieceSquareTable[us][PAWN][to];
 
           // Update material
           st->npMaterial[us] += PieceValue[MG][promotion];
@@ -1173,7 +1171,7 @@ void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveI
   }
 
   // Update incremental scores
-  st->psqScore += pieceSquareTable[pc][to] - pieceSquareTable[pc][from];
+  st->psqScore += pieceSquareTable[us][pt][to] - pieceSquareTable[us][pt][from];
 
   // Set capture piece
   st->capturedType = capture;
@@ -1640,7 +1638,8 @@ Score Position::compute_psq_score() const {
   for (Bitboard b = pieces(); b; )
   {
       Square s = pop_lsb(&b);
-      score += pieceSquareTable[piece_on(s)][s];
+      Piece pc = piece_on(s);
+      score += pieceSquareTable[color_of(pc)][type_of(pc)][s];
   }
 
   return score;
