@@ -541,7 +541,7 @@ namespace {
     Value bestValue, alpha, beta, delta;
 
 #ifdef GPSFISH
-    uint64_t es_base[(MAX_PLY_PLUS_2*sizeof(eval_t)+sizeof(uint64_t)-1)/sizeof(uint64_t)]
+    uint64_t es_base[(MAX_PLY_PLUS_3*sizeof(eval_t)+sizeof(uint64_t)-1)/sizeof(uint64_t)]
 #ifdef __GNUC__
       __attribute__((aligned(16)))
 #endif
@@ -2329,11 +2329,11 @@ void Thread::idle_loop() {
 
           // Copy split point position and search stack and call search()
 #ifdef MOVE_STACK_REJECTIONS
-          SearchStack ss_base[MAX_PLY_PLUS_2];
+          SearchStack ss_base[MAX_PLY_PLUS_3];
           SplitPoint* tsp = threads[threadID].splitPoint;
           Position pos(*tsp->pos, threadID);
           int ply=tsp->ss->ply;
-          assert(0< ply && ply+3<MAX_PLY_PLUS_2);
+          assert(0< ply && ply+3<MAX_PLY_PLUS_3);
           for(int i=0;i<ply-1;i++)
               ss_base[i].currentMove=(tsp->ss-ply+i)->currentMove;
           SearchStack *ss= &ss_base[ply-1];
@@ -2350,7 +2350,7 @@ void Thread::idle_loop() {
           ss->splitPoint = sp;
 
 #ifdef GPSFISH
-          uint64_t es_base[(MAX_PLY_PLUS_2*sizeof(eval_t)+sizeof(uint64_t)-1)/sizeof(uint64_t)];
+          uint64_t es_base[(MAX_PLY_PLUS_3*sizeof(eval_t)+sizeof(uint64_t)-1)/sizeof(uint64_t)];
           eval_t *es=(eval_t *)&es_base[0];
           assert(sp->pos->eval);
           es[0]= *(sp->pos->eval);
