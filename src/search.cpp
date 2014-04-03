@@ -2332,6 +2332,7 @@ void Thread::idle_loop() {
           Threads.mutex.lock();
 
           assert(searching);
+          assert(activeSplitPoint);
 
           // Copy split point position and search stack and call search()
 #ifdef MOVE_STACK_REJECTIONS
