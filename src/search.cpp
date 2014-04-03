@@ -794,7 +794,7 @@ namespace {
 
         assert(splitPoint->bestValue > -VALUE_INFINITE && splitPoint->moveCount > 0);
 
-        goto split_point_start;
+        goto moves_loop;
     }
 
     bestValue = -VALUE_INFINITE;
@@ -931,7 +931,7 @@ namespace {
     if (inCheck)
     {
         ss->staticEval = ss->evalMargin = eval = VALUE_NONE;
-        goto iid_start;
+        goto moves_loop;
     }
 
     else if (tte)
@@ -1134,12 +1134,10 @@ namespace {
             }
     }
 
-iid_start: // When in check we skip early cut tests
-
     // Step 10. Internal iterative deepening
     if (   depth >= (PvNode ? 5 * ONE_PLY : 8 * ONE_PLY)
         && ttMove == MOVE_NONE
-        && (PvNode || (!inCheck && ss->staticEval + Value(256) >= beta)))
+        && (PvNode || ss->staticEval + Value(256) >= beta))
     {
         Depth d = depth - 2 * ONE_PLY - (PvNode ? DEPTH_ZERO : depth / 4);
 
@@ -1155,7 +1153,7 @@ iid_start: // When in check we skip early cut tests
 #endif
     }
 
-split_point_start: // At split points actual search starts from here
+moves_loop: // When in check and at SpNode search starts from here
 
     Square prevMoveSq = to_sq((ss-1)->currentMove);
 #ifdef GPSFISH
