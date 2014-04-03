@@ -1593,11 +1593,7 @@ moves_loop: // When in check and at SpNode search starts from here
     Key posKey;
     Move ttMove, move, bestMove;
     Value bestValue, value, ttValue, futilityValue, futilityBase, oldAlpha;
-#ifdef GPSFISH
     bool givesCheck, evasionPrunable;
-#else
-    bool givesCheck, enoughMaterial, evasionPrunable;
-#endif
     Depth ttDepth;
 
     // To flag BOUND_EXACT a node with eval above alpha and no available moves
@@ -1654,9 +1650,6 @@ moves_loop: // When in check and at SpNode search starts from here
     {
         ss->staticEval = ss->evalMargin = VALUE_NONE;
         bestValue = futilityBase = -VALUE_INFINITE;
-#ifndef GPSFISH
-        enoughMaterial = false;
-#endif
     }
     else
     {
@@ -1684,9 +1677,6 @@ moves_loop: // When in check and at SpNode search starts from here
             alpha = bestValue;
 
         futilityBase = ss->staticEval + ss->evalMargin + Value(128);
-#ifndef GPSFISH
-        enoughMaterial = pos.non_pawn_material(pos.side_to_move()) > RookValueMg;
-#endif
     }
 
     // Initialize a MovePicker object for the current position, and prepare
@@ -1712,10 +1702,9 @@ moves_loop: // When in check and at SpNode search starts from here
           && !InCheck
           && !givesCheck
           &&  move != ttMove
-#ifndef GPSFISH
-          &&  enoughMaterial
           &&  type_of(move) != PROMOTION
-          && !pos.is_passed_pawn_push(move))
+#ifndef GPSFISH
+          && !pos.is_passed_pawn_push(move)
 #endif
          )
       {
