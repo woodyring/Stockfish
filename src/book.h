@@ -17,7 +17,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#if !defined(BOOK_H_INCLUDED)
+#ifndef BOOK_H_INCLUDED
 #define BOOK_H_INCLUDED
 
 #include <fstream>
@@ -44,4 +44,4 @@ private:
 #endif
 };
 
-#endif // !defined(BOOK_H_INCLUDED)
+#endif // #ifndef BOOK_H_INCLUDED

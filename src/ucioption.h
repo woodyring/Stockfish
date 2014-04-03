@@ -17,7 +17,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#if !defined(UCIOPTION_H_INCLUDED)
+#ifndef UCIOPTION_H_INCLUDED
 #define UCIOPTION_H_INCLUDED
 
 #include <map>
@@ -70,4 +70,4 @@ std::string strReplace (const std::string& orig, const std::string& from, const 
 
 extern UCI::OptionsMap Options;
 
-#endif // !defined(UCIOPTION_H_INCLUDED)
+#endif // #ifndef UCIOPTION_H_INCLUDED

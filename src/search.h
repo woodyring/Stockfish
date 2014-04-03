@@ -17,7 +17,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#if !defined(SEARCH_H_INCLUDED)
+#ifndef SEARCH_H_INCLUDED
 #define SEARCH_H_INCLUDED
 
 #include <cstring>
@@ -127,4 +127,4 @@ extern void do_checkmate(const Position& pos, int mateTime);
 extern void show_tree(Position& pos);
 #endif
 
-#endif // !defined(SEARCH_H_INCLUDED)
+#endif // #ifndef SEARCH_H_INCLUDED

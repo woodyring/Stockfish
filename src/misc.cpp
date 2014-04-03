@@ -28,7 +28,7 @@
 #include "misc.h"
 #include "thread.h"
 
-#if defined(__hpux)
+#ifdef __hpux
 #    include <sys/pstat.h>
 #endif
 
@@ -188,7 +188,7 @@ void start_logger(bool b) { Logger::start(b); }
 
 int cpu_count() {
 
-#if defined(_WIN32)
+#ifdef _WIN32
   SYSTEM_INFO s;
   GetSystemInfo(&s);
   return s.dwNumberOfProcessors;
@@ -214,7 +214,7 @@ int cpu_count() {
 
 void timed_wait(WaitCondition& sleepCond, Lock& sleepLock, int msec) {
 
-#if defined(_WIN32)
+#ifdef _WIN32
   int tm = msec;
 #else
   timespec ts, *tm = &ts;
@@ -231,7 +231,7 @@ void timed_wait(WaitCondition& sleepCond, Lock& sleepLock, int msec) {
 /// prefetch() preloads the given address in L1/L2 cache. This is a non
 /// blocking function and do not stalls the CPU waiting for data to be
 /// loaded from memory, that can be quite slow.
-#if defined(NO_PREFETCH)
+#ifdef NO_PREFETCH
 
 void prefetch(char*) {}
 
