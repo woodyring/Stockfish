@@ -560,6 +560,14 @@ const string Position::pretty(Move move) const {
 
   string brd = twoRows + twoRows + twoRows + twoRows + dottedLine;
 
+#ifndef GPSFISH
+  for (Bitboard b = pieces(); b; )
+  {
+      Square s = pop_lsb(&b);
+      brd[513 - 68 * rank_of(s) + 4 * file_of(s)] = PieceToChar[piece_on(s)];
+  }
+#endif
+
   std::ostringstream ss;
 
 #ifdef GPSFISH
@@ -573,10 +581,6 @@ const string Position::pretty(Move move) const {
 #ifdef GPSFISH
   cout << osl_state << endl;
 #else
-
-  for (Square sq = SQ_A1; sq <= SQ_H8; sq++)
-      if (piece_on(sq) != NO_PIECE)
-          brd[513 - 68*rank_of(sq) + 4*file_of(sq)] = PieceToChar[piece_on(sq)];
 
   ss << brd << "\nFen: " << fen() << "\nKey: " << std::hex << std::uppercase
      << std::setfill('0') << std::setw(16) << st->key << "\nCheckers: ";
