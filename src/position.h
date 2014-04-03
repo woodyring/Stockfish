@@ -258,7 +258,7 @@ private:
 #ifndef GPSFISH
   // Helper functions
   void do_castle(Square kfrom, Square kto, Square rfrom, Square rto);
-  template<bool FindPinned> Bitboard hidden_checkers() const;
+  Bitboard hidden_checkers(Square ksq, Color c) const;
 #endif
 
   // Computing hash keys from scratch (for initialization and debugging)
@@ -432,7 +432,7 @@ inline Bitboard Position::checkers() const {
 
 #ifndef GPSFISH
 inline Bitboard Position::discovered_check_candidates() const {
-  return hidden_checkers<false>();
+  return hidden_checkers(king_square(~sideToMove), sideToMove);
 }
 #endif
 
@@ -440,7 +440,7 @@ inline Bitboard Position::pinned_pieces() const {
 #ifdef GPSFISH
   return 0;
 #else
-  return hidden_checkers<true>();
+  return hidden_checkers(king_square(sideToMove), ~sideToMove);
 #endif
 }
 
