@@ -243,7 +243,7 @@ void Search::init() {
 /// Search::perft() is our utility to verify move generation. All the leaf nodes
 /// up to the given depth are generated and counted and the sum returned.
 
-size_t Search::perft(Position& pos, Depth depth) {
+static size_t perft(Position& pos, Depth depth) {
 
   StateInfo st;
   size_t cnt = 0;
@@ -259,7 +259,7 @@ size_t Search::perft(Position& pos, Depth depth) {
 #else
       pos.do_move(*it, st, ci, pos.move_gives_check(*it, ci));
 #endif
-      cnt += leaf ? MoveList<LEGAL>(pos).size() : perft(pos, depth - ONE_PLY);
+      cnt += leaf ? MoveList<LEGAL>(pos).size() : ::perft(pos, depth - ONE_PLY);
 #ifdef GPSFISH
       } );
 #else
@@ -267,6 +267,10 @@ size_t Search::perft(Position& pos, Depth depth) {
 #endif
   }
   return cnt;
+}
+
+size_t Search::perft(Position& pos, Depth depth) {
+  return depth > ONE_PLY ? ::perft(pos, depth) : MoveList<LEGAL>(pos).size();
 }
 
 /// Search::think() is the external interface to Stockfish's search, and is
