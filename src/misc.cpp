@@ -28,10 +28,6 @@
 #include "misc.h"
 #include "thread.h"
 
-#ifdef __hpux
-#    include <sys/pstat.h>
-#endif
-
 using namespace std;
 
 #ifdef GPSFISH
@@ -182,31 +178,6 @@ std::ostream& operator<<(std::ostream& os, SyncCout sc) {
 
 /// Trampoline helper to avoid moving Logger to misc.h
 void start_logger(bool b) { Logger::start(b); }
-
-
-/// cpu_count() tries to detect the number of CPU cores
-
-int cpu_count() {
-
-#ifdef _WIN32
-  SYSTEM_INFO s;
-  GetSystemInfo(&s);
-  return s.dwNumberOfProcessors;
-#else
-
-#  if defined(_SC_NPROCESSORS_ONLN)
-  return sysconf(_SC_NPROCESSORS_ONLN);
-#  elif defined(__hpux)
-  struct pst_dynamic psd;
-  if (pstat_getdynamic(&psd, sizeof(psd), (size_t)1, 0) == -1)
-      return 1;
-  return psd.psd_proc_cnt;
-#  else
-  return 1;
-#  endif
-
-#endif
-}
 
 
 /// timed_wait() waits for msec milliseconds. It is mainly an helper to wrap

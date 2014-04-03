@@ -102,13 +102,8 @@ static size_t get_memory()
 #endif
 
 /// init() initializes the UCI options to their hard coded default values
-/// and initializes the default value of "Threads" and "Min Split Depth"
-/// parameters according to the number of CPU cores detected.
 
 void init(OptionsMap& o) {
-
-  int cpus = std::min(cpu_count(), MAX_THREADS);
-  int msd = cpus < 8 ? 4 : 7;
 
   o["Write Debug Log"]             = Option(false, on_logger);
   o["Write Search Log"]            = Option(false);
@@ -130,9 +125,9 @@ void init(OptionsMap& o) {
   o["Aggressiveness"]              = Option(100, 0, 200, on_eval);
   o["Cowardice"]                   = Option(100, 0, 200, on_eval);
 #endif
-  o["Min Split Depth"]             = Option(msd, 4, 12, on_threads);
-  o["Max Threads per Split Point"] = Option(5, 4, 8, on_threads);
-  o["Threads"]                     = Option(cpus, 1, MAX_THREADS, on_threads);
+  o["Min Split Depth"]             = Option(0, 0, 12, on_threads);
+  o["Max Threads per Split Point"] = Option(5, 4,  8, on_threads);
+  o["Threads"]                     = Option(1, 1, MAX_THREADS, on_threads);
   o["Idle Threads Sleep"]          = Option(true);
 
 #ifdef GPSFISH
