@@ -953,14 +953,14 @@ namespace {
 
     // Update gain for the parent non-capture move given the static position
     // evaluation before and after the move.
-#ifdef GPSFISH
-    if (  !(move = (ss-1)->currentMove).isPass()
-#else
-    if (   (move = (ss-1)->currentMove) != MOVE_NULL
-#endif
-        && (ss-1)->staticEval != VALUE_NONE
+    if (   !pos.captured_piece_type()
         &&  ss->staticEval != VALUE_NONE
-        && !pos.captured_piece_type()
+        && (ss-1)->staticEval != VALUE_NONE
+#ifdef GPSFISH
+        &&!(move = (ss-1)->currentMove).isPass()
+#else
+        && (move = (ss-1)->currentMove) != MOVE_NULL
+#endif
         &&  type_of(move) == NORMAL)
     {
         Square to = to_sq(move);
