@@ -113,6 +113,7 @@ private:
   const Position& pos;
   const HistoryStats& history;
   Search::Stack* ss;
+  Move* countermoves;
   Depth depth;
   Move ttMove;
   MoveStack killers[4];
