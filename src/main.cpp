@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
   Bitboards::init();
 #endif
 
-  Zobrist::init();
+  Position::init();
 
 #ifndef GPSFISH
   Bitbases::init_kpk();

@@ -396,8 +396,6 @@ namespace Zobrist {
 #endif
   extern Key side;
   extern Key exclusion;
-
-  void init();
 }
 
 #ifdef GPSFISH
