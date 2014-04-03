@@ -95,25 +95,6 @@ const int MAX_PLY        = 100;
 #endif
 const int MAX_PLY_PLUS_2 = MAX_PLY + 2;
 
-const Bitboard FileABB = 0x0101010101010101ULL;
-const Bitboard FileBBB = FileABB << 1;
-const Bitboard FileCBB = FileABB << 2;
-const Bitboard FileDBB = FileABB << 3;
-const Bitboard FileEBB = FileABB << 4;
-const Bitboard FileFBB = FileABB << 5;
-const Bitboard FileGBB = FileABB << 6;
-const Bitboard FileHBB = FileABB << 7;
-
-const Bitboard Rank1BB = 0xFF;
-const Bitboard Rank2BB = Rank1BB << (8 * 1);
-const Bitboard Rank3BB = Rank1BB << (8 * 2);
-const Bitboard Rank4BB = Rank1BB << (8 * 3);
-const Bitboard Rank5BB = Rank1BB << (8 * 4);
-const Bitboard Rank6BB = Rank1BB << (8 * 5);
-const Bitboard Rank7BB = Rank1BB << (8 * 6);
-const Bitboard Rank8BB = Rank1BB << (8 * 7);
-
-
 /// A move needs 16 bits to be stored
 ///
 /// bit  0- 5: destination square (from 0 to 63)
@@ -132,13 +113,13 @@ typedef osl::Move Move;
 static const Move MOVE_NONE=Move::INVALID();
 #else
 enum Move {
-  MOVE_NONE = 0,
+  MOVE_NONE,
   MOVE_NULL = 65
 };
 #endif
 
 enum MoveType {
-  NORMAL    = 0,
+  NORMAL,
   PROMOTION = 1 << 14,
   ENPASSANT = 2 << 14,
   CASTLE    = 3 << 14
@@ -146,12 +127,12 @@ enum MoveType {
 
 #ifdef GPSFISH
 enum CastleRight {  // Defined as in PolyGlot book hash key
-  CASTLES_NONE = 0,
-  WHITE_OO     = 1,
-  WHITE_OOO    = 2,
-  BLACK_OO     = 4,
-  BLACK_OOO    = 8,
-  ALL_CASTLES  = 15,
+  CASTLES_NONE,
+  WHITE_OO,
+  WHITE_OOO   = WHITE_OO << 1,
+  BLACK_OO    = WHITE_OO << 2,
+  BLACK_OOO   = WHITE_OO << 3,
+  ALL_CASTLES = WHITE_OO | WHITE_OOO | BLACK_OO | BLACK_OOO,
   CASTLE_RIGHT_NB = 16
 };
 
@@ -162,7 +143,7 @@ enum CastlingSide {
 };
 
 enum Phase {
-  PHASE_ENDGAME = 0,
+  PHASE_ENDGAME,
   PHASE_MIDGAME = 128,
   MG = 0, EG = 1, PHASE_NB = 2
 };
@@ -176,9 +157,9 @@ enum ScaleFactor {
 #endif
 
 enum Bound {
-  BOUND_NONE  = 0,
-  BOUND_UPPER = 1,
-  BOUND_LOWER = 2,
+  BOUND_NONE,
+  BOUND_UPPER,
+  BOUND_LOWER,
   BOUND_EXACT = BOUND_UPPER | BOUND_LOWER
 };
 
@@ -226,14 +207,14 @@ const int COLOR_NB = 2;
 const int PIECE_NB = PTYPEO_SIZE;
 #else
 enum PieceType {
-  NO_PIECE_TYPE = 0, ALL_PIECES = 0,
-  PAWN = 1, KNIGHT = 2, BISHOP = 3, ROOK = 4, QUEEN = 5, KING = 6,
+  NO_PIECE_TYPE, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING,
+  ALL_PIECES = 0,
   PIECE_TYPE_NB = 8
 };
 enum Piece {
-  NO_PIECE = 0,
-  W_PAWN = 1, W_KNIGHT =  2, W_BISHOP =  3, W_ROOK =  4, W_QUEEN =  5, W_KING =  6,
-  B_PAWN = 9, B_KNIGHT = 10, B_BISHOP = 11, B_ROOK = 12, B_QUEEN = 13, B_KING = 14,
+  NO_PIECE,
+  W_PAWN = 1, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING,
+  B_PAWN = 9, B_KNIGHT, B_BISHOP, B_ROOK, B_QUEEN, B_KING,
   PIECE_NB = 16
 };
 
@@ -289,17 +270,17 @@ enum Square {
 
 enum File {
 #ifdef GPSFISH
-  FILE_0, FILE_1, FILE_2, FILE_3, FILE_4, FILE_5, FILE_6, FILE_7, FILE_8, FILE_9, FILE_NB = 9
+  FILE_0, FILE_1, FILE_2, FILE_3, FILE_4, FILE_5, FILE_6, FILE_7, FILE_8, FILE_9, FILE_NB
 #else
-  FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H, FILE_NB = 8
+  FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H, FILE_NB
 #endif
 };
 
 enum Rank {
 #ifdef GPSFISH
-  RANK_0, RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9, RANK_NB = 9
+  RANK_0, RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9, RANK_NB
 #else
-  RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_NB = 8
+  RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_NB
 #endif
 };
 
@@ -309,7 +290,7 @@ enum Rank {
 /// for midgame value. Compiler is free to choose the enum type as long as can
 /// keep its data, so ensure Score to be an integer type.
 enum Score {
-  SCORE_ZERO = 0,
+  SCORE_ZERO,
   SCORE_ENSURE_INTEGER_SIZE_P = INT_MAX,
   SCORE_ENSURE_INTEGER_SIZE_N = INT_MIN
 };
