@@ -73,7 +73,7 @@ std::vector<Move> ignore_moves;
 
 void UCI::loop(const string& args) {
 
-  Position pos(StartFEN, false, Threads.main_thread()); // The root position
+  Position pos(StartFEN, false, Threads.main()); // The root position
   string token, cmd = args;
 
   do {
@@ -101,7 +101,7 @@ void UCI::loop(const string& args) {
           if (token != "ponderhit" || Search::Signals.stopOnPonderhit)
           {
               Search::Signals.stop = true;
-              Threads.main_thread()->notify_one(); // Could be sleeping
+              Threads.main()->notify_one(); // Could be sleeping
           }
           else
               Search::Limits.ponder = false;
@@ -141,7 +141,7 @@ void UCI::loop(const string& args) {
 #endif
 
 #ifdef GPSFISH
-      else if (token == "usinewgame") {  pos.set(StartFEN, false, Threads.main_thread()); TT.clear(); }
+      else if (token == "usinewgame") {  pos.set(StartFEN, false, Threads.main()); TT.clear(); }
 #else
       else if (token == "ucinewgame") TT.clear();
 #endif
@@ -222,9 +222,9 @@ namespace {
         return;
 
 #ifdef GPSFISH
-    pos.set(fen, false, Threads.main_thread());
+    pos.set(fen, false, Threads.main());
 #else
-    pos.set(fen, Options["UCI_Chess960"], Threads.main_thread());
+    pos.set(fen, Options["UCI_Chess960"], Threads.main());
 #endif
 
     SetupStates = Search::StateStackPtr(new std::stack<StateInfo>());
