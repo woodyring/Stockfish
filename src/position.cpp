@@ -294,7 +294,7 @@ void Position::init() {
 
 Position& Position::operator=(const Position& pos) {
 
-  memcpy(this, &pos, sizeof(Position));
+  std::memcpy(this, &pos, sizeof(Position));
   startState = *st;
   st = &startState;
   nodes = 0;
@@ -979,7 +979,7 @@ void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveI
   // Copy some fields of old state to our new StateInfo object except the ones
   // which are going to be recalculated from scratch anyway, then switch our state
   // pointer to point to the new, ready to be updated, state.
-  memcpy(&newSt, st, StateCopySize64 * sizeof(uint64_t));
+  std::memcpy(&newSt, st, StateCopySize64 * sizeof(uint64_t));
 
   newSt.previous = st;
   st = &newSt;
@@ -1346,7 +1346,7 @@ void Position::do_null_move(StateInfo& newSt) {
 
   assert(!checkers());
 
-  memcpy(&newSt, st, sizeof(StateInfo)); // Fully copy here
+  std::memcpy(&newSt, st, sizeof(StateInfo)); // Fully copy here
 
   newSt.previous = st;
   st = &newSt;
@@ -1504,7 +1504,8 @@ int Position::see(Move m, int asymmThreshold) const {
 
 void Position::clear() {
 
-  memset(this, 0, sizeof(Position));
+  std::memset(this, 0, sizeof(Position));
+
 #ifndef GPSFISH
   startState.epSquare = SQ_NONE;
 #endif

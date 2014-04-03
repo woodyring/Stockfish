@@ -21,7 +21,7 @@
 #define MOVEPICK_H_INCLUDED
 
 #include <algorithm> // For std::max
-#include <cstring>   // For memset
+#include <cstring>   // For std::memset
 
 #include "movegen.h"
 #include "position.h"
@@ -47,7 +47,7 @@ struct Stats {
 #else
   const T* operator[](Piece p) const { return table[p]; }
 #endif
-  void clear() { memset(table, 0, sizeof(table)); }
+  void clear() { std::memset(table, 0, sizeof(table)); }
 
 #ifdef GPSFISH
   void update(Piece p_, Square to_, Move m) {

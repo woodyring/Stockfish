@@ -545,7 +545,7 @@ namespace {
     int depth, prevBestMoveChanges;
     Value bestValue, alpha, beta, delta;
 
-    memset(ss-1, 0, 4 * sizeof(Stack));
+    std::memset(ss-1, 0, 4 * sizeof(Stack));
 #ifdef GPSFISH
     (ss-1)->currentMove = osl::Move::PASS(pos.side_to_move()); // Hack to skip update_gains
 #else
@@ -2341,7 +2341,7 @@ void Thread::idle_loop() {
           Position pos(*sp->pos, this);
 #endif
 
-          memcpy(ss-1, sp->ss-1, 4 * sizeof(Stack));
+          std::memcpy(ss-1, sp->ss-1, 4 * sizeof(Stack));
           ss->splitPoint = sp;
 
 #ifdef GPSFISH

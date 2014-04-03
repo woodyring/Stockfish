@@ -87,7 +87,7 @@ struct RootMove {
 
 struct LimitsType {
 
-  LimitsType() { memset(this, 0, sizeof(LimitsType)); }
+  LimitsType() { std::memset(this, 0, sizeof(LimitsType)); }
   bool use_time_management() const { return !(mate | movetime | depth | nodes | infinite); }
 
 #ifdef GPSFISH
