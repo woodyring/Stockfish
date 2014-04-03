@@ -156,11 +156,11 @@ namespace {
 
 #ifdef GPSFISH
   void show_tree_rec(Position &pos){
-    TTEntry* tte;
+    const TTEntry* tte = TT.probe(pos.key());
     StateInfo st;
-    if ((tte = TT.probe(pos.key())) != NULL){
+    if ( tte != NULL ) {
       std::cerr << "tte->value=" << tte->value() << std::endl;
-      std::cerr << "tte->type=" << tte->type() << std::endl;
+      std::cerr << "tte->bound=" << tte->bound() << std::endl;
       std::cerr << "tte->generation=" << tte->generation() << std::endl;
       std::cerr << "tte->depth=" << tte->depth() << std::endl;
       Move m=tte->move(pos);
@@ -422,8 +422,8 @@ struct CheckmateSolver
     Move hasCheckmate(Position& pos, size_t nodes)
     {
         const Depth CheckmateDepth = ONE_PLY*100;
-        TTEntry* tte = TT.probe(pos.key());
-        if (tte && tte->type() == BOUND_EXACT
+        const TTEntry* tte = TT.probe(pos.key());
+        if (tte && tte->bound() == BOUND_EXACT
                 && tte->depth() >= CheckmateDepth) {
             Value v = value_from_tt(tte->value(), 0);
             if (v >= VALUE_MATE_IN_MAX_PLY || v < VALUE_MATED_IN_MAX_PLY)
@@ -918,9 +918,9 @@ namespace {
         && tte
         && tte->depth() >= depth
         && ttValue != VALUE_NONE // Only in case of TT access race
-        && (           PvNode ?  tte->type() == BOUND_EXACT
-            : ttValue >= beta ? (tte->type() & BOUND_LOWER)
-                              : (tte->type() & BOUND_UPPER)))
+        && (           PvNode ?  tte->bound() == BOUND_EXACT
+            : ttValue >= beta ? (tte->bound() &  BOUND_LOWER)
+                              : (tte->bound() &  BOUND_UPPER)))
     {
         TT.refresh(tte);
         ss->currentMove = ttMove; // Can be MOVE_NONE
@@ -949,8 +949,8 @@ namespace {
 
         // Can ttValue be used as a better position evaluation?
         if (ttValue != VALUE_NONE)
-            if (   ((tte->type() & BOUND_LOWER) && ttValue > eval)
-                || ((tte->type() & BOUND_UPPER) && ttValue < eval))
+            if (   ((tte->bound() & BOUND_LOWER) && ttValue > eval)
+                || ((tte->bound() & BOUND_UPPER) && ttValue < eval))
                 eval = ttValue;
     }
     else
@@ -1186,7 +1186,7 @@ split_point_start: // At split points actual search starts from here
 #else
                            && !excludedMove // Recursive singular search is not allowed
 #endif
-                           && (tte->type() & BOUND_LOWER)
+                           && (tte->bound() & BOUND_LOWER)
                            &&  tte->depth() >= depth - 3 * ONE_PLY;
 
     // Step 11. Loop through moves
@@ -1657,9 +1657,9 @@ split_point_start: // At split points actual search starts from here
     if (   tte
         && tte->depth() >= ttDepth
         && ttValue != VALUE_NONE // Only in case of TT access race
-        && (           PvNode ?  tte->type() == BOUND_EXACT
-            : ttValue >= beta ? (tte->type() & BOUND_LOWER)
-                              : (tte->type() & BOUND_UPPER)))
+        && (           PvNode ?  tte->bound() == BOUND_EXACT
+            : ttValue >= beta ? (tte->bound() &  BOUND_LOWER)
+                              : (tte->bound() &  BOUND_UPPER)))
     {
         ss->currentMove = ttMove; // Can be MOVE_NONE
         return ttValue;
@@ -2173,10 +2173,11 @@ split_point_start: // At split points actual search starts from here
 /// long PV to print that is important for position analysis.
 
 #ifdef GPSFISH
-void RootMove::extract_pv_from_tt_rec(Position& pos,int ply) {
-  TTEntry* tte;
+void RootMove::extract_pv_from_tt_rec(Position& pos,int ply)
+{
+  const TTEntry* tte = TT.probe(pos.key());
 
-  if (   (tte = TT.probe(pos.key())) != NULL
+  if ( tte != NULL
           && tte->move(pos) != MOVE_NONE
           && pos.is_pseudo_legal(tte->move(pos))
           && pos.pl_move_is_legal(tte->move(pos), pos.pinned_pieces())
@@ -2200,7 +2201,7 @@ void RootMove::extract_pv_from_tt(Position& pos) {
 
 #ifndef GPSFISH
   StateInfo state[MAX_PLY_PLUS_2], *st = state;
-  TTEntry* tte;
+  const TTEntry* tte;
   int ply = 0;
 #endif
   Move m = pv[0];
@@ -2243,10 +2244,9 @@ void RootMove::extract_pv_from_tt(Position& pos) {
 /// first, even if the old TT entries have been overwritten.
 
 #ifdef GPSFISH
-void RootMove::insert_pv_in_tt_rec(Position& pos,int ply) {
-  TTEntry* tte;
-
-  tte = TT.probe(pos.key());
+void RootMove::insert_pv_in_tt_rec(Position& pos,int ply)
+{
+  const TTEntry* tte = TT.probe(pos.key());
 
   if (!tte || tte->move(pos) != pv[ply]) // Don't overwrite correct entries
       TT.store(pos.key(), VALUE_NONE, BOUND_NONE, DEPTH_NONE, pv[ply], VALUE_NONE, VALUE_NONE);
@@ -2273,7 +2273,7 @@ void RootMove::insert_pv_in_tt(Position& pos) {
 #else
 
   StateInfo state[MAX_PLY_PLUS_2], *st = state;
-  TTEntry* tte;
+  const TTEntry* tte;
   int ply = 0;
 
   do {

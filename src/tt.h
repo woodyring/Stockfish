@@ -41,53 +41,27 @@ using osl::SquareCompressor;
 /// static margin: 16 bit
 
 #ifdef GPSFISH
-enum Move16 {MOVE16_NONE = 0};
-static inline Move16 toMove16(Move m){
-  Move16 move16;
-  if(m==MOVE_NONE) return MOVE16_NONE;
-  if(m.isDrop())
-    move16=Move16(0x80+(uint16_t)m.ptype()+((SquareCompressor::compress(m.to()))<<8));
-  else if(m.isPromotion()){
-    move16=Move16(SquareCompressor::compress(m.from())+(SquareCompressor::compress(m.to())<<8)+0x8000);
-  }
-  else{
-    move16=Move16(SquareCompressor::compress(m.from())+(SquareCompressor::compress(m.to())<<8));
-  }
-  return move16;
-}
-static inline Move fromMove16(Move16 move16,Position const& pos) {
-  if(move16==MOVE16_NONE) return MOVE_NONE;
-  Color turn=pos.side_to_move();
-  Square to=SquareCompressor::melt((move16>>8)&0x7f);
-  if((move16&0x80)!=0){
-    Ptype ptype=(Ptype)(move16-0x80);
-    return osl::Move(to,ptype,turn);
-  }
-  Square from=SquareCompressor::melt(move16&0x7f);
-  Ptype ptype=type_of(pos.piece_on(from));
-  Ptype capture_ptype=type_of(pos.piece_on(to));
-  bool is_promote=(move16&0x8000)!=0;
-  if(is_promote)
-    return osl::Move(from,to,promote(ptype),capture_ptype,true,turn);
-  else
-    return osl::Move(from,to,ptype,capture_ptype,false,turn);
-}
-#endif
-class TTEntry {
 
-public:
+#include "move16_gps.h"
+
+#endif
+
+
+struct TTEntry {
+
 #ifdef GPSFISH
   void save(uint32_t k, Value v, Bound b, Depth d, Move m, int g, Value ev, Value em) {
     return save(k,v,b,d,toMove16(m),g,ev,em);
   }
   void save(uint32_t k, Value v, Bound b, Depth d, Move16 m, int g, Value ev, Value em) {
 #else
+
   void save(uint32_t k, Value v, Bound b, Depth d, Move m, int g, Value ev, Value em) {
 #endif
 
     key32        = (uint32_t)k;
     move16       = (uint16_t)m;
-    bound        = (uint8_t)b;
+    bound8       = (uint8_t)b;
     generation8  = (uint8_t)g;
     value16      = (int16_t)v;
     depth16      = (int16_t)d;
@@ -95,7 +69,7 @@ public:
     evalMargin   = (int16_t)em;
   }
 
-  void set_generation(int g) { generation8 = (uint8_t)g; }
+  void set_generation(uint8_t g) { generation8 = g; }
 
   uint32_t key() const      { return key32; }
   Depth depth() const       { return (Depth)depth16; }
@@ -106,7 +80,7 @@ public:
   Move move() const         { return (Move)move16; }
 #endif
   Value value() const       { return (Value)value16; }
-  Bound type() const        { return (Bound)bound; }
+  Bound bound() const       { return (Bound)bound8; }
   int generation() const    { return (int)generation8; }
   Value eval_value() const  { return (Value)evalValue; }
   Value eval_margin() const { return (Value)evalMargin; }
@@ -114,7 +88,7 @@ public:
 private:
   uint32_t key32;
   uint16_t move16;
-  uint8_t bound, generation8;
+  uint8_t bound8, generation8;
   int16_t value16, depth16, evalValue, evalMargin;
 };
 
@@ -133,7 +107,7 @@ public:
  ~TranspositionTable() { free(mem); }
   void new_search() { generation++; }
 
-  TTEntry* probe(const Key key) const;
+  const TTEntry* probe(const Key key) const;
   TTEntry* first_entry(const Key key) const;
   void refresh(const TTEntry* tte) const;
   void set_size(size_t mbSize);
@@ -152,7 +126,7 @@ private:
   uint32_t hashMask;
   TTEntry* table;
   void* mem;
-  uint8_t generation; // Size must be not bigger then TTEntry::generation8
+  uint8_t generation; // Size must be not bigger than TTEntry::generation8
 #ifdef GPSFISH
   size_t used;
 #endif
