@@ -143,6 +143,11 @@ void UCI::loop(const string& args) {
 #ifdef GPSFISH
       else if (token == "usinewgame") {  pos.set(StartFEN, false, Threads.main()); TT.clear(); }
 #else
+      else if (token == "eval")
+      {
+          Search::RootColor = pos.side_to_move(); // Ensure it is set
+          sync_cout << Eval::trace(pos) << sync_endl;
+      }
       else if (token == "ucinewgame") TT.clear();
 #endif
       else if (token == "go")         go(pos, is);
@@ -178,7 +183,6 @@ void UCI::loop(const string& args) {
       }
 #else
       else if (token == "isready")    sync_cout << "readyok" << sync_endl;
-      else if (token == "eval")       sync_cout << Eval::trace(pos) << sync_endl;
 #endif
       else
           sync_cout << "Unknown command: " << cmd << sync_endl;
