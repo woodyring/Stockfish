@@ -110,8 +110,8 @@ void init(OptionsMap& o) {
   int cpus = std::min(cpu_count(), MAX_THREADS);
   int msd = cpus < 8 ? 4 : 7;
 
-  o["Use Debug Log"]               = Option(false, on_logger);
-  o["Use Search Log"]              = Option(false);
+  o["Write Debug Log"]             = Option(false, on_logger);
+  o["Write Search Log"]            = Option(false);
   o["Search Log Filename"]         = Option("SearchLog.txt");
 #ifndef GPSFISH
   o["Book File"]                   = Option("book.bin");
@@ -133,7 +133,7 @@ void init(OptionsMap& o) {
   o["Min Split Depth"]             = Option(msd, 4, 12, on_threads);
   o["Max Threads per Split Point"] = Option(5, 4, 8, on_threads);
   o["Threads"]                     = Option(cpus, 1, MAX_THREADS, on_threads);
-  o["Use Sleeping Threads"]        = Option(true);
+  o["Idle Threads Sleep"]          = Option(true);
 
 #ifdef GPSFISH
   o["Hash"]                        = Option(get_memory(), 1, 8192, on_hash_size);
