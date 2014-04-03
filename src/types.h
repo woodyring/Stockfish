@@ -401,13 +401,8 @@ namespace Zobrist {
 }
 
 #ifdef GPSFISH
-CACHE_LINE_ALIGNMENT
-
-extern const Value PieceValue[2][osl::PTYPE_SIZE];
+extern const Value PieceValue[PHASE_NB][osl::PTYPE_SIZE];
 #else
-CACHE_LINE_ALIGNMENT
-
-extern Score pieceSquareTable[PIECE_NB][SQUARE_NB];
 extern Value PieceValue[PHASE_NB][PIECE_NB];
 extern int SquareDistance[SQUARE_NB][SQUARE_NB];
 #endif
