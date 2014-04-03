@@ -143,7 +143,7 @@ Value PieceValue[PHASE_NB][PIECE_NB] = {
 namespace Zobrist {
 
 #ifdef GPSFISH
-osl::misc::CArray3d<Key,2,osl::PTYPE_SIZE,osl::Square::SIZE> psq;
+osl::misc::CArray3d<Key,COLOR_NB,osl::PTYPE_SIZE,osl::Square::SIZE> psq;
 #else
 Key psq[COLOR_NB][PIECE_TYPE_NB][SQUARE_NB];
 Key enpassant[FILE_NB];
@@ -151,6 +151,10 @@ Key castle[CASTLE_RIGHT_NB];
 #endif
 Key side;
 Key exclusion;
+
+// XXX :  This macro is not work from "Further simplify first_entry()" 0be7b8c54207a5a435ed38f0b8e42ad9a8cc9935
+// GPSFISH use LSB as "side", but new implementation mask last 2 bits
+//#define USE_GPSFISH_ZOBRIST
 
 /// init() initializes at startup the various arrays used to compute hash keys
 /// and the piece square tables. The latter is a two-step operation: First, the
@@ -163,10 +167,14 @@ void init() {
   RKISS rk;
 
 #ifdef GPSFISH
-  for (int i = 0; i < 2; i++)
+  for (int i = 0; i < COLOR_NB; i++)
       for (int j = 0; j < osl::PTYPE_SIZE; j++)
           for (int k = 0; k < osl::Square::SIZE; k++)
+#if USE_GPSFISH_ZOBRIST
               psq[i][j][k] = rk.rand<Key>() & ~1;
+#else
+              psq[i][j][k] = rk.rand<Key>();
+#endif
 #else
   for (Color c = WHITE; c <= BLACK; c++)
       for (PieceType pt = PAWN; pt <= KING; pt++)
@@ -187,13 +195,15 @@ void init() {
   }
 #endif
 
-#ifdef GPSFISH
+#if USE_GPSFISH_ZOBRIST
   side = 1;
   exclusion  = rk.rand<Key>() & ~1;
 #else
   side = rk.rand<Key>();
   exclusion  = rk.rand<Key>();
+#endif
 
+#ifndef GPSFISH
   for (PieceType pt = PAWN; pt <= KING; pt++)
   {
       PieceValue[MG][make_piece(BLACK, pt)] = PieceValue[MG][pt];

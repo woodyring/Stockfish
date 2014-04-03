@@ -153,14 +153,14 @@ public:
 #endif
 
 #ifdef GPSFISH
-  size_t get_hashfull() { return (size)?(1000ll*used/size):1000; }
+  size_t get_hashfull() { return 1000ll*used/(hashMask+ClusterSize)/ClusterSize; }
 #endif
 private:
   uint32_t hashMask;
   TTEntry* table;
   uint8_t generation; // Size must be not bigger then TTEntry::generation8
 #ifdef GPSFISH
-  size_t size, used;
+  size_t used;
 #endif
 };
 

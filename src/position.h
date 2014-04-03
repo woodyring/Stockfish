@@ -244,7 +244,7 @@ public:
 
 #ifdef GPSFISH
   osl::state::NumEffectState osl_state;
-  osl::misc::CArray<int,2> continuous_check; // number of a player's continuous check moves
+  osl::misc::CArray<int,COLOR_NB> continuous_check; // number of a player's continuous check moves
   eval_t *eval;
 #endif
 private:

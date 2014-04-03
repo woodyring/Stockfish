@@ -256,7 +256,8 @@ namespace {
 
 #ifdef GPSFISH
     // shogidokoro hack
-    if( strncmp("UCI_",name.c_str(),4) != 0 ) {
+    if( ( strncmp("UCI_",name.c_str(),4) != 0 ) &&
+        ( strncmp("USI_",name.c_str(),4) != 0 ) ) {
         std::string newName = UCI::strReplace( name, "_", " " );
         name = newName;
     }

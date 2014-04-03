@@ -15,7 +15,15 @@ FORCE_INLINE uint32_t lsb(uint64_t b) {
 
 FORCE_INLINE uint32_t msb(uint64_t b) {
   unsigned long index;
-  _BitScanReverse64(&index, b);
+#if 0
+  _BitScanReverse64(&index, b); //XXX : NOT working
+#else
+  uint64_t mask = 1ull<<63;
+  for( index = 63 ; index > 0 ; index-- ) {
+      if( b & mask ) { break; }
+      mask >>= 1;
+  }
+#endif
   return (uint32_t) index;
 }
 

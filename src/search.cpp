@@ -778,7 +778,6 @@ namespace {
     moveCount = playedMoveCount = 0;
 
 #ifdef GPSFISH
-    //int repeat_check = 0;
     const Value VALUE_DRAW = value_draw(pos);
 
     if(can_capture_king(pos)){
@@ -819,6 +818,7 @@ namespace {
     // Check for an instant draw or maximum ply reached
 #if 0
     // XXX : is_draw is NOT implemented
+    int repeat_check = 0;
     if (Signals.stop || ss->ply > MAX_PLY || pos.is_draw(repeat_check))
         return VALUE_DRAW;
 
@@ -833,7 +833,7 @@ namespace {
          || ss->ply > MAX_PLY) && !RootNode)
         return VALUE_DRAW;
 
-    if ( !Root ){
+    if ( !RootNode ){
         if(repeat_check<0)
             return mated_in(ss->ply);
         else if(repeat_check>0)

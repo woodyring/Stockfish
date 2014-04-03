@@ -39,14 +39,9 @@ void TranspositionTable::set_size(size_t mbSize) {
 
   assert(msb((mbSize << 20) / sizeof(TTEntry)) < 32);
 
-#ifdef GPSFISH
-  size = 1024;
-  while (1ULL * size * sizeof(TTEntry[ClusterSize]) <= (mbSize << 20))
-      size *= 2;
-#else
   uint32_t size = ClusterSize << msb((mbSize << 20) / sizeof(TTEntry[ClusterSize]));
-#endif
-#if 1
+#if 0
+  // mingw64 msb may not work
   std::cout << "info string mbsize " << mbSize
             << " shift " << (mbSize<<20)
             << " msb " << msb((mbSize<<20)) << " size " << size << std::endl;
