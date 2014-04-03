@@ -1628,8 +1628,7 @@ split_point_start: // At split points actual search starts from here
     }
 #endif
 
-    // Transposition table lookup. At PV nodes, we don't use the TT for
-    // pruning, but only for move ordering.
+    // Transposition table lookup
     posKey = pos.key();
     tte = TT.probe(posKey);
 #ifdef GPSFISH
