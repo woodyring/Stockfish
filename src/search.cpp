@@ -2126,7 +2126,7 @@ split_point_start: // At split points actual search starts from here
   string uci_pv(const Position& pos, int depth, Value alpha, Value beta) {
 
     std::stringstream s;
-    Time::point elaspsed = Time::now() - SearchTime + 1;
+    Time::point elapsed = Time::now() - SearchTime + 1;
     size_t uciPVSize = std::min((size_t)Options["MultiPV"], RootMoves.size());
     int selDepth = 0;
 
@@ -2151,13 +2151,11 @@ split_point_start: // At split points actual search starts from here
           << " seldepth "  << selDepth
           << " score "     << (i == PVIdx ? score_to_uci(v, alpha, beta) : score_to_uci(v))
           << " nodes "     << pos.nodes_searched()
-          << " nps "       << pos.nodes_searched() * 1000 / elaspsed
+          << " nps "       << pos.nodes_searched() * 1000 / elapsed
+          << " time "      << elapsed
 #ifdef GPSFISH
-          //<< " time "      << (t > 0 ? t : 1)
-          << " time "      << elaspsed
           << " hashfull "  << TT.get_hashfull()
 #else
-          << " time "      << elaspsed
           << " multipv "   << i + 1
 #endif
           << " pv";
