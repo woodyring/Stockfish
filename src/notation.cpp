@@ -113,7 +113,7 @@ Move move_from_uci(const Position& pos, string& str) {
 #ifdef GPSFISH
   return osl::record::usi::strToMove(str,pos.osl_state);
 #else
-  for (MoveList<LEGAL> it(pos); !it.end(); ++it)
+  for (MoveList<LEGAL> it(pos); *it; ++it)
       if (str == move_to_uci(*it, pos.is_chess960()))
           return *it;
 

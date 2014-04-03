@@ -253,7 +253,7 @@ size_t Search::perft(Position& pos, Depth depth) {
   size_t cnt = 0;
   CheckInfo ci(pos);
 
-  for (MoveList<LEGAL> it(pos); !it.end(); ++it)
+  for (MoveList<LEGAL> it(pos); *it; ++it)
   {
 #ifdef GPSFISH
       pos.do_undo_move(*it,st,
