@@ -70,8 +70,8 @@ namespace {
 /// search captures, promotions and some checks) and about how important good
 /// move ordering is at the current node.
 
-MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h, const Refutations& r,
-                       Search::Stack* s, Value beta) : pos(p), Hist(h), depth(d) {
+MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const HistoryStats& h, const CountermovesStats& cm,
+                       Search::Stack* s, Value beta) : pos(p), history(h), depth(d) {
 
   assert(d > DEPTH_ZERO);
 
@@ -91,9 +91,9 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h, c
       killers[1].move = ss->killers[1];
       Square prevSq = to_sq((ss-1)->currentMove);
 #ifdef GPSFISH
-      killers[2].move = r[pos.piece_on(prevSq)][prevSq.index()];
+      killers[2].move = cm[pos.piece_on(prevSq)][prevSq.index()];
 #else
-      killers[2].move = r[pos.piece_on(prevSq)][prevSq];
+      killers[2].move = cm[pos.piece_on(prevSq)][prevSq];
 #endif
 
       // Consider sligtly negative captures as good if at low depth and far from beta
@@ -109,8 +109,8 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h, c
   end += (ttMove != MOVE_NONE);
 }
 
-MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h,
-                       Square sq) : pos(p), Hist(h), cur(moves), end(moves) {
+MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const HistoryStats& h,
+                       Square sq) : pos(p), history(h), cur(moves), end(moves) {
 
   assert(d <= DEPTH_ZERO);
 
@@ -141,8 +141,8 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const History& h,
   end += (ttMove != MOVE_NONE);
 }
 
-MovePicker::MovePicker(const Position& p, Move ttm, const History& h, PieceType pt)
-                       : pos(p), Hist(h), cur(moves), end(moves) {
+MovePicker::MovePicker(const Position& p, Move ttm, const HistoryStats& h, PieceType pt)
+                       : pos(p), history(h), cur(moves), end(moves) {
 
   assert(!pos.checkers());
 
@@ -204,9 +204,10 @@ void MovePicker::score<QUIETS>() {
   {
       m = it->move;
 #ifdef GPSFISH
-      it->score = Hist[m.ptypeO()][to_sq(m).index()]; // XXX
+      it->score = history[m.ptypeO()][to_sq(m).index()]; // XXX
 #else
-      it->score = Hist[pos.piece_moved(m)][to_sq(m)];
+      it->score = history[pos.piece_moved(m)][to_sq(m)];
+      it->score = history[pos.piece_moved(m)][to_sq(m)];
 #endif
   }
 }
@@ -223,20 +224,20 @@ void MovePicker::score<EVASIONS>() {
   {
       m = it->move;
       if ((seeScore = pos.see_sign(m)) < 0)
-          it->score = seeScore - History::Max; // At the bottom
+          it->score = seeScore - HistoryStats::Max; // At the bottom
 
       else if (pos.is_capture(m))
           it->score =  PieceValue[MG][pos.piece_on(to_sq(m))]
 #ifdef GPSFISH
-                     - type_value_of_piece_on(pos.piece_moved(m)) + History::Max; // XXX : why
+                     - type_value_of_piece_on(pos.piece_moved(m)) + HistoryStats::Max; // XXX : why
 #else
-                     - type_of(pos.piece_moved(m)) + History::Max;
+                     - type_of(pos.piece_moved(m)) + HistoryStats::Max;
 #endif
       else
 #ifdef GPSFISH
-          it->score = Hist[m.ptypeO()][to_sq(m).index()]; // XXX
+          it->score = history[m.ptypeO()][to_sq(m).index()]; // XXX
 #else
-          it->score = Hist[pos.piece_moved(m)][to_sq(m)];
+          it->score = history[pos.piece_moved(m)][to_sq(m)];
 #endif
   }
 }
