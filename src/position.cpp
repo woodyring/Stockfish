@@ -38,6 +38,7 @@
 #include "tt.h"
 
 #ifdef GPSFISH
+#include "osl/misc/carray3d.h"
 #include "osl/eval/ptypeEvalTraits.h"
 using osl::eval::PtypeEvalTraits;
 #include "osl/state/simpleState.h"
@@ -140,15 +141,20 @@ Value PieceValue[PHASE_NB][PIECE_NB] = {
 
 #endif
 
+namespace Zobrist {
+
 #ifdef GPSFISH
-osl::misc::CArray3d<Key,COLOR_NB,osl::PTYPE_SIZE,osl::Square::SIZE> Zobrist::psq;
+  osl::misc::CArray3d<Key,COLOR_NB,osl::PTYPE_SIZE,osl::Square::SIZE> psq;
 #else
-Key Zobrist::psq[COLOR_NB][PIECE_TYPE_NB][SQUARE_NB];
-Key Zobrist::enpassant[FILE_NB];
-Key Zobrist::castle[CASTLE_RIGHT_NB];
+  Key psq[COLOR_NB][PIECE_TYPE_NB][SQUARE_NB];
+  Key enpassant[FILE_NB];
+  Key castle[CASTLE_RIGHT_NB];
 #endif
-Key Zobrist::side;
-Key Zobrist::exclusion;
+  Key side;
+  Key exclusion;
+}
+
+Key Position::exclusion_key() const { return st->key ^ Zobrist::exclusion;}
 
 
 #ifndef GPSFISH

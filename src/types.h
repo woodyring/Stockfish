@@ -382,23 +382,6 @@ inline Score operator/(Score s, int i) {
 #undef ENABLE_SAFE_OPERATORS_ON
 
 #ifdef GPSFISH
-#include "osl/misc/carray3d.h"
-#endif
-
-namespace Zobrist {
-
-#ifdef GPSFISH
-  extern osl::misc::CArray3d<Key,2,osl::PTYPE_SIZE,osl::Square::SIZE> psq;
-#else
-  extern Key psq[COLOR_NB][PIECE_TYPE_NB][SQUARE_NB];
-  extern Key enpassant[FILE_NB];
-  extern Key castle[CASTLE_RIGHT_NB];
-#endif
-  extern Key side;
-  extern Key exclusion;
-}
-
-#ifdef GPSFISH
 extern const Value PieceValue[PHASE_NB][osl::PTYPE_SIZE];
 #else
 extern Value PieceValue[PHASE_NB][PIECE_NB];

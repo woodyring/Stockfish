@@ -3,6 +3,17 @@
 #include "position.h"
 #include "tt.h"
 #include "osl/move.h"
+#include "osl/misc/carray3d.h"
+
+// defined in position.cpp
+namespace Zobrist {
+
+  extern osl::misc::CArray3d<Key,COLOR_NB,osl::PTYPE_SIZE,osl::Square::SIZE> psq;
+  extern Key side;
+  extern Key exclusion;
+}
+
+
 template<typename F>
 void Position::do_undo_move(Move m, StateInfo& newSt,F const& f){
   assert(is_ok());
