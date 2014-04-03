@@ -1,7 +1,7 @@
 
 struct Store{
-    MoveStack* mlist;
-    Store(MoveStack* mlist_) :mlist(mlist_){}
+    ExtMove* mlist;
+    Store(ExtMove* mlist_) :mlist(mlist_){}
     void simpleMove(Square /*from*/,Square /*to*/,Ptype /*ptype*/, bool /*isPromote*/,Player /*p*/,Move move){
         (*mlist++).move = move;
     }
@@ -34,8 +34,8 @@ struct Store{
 };
 
 struct NoCaptureStore{
-    MoveStack* mlist;
-    NoCaptureStore(MoveStack* mlist_) :mlist(mlist_){}
+    ExtMove* mlist;
+    NoCaptureStore(ExtMove* mlist_) :mlist(mlist_){}
     void simpleMove(Square /*from*/,Square /*to*/,Ptype /*ptype*/, bool isPromote,Player /*p*/,Move move){
 #ifdef PROMOTE_AS_CAPTURE
         if(!isPromote)
@@ -81,7 +81,7 @@ struct NoCaptureStore{
 };
 
 template<osl::Player P,GenType Type>
-MoveStack* generateC(const Position& pos, MoveStack* mlist) {
+ExtMove* generateC(const Position& pos, ExtMove* mlist) {
     const osl::Player altP=osl::PlayerTraits<P>::opponent;
     if(Type==CAPTURES){
         Store store(mlist);

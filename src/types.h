@@ -391,12 +391,12 @@ inline Value type_value_of_piece_on(Piece p) {
 #endif
 
 
-struct MoveStack {
+struct ExtMove {
   Move move;
   int score;
 };
 
-inline bool operator<(const MoveStack& f, const MoveStack& s) {
+inline bool operator<(const ExtMove& f, const ExtMove& s) {
   return f.score < s.score;
 }
 
