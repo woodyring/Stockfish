@@ -385,7 +385,11 @@ void ThreadPool::start_thinking(const Position& pos, const LimitsType& limits,
       assert(!states.get());
   }
 
+#ifdef GPSFISH
+  for (MoveList<LEGAL> it(pos); *it!=MOVE_NONE; ++it)
+#else
   for (MoveList<LEGAL> it(pos); *it; ++it)
+#endif
       if (   searchMoves.empty()
           || std::count(searchMoves.begin(), searchMoves.end(), *it))
           RootMoves.push_back(RootMove(*it));

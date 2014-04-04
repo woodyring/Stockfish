@@ -259,7 +259,11 @@ static size_t perft(Position& pos, Depth depth) {
   CheckInfo ci(pos);
   const bool leaf = depth == 2 * ONE_PLY;
 
+#ifdef GPSFISH
+  for (MoveList<LEGAL> it(pos); *it!=MOVE_NONE; ++it)
+#else
   for (MoveList<LEGAL> it(pos); *it; ++it)
+#endif
   {
 #ifdef GPSFISH
       pos.do_undo_move(*it,st,
