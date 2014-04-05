@@ -153,7 +153,7 @@ void init(OptionsMap& o) {
 #else
   o["Emergency Move Horizon"]      = Option(40, 0, 50);
   o["Emergency Base Time"]         = Option(50, 0, 30000);
-  o["Emergency Move Time"]         = Option( 5, 0, 5000);
+  o["Emergency Move Time"]         = Option(10, 0, 5000);
 
 #endif
   o["Minimum Thinking Time"]       = Option(20, 0, 5000);
