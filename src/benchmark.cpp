@@ -135,7 +135,11 @@ void benchmark(const Position& current, istream& is) {
       limits.depth = atoi(limit.c_str());
 
   if (fenFile == "default")
+#ifdef GPSFISH
+      fens.assign(Defaults, Defaults + 16);
+#else
       fens.assign(Defaults, Defaults + 30);
+#endif
 
   else if (fenFile == "current")
       fens.push_back(current.fen());
