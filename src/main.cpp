@@ -78,6 +78,7 @@ int main(int argc, char* argv[]) {
   Search::init();
 
 #ifndef GPSFISH
+  Pawns::init();
   Eval::init();
 #endif
 
