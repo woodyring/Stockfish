@@ -135,7 +135,7 @@ public:
 #ifndef GPSFISH
   Bitboard discovered_check_candidates() const;
 #endif
-  Bitboard pinned_pieces() const;
+  Bitboard pinned_pieces(Color toMove) const;
 
 #ifndef GPSFISH
   // Attacks to/from a given square
@@ -240,7 +240,7 @@ private:
 #ifndef GPSFISH
   // Helper functions
   void do_castle(Square kfrom, Square kto, Square rfrom, Square rto);
-  Bitboard hidden_checkers(Square ksq, Color c) const;
+  Bitboard hidden_checkers(Square ksq, Color c, Color toMove) const;
   void put_piece(Square s, Color c, PieceType pt);
   void remove_piece(Square s, Color c, PieceType pt);
   void move_piece(Square from, Square to, Color c, PieceType pt);
@@ -417,15 +417,15 @@ inline Bitboard Position::checkers() const {
 
 #ifndef GPSFISH
 inline Bitboard Position::discovered_check_candidates() const {
-  return hidden_checkers(king_square(~sideToMove), sideToMove);
+  return hidden_checkers(king_square(~sideToMove), sideToMove, sideToMove);
 }
 #endif
 
-inline Bitboard Position::pinned_pieces() const {
+inline Bitboard Position::pinned_pieces(Color toMove) const {
 #ifdef GPSFISH
   return 0;
 #else
-  return hidden_checkers(king_square(sideToMove), ~sideToMove);
+  return hidden_checkers(king_square(toMove), ~toMove, toMove);
 #endif
 }
 
