@@ -1550,35 +1550,9 @@ Value Position::compute_non_pawn_material(Color c) const {
 #endif
 
 
-/// Position::is_draw() tests whether the position is drawn by material,
-/// repetition, or the 50 moves rule. It does not detect stalemates, this
-/// must be done by the search.
-
-#ifdef GPSFISH
-bool Position::is_draw(int& ret) const {
-
-    // retire history by 3d8140a54101a50860ba2e3eb0f2d6cce68bfe47
-    // should use st->previous
-#if 0
-  ret=0;
-  StateInfo* stp = st->previous->previous;
-  for (int i = 4, e = std::min(st->gamePly,st->pliesFromNull); i <= e; i += 2)
-  {
-      stp = stp->previous->previous;
-      if (stp->key == st->key)
-      //if (history[st->gamePly - i] == st->key)
-      {
-          Color us = side_to_move();
-          Color them = ~us;
-          if(continuous_check[us]*2>=i) {ret= -1; return false;}
-          else if(continuous_check[them]*2>=i) {ret= 1; return false;}
-          else return true;
-      }
-  }
-#endif
-  return false;
-}
-#endif
+/// Position::is_draw() tests whether the position is drawn by repetition
+/// or the 50 moves rule. It does not detect stalemates, this must be done
+/// by the search.
 
 bool Position::is_draw() const {
 
@@ -1586,11 +1560,6 @@ bool Position::is_draw() const {
   int dummy;
   return is_draw(dummy);
 #else
-
-  // Draw by material?
-  if (   !pieces(PAWN)
-      && (non_pawn_material(WHITE) + non_pawn_material(BLACK) <= BishopValueMg))
-      return true;
 
   // Draw by the 50 moves rule?
   if (st->rule50 > 99 && (!checkers() || MoveList<LEGAL>(*this).size()))
@@ -1617,6 +1586,32 @@ bool Position::is_draw() const {
   return false;
 #endif
 }
+
+#ifdef GPSFISH
+bool Position::is_draw(int& ret) const {
+
+    // retire history by 3d8140a54101a50860ba2e3eb0f2d6cce68bfe47
+    // should use st->previous
+#if 0
+  ret=0;
+  StateInfo* stp = st->previous->previous;
+  for (int i = 4, e = std::min(st->gamePly,st->pliesFromNull); i <= e; i += 2)
+  {
+      stp = stp->previous->previous;
+      if (stp->key == st->key)
+      //if (history[st->gamePly - i] == st->key)
+      {
+          Color us = side_to_move();
+          Color them = ~us;
+          if(continuous_check[us]*2>=i) {ret= -1; return false;}
+          else if(continuous_check[them]*2>=i) {ret= 1; return false;}
+          else return true;
+      }
+  }
+#endif
+  return false;
+}
+#endif
 
 
 /// Position::flip() flips position with the white and black sides reversed. This
