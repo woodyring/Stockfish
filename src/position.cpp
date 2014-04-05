@@ -1420,11 +1420,9 @@ void Position::clear() {
   st = &startState;
 
 #ifndef GPSFISH
-
-  for (int i = 0; i < 8; i++)
+  for (int i = 0; i < PIECE_TYPE_NB; i++)
       for (int j = 0; j < 16; j++)
-          pieceList[0][i][j] = pieceList[1][i][j] = SQ_NONE;
-
+          pieceList[WHITE][i][j] = pieceList[BLACK][i][j] = SQ_NONE;
 #endif
 
 #ifdef GPSFISH
@@ -1550,9 +1548,8 @@ Value Position::compute_non_pawn_material(Color c) const {
 #endif
 
 
-/// Position::is_draw() tests whether the position is drawn by repetition
-/// or the 50 moves rule. It does not detect stalemates, this must be done
-/// by the search.
+/// Position::is_draw() tests whether the position is drawn by 50 moves rule
+/// or by repetition. It does not detect stalemates.
 
 bool Position::is_draw() const {
 
@@ -1561,11 +1558,9 @@ bool Position::is_draw() const {
   return is_draw(dummy);
 #else
 
-  // Draw by the 50 moves rule?
   if (st->rule50 > 99 && (!checkers() || MoveList<LEGAL>(*this).size()))
       return true;
 
-  // Draw by repetition?
   int i = 4, e = std::min(st->rule50, st->pliesFromNull);
 
   if (i <= e)
@@ -1576,7 +1571,7 @@ bool Position::is_draw() const {
           stp = stp->previous->previous;
 
           if (stp->key == st->key)
-              return true;
+              return true; // Draw after first repetition
 
           i += 2;
 
