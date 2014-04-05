@@ -1860,7 +1860,7 @@ moves_loop: // When in check and at SpNode search starts from here
         return true;
 #else
     if (    m2to == m1from
-        || (m1to == m2from && !squares_aligned(m1from, m2from, m2to)))
+        || (m1to == m2from && !aligned(m1from, m2from, m2to)))
         return true;
 #endif
 

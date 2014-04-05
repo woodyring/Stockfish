@@ -713,7 +713,7 @@ bool Position::legal(Move m, Bitboard pinned) const {
   // is moving along the ray towards or away from the king.
   return   !pinned
         || !(pinned & from)
-        ||  squares_aligned(from, to_sq(m), king_square(us));
+        ||  aligned(from, to_sq(m), king_square(us));
 #endif
 }
 
@@ -868,7 +868,7 @@ bool Position::gives_check(Move m, const CheckInfo& ci) const {
   {
       // For pawn and king moves we need to verify also direction
       if (   (pt != PAWN && pt != KING)
-          || !squares_aligned(from, to, king_square(~sideToMove)))
+          || !aligned(from, to, king_square(~sideToMove)))
           return true;
   }
 
