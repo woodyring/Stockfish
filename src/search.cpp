@@ -544,7 +544,11 @@ namespace {
 #endif
 
     std::memset(ss-2, 0, 5 * sizeof(Stack));
+#ifdef GPSFISH
+    (ss-1)->currentMove = MOVE_NULL(pos);
+#else
     (ss-1)->currentMove = MOVE_NULL; // Hack to skip update gains
+#endif
 
     depth = 0;
     BestMoveChanges = 0;
@@ -957,7 +961,11 @@ namespace {
     if (   !pos.captured_piece_type()
         &&  ss->staticEval != VALUE_NONE
         && (ss-1)->staticEval != VALUE_NONE
+#ifdef GPSFISH
+        && (move = (ss-1)->currentMove) != MOVE_NULL(pos)
+#else
         && (move = (ss-1)->currentMove) != MOVE_NULL
+#endif
         &&  type_of(move) == NORMAL)
     {
         Square to = to_sq(move);
@@ -1009,7 +1017,7 @@ namespace {
 #endif
     {
 #ifdef GPSFISH
-        ss->currentMove = Move::PASS(pos.side_to_move());
+        ss->currentMove = MOVE_NULL(pos);
 #else
         ss->currentMove = MOVE_NULL;
 #endif
@@ -1285,7 +1293,11 @@ moves_loop: // When in check and at SpNode search starts from here
           if (predictedDepth < 7 * ONE_PLY)
           {
               futilityValue = ss->staticEval + futility_margin(predictedDepth)
+#ifdef GPSFISH
+                            + Value(128) + Gains[pos.moved_piece(move)][to_sq(move).index()];
+#else
                             + Value(128) + Gains[pos.moved_piece(move)][to_sq(move)];
+#endif
 
               if (futilityValue <= alpha)
               {

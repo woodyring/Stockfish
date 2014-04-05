@@ -113,6 +113,7 @@ extern bool using_tcp_connection; // to enable/disable Move::DeclareWin() at roo
 #include "osl/move.h"
 typedef osl::Move Move;
 static const Move MOVE_NONE=Move::INVALID();
+#define MOVE_NULL(pos)  Move::PASS(pos.side_to_move())
 #else
 enum Move {
   MOVE_NONE,
