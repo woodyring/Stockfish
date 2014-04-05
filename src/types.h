@@ -486,15 +486,6 @@ inline Rank rank_of(Square s) {
 #endif
 }
 
-inline Square mirror(Square s) {
-#ifdef GPSFISH
-  // flipHorizontal is expensive because it checks if s is pieceStand
-  return s.flipHorizontal();
-#else
-  return Square(s ^ 7); // Horizontal flip SQ_A1 -> SQ_H1
-#endif
-}
-
 inline Square relative_square(Color c, Square s) {
 #ifdef GPSFISH
   return s.squareForBlack(c);
