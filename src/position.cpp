@@ -486,13 +486,13 @@ const string Position::fen() const {
   std::ostringstream ss;
 
 #ifdef GPSFISH
-  for (Rank rank = RANK_1; rank <= RANK_9; rank++)
+  for (Rank rank = RANK_1; rank <= RANK_9; ++rank)
 #else
   for (Rank rank = RANK_8; rank >= RANK_1; --rank)
 #endif
   {
 #ifdef GPSFISH
-      for (File file = FILE_9; file >= FILE_1; file--)
+      for (File file = FILE_9; file >= FILE_1; --file)
 #else
       for (File file = FILE_A; file <= FILE_H; ++file)
 #endif
@@ -504,7 +504,7 @@ const string Position::fen() const {
               int emptyCnt = 1;
 
 #ifdef GPSFISH
-              for ( ; file >= FILE_1 && is_empty(sq--); file--)
+              for ( ; file >= FILE_1 && is_empty(sq--); --file)
 #else
               for ( ; file < FILE_H && is_empty(++sq); ++file)
 #endif
