@@ -86,7 +86,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const HistoryStats&
   else
       stage = MAIN_SEARCH;
 
-  ttMove = (ttm && pos.is_pseudo_legal(ttm) ? ttm : MOVE_NONE);
+  ttMove = (ttm && pos.pseudo_legal(ttm) ? ttm : MOVE_NONE);
   end += (ttMove != MOVE_NONE);
 }
 
@@ -108,7 +108,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const HistoryStats&
       // Skip TT move if is not a capture or a promotion, this avoids qsearch
       // tree explosion due to a possible perpetual check or similar rare cases
       // when TT table is full.
-      if (ttm && !pos.is_capture_or_promotion(ttm))
+      if (ttm && !pos.capture_or_promotion(ttm))
           ttm = MOVE_NONE;
   }
   else
@@ -118,7 +118,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const HistoryStats&
       ttm = MOVE_NONE;
   }
 
-  ttMove = (ttm && pos.is_pseudo_legal(ttm) ? ttm : MOVE_NONE);
+  ttMove = (ttm && pos.pseudo_legal(ttm) ? ttm : MOVE_NONE);
   end += (ttMove != MOVE_NONE);
 }
 
@@ -131,9 +131,9 @@ MovePicker::MovePicker(const Position& p, Move ttm, const HistoryStats& h, Piece
 
   // In ProbCut we generate only captures better than parent's captured piece
   captureThreshold = PieceValue[MG][pt];
-  ttMove = (ttm && pos.is_pseudo_legal(ttm) ? ttm : MOVE_NONE);
+  ttMove = (ttm && pos.pseudo_legal(ttm) ? ttm : MOVE_NONE);
 
-  if (ttMove && (!pos.is_capture(ttMove) ||  pos.see(ttMove) <= captureThreshold))
+  if (ttMove && (!pos.capture(ttMove) || pos.see(ttMove) <= captureThreshold))
       ttMove = MOVE_NONE;
 
   end += (ttMove != MOVE_NONE);
@@ -163,7 +163,7 @@ void MovePicker::score<CAPTURES>() {
   {
       m = it->move;
       it->score =  PieceValue[MG][pos.piece_on(to_sq(m))]
-                 - type_of(pos.piece_moved(m));
+                 - type_of(pos.moved_piece(m));
 
       if (type_of(m) == PROMOTION)
 #ifdef GPSFISH
@@ -187,8 +187,7 @@ void MovePicker::score<QUIETS>() {
 #ifdef GPSFISH
       it->score = history[m.ptypeO()][to_sq(m).index()]; // XXX
 #else
-      it->score = history[pos.piece_moved(m)][to_sq(m)];
-      it->score = history[pos.piece_moved(m)][to_sq(m)];
+      it->score = history[pos.moved_piece(m)][to_sq(m)];
 #endif
   }
 }
@@ -207,18 +206,18 @@ void MovePicker::score<EVASIONS>() {
       if ((seeScore = pos.see_sign(m)) < 0)
           it->score = seeScore - HistoryStats::Max; // At the bottom
 
-      else if (pos.is_capture(m))
+      else if (pos.capture(m))
           it->score =  PieceValue[MG][pos.piece_on(to_sq(m))]
 #ifdef GPSFISH
-                     - type_value_of_piece_on(pos.piece_moved(m)) + HistoryStats::Max; // XXX : why
+                     - type_value_of_piece_on(pos.moved_piece(m)) + HistoryStats::Max; // XXX : why
 #else
-                     - type_of(pos.piece_moved(m)) + HistoryStats::Max;
+                     - type_of(pos.moved_piece(m)) + HistoryStats::Max;
 #endif
       else
 #ifdef GPSFISH
           it->score = history[m.ptypeO()][to_sq(m).index()]; // XXX
 #else
-          it->score = history[pos.piece_moved(m)][to_sq(m)];
+          it->score = history[pos.moved_piece(m)][to_sq(m)];
 #endif
   }
 }
@@ -333,9 +332,9 @@ Move MovePicker::next_move<false>() {
       case KILLERS_S1:
           move = (cur++)->move;
           if (    move != MOVE_NONE
-              &&  pos.is_pseudo_legal(move)
+              &&  pos.pseudo_legal(move)
               &&  move != ttMove
-              && !pos.is_capture(move))
+              && !pos.capture(move))
               return move;
           break;
 
