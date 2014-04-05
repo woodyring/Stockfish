@@ -404,7 +404,7 @@ inline Color operator~(Color c) {
 #ifdef GPSFISH
   return alt(c);
 #else
-  return Color(c ^ 1);
+  return Color(c ^ BLACK);
 #endif
 }
 
@@ -413,7 +413,7 @@ inline Square operator~(Square s) {
   // For shogi, do rotate180 instead of flipping
   return s.rotate180();
 #else
-  return Square(s ^ 56); // Vertical flip SQ_A1 -> SQ_A8
+  return Square(s ^ SQ_A8); // Vertical flip SQ_A1 -> SQ_A8
 #endif
 }
 
