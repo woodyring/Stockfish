@@ -599,7 +599,7 @@ namespace {
 #endif
 
         // MultiPV loop. We perform a full root search for each PV line
-        for (PVIdx = 0; PVIdx < PVSize; ++PVIdx)
+        for (PVIdx = 0; PVIdx < PVSize && !Signals.stop; ++PVIdx)
         {
             // Reset aspiration window starting size
             if (depth >= 5)
@@ -628,11 +628,11 @@ namespace {
                 for (size_t i = 0; i <= PVIdx; ++i)
                     RootMoves[i].insert_pv_in_tt(pos);
 
-                // If search has been stopped return immediately. Sorting and
+                // If search has been stopped break immediately. Sorting and
                 // writing PV back to TT is safe becuase RootMoves is still
                 // valid, although refers to previous iteration.
                 if (Signals.stop)
-                    return;
+                    break;
 
                 // When failing high/low give some update (without cluttering
                 // the UI) before to research.
@@ -689,7 +689,7 @@ namespace {
             Signals.stop = true;
 
         // Do we have time for the next iteration? Can we stop searching now?
-        if (Limits.use_time_management() && !Signals.stopOnPonderhit)
+        if (Limits.use_time_management() && !Signals.stop && !Signals.stopOnPonderhit)
         {
             bool stop = false; // Local variable, not the volatile Signals.stop
 
