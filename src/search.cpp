@@ -1558,7 +1558,11 @@ moves_loop: // When in check and at SpNode search starts from here
 
     TT.store(posKey, value_to_tt(bestValue, ss->ply),
              bestValue >= beta  ? BOUND_LOWER :
+#ifdef GPSFISH
+             PvNode && (bestMove != MOVE_NONE) ? BOUND_EXACT : BOUND_UPPER,
+#else
              PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
+#endif
              depth, bestMove, ss->staticEval, ss->evalMargin);
 
     // Quiet best move: update killers, history and countermoves
