@@ -675,7 +675,7 @@ bool Position::legal(Move m, Bitboard pinned) const {
 #else
 
   assert(is_ok(m));
-  assert(pinned == pinned_pieces(pos.side_to_move()));
+  assert(pinned == pinned_pieces(sideToMove));
 
   Color us = sideToMove;
   Square from = from_sq(m);
