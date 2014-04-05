@@ -1420,7 +1420,7 @@ void Position::clear() {
   st = &startState;
 
 #ifndef GPSFISH
-  for (int i = 0; i < PIECE_TYPE_NB; i++)
+  for (int i = 0; i < PIECE_TYPE_NB; ++i)
       for (int j = 0; j < 16; j++)
           pieceList[WHITE][i][j] = pieceList[BLACK][i][j] = SQ_NONE;
 #endif
@@ -1771,7 +1771,7 @@ bool Position::pos_is_ok(int* failedStep) const {
   if ((*step)++, debugPieceList)
       for (Color c = WHITE; c <= BLACK; ++c)
           for (PieceType pt = PAWN; pt <= KING; ++pt)
-              for (int i = 0; i < pieceCount[c][pt]; i++)
+              for (int i = 0; i < pieceCount[c][pt];  ++i)
                   if (   board[pieceList[c][pt][i]] != make_piece(c, pt)
                       || index[pieceList[c][pt][i]] != i)
                       return false;
