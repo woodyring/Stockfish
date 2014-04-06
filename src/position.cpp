@@ -921,7 +921,7 @@ bool Position::gives_check(Move m, const CheckInfo& ci) const {
 void Position::do_move(Move m, StateInfo& newSt) {
 
 #ifdef GPSFISH
-  assert(is_ok());
+  assert(is_ok(m));
   assert(!m.isPass());
   nodes++;
   Key key = st->key;
@@ -964,7 +964,7 @@ void Position::do_move(Move m, StateInfo& newSt) {
   osl_state.makeMove(m);
   if(osl_state.inCheck()) continuous_check[us]++;
   else continuous_check[us]=0;
-  assert(is_ok());
+  assert(is_ok(m));
 #else
   CheckInfo ci(*this);
   do_move(m, newSt, ci, gives_check(m, ci));
@@ -1317,8 +1317,9 @@ int Position::see_sign(Move m) const {
 
 int Position::see(Move m, int asymmThreshold) const {
 
-  assert(move_is_ok(m));
 #ifdef GPSFISH
+  assert(is_ok(m));
+
   Player p=osl_state.turn();
   return osl::See::see(osl_state,m,osl_state.pin(p),osl_state.pin(alt(p)));
 #else

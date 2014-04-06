@@ -44,7 +44,11 @@ namespace {
 
  template<typename T> T* new_thread() {
    T* th = new T();
+#ifdef _WIN32 // Linux - Unix
    thread_create(th->handle, start_routine, th); // Will go to sleep
+#else
+   thread_create(th->handle, (pt_start_fn)start_routine, th); // Will go to sleep
+#endif
    return th;
  }
 

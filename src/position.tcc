@@ -16,10 +16,10 @@ namespace Zobrist {
 
 template<typename F>
 void Position::do_undo_move(Move m, StateInfo& newSt,F const& f){
-  assert(is_ok());
-  assert(move_is_ok(m));
+  //assert(is_ok());
+  assert(is_ok(m));
   assert(&newSt != st);
-  assert(move_is_legal(m));
+  assert(pl_move_is_legal(m));
 
   nodes++;
   Key key = st->key;
@@ -72,7 +72,7 @@ void Position::do_undo_move(Move m, StateInfo& newSt,F const& f){
 
 template<typename F>
 void Position::do_undo_null_move(StateInfo& backupSt, F const& f){
-  assert(is_ok());
+  //assert(is_ok());
   backupSt.key      = st->key;
   backupSt.previous = st->previous;
   backupSt.pliesFromNull = st->pliesFromNull;

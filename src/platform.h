@@ -68,11 +68,11 @@ typedef void*(*pt_start_fn)(void*);
 #  define cond_wait(x,y) pthread_cond_wait(&(x),&(y))
 #  define cond_timedwait(x,y,z) pthread_cond_timedwait(&(x),&(y),z)
 #ifdef GPSFISH
-#  define thread_create(x,f,t) { \
-    pthread_attr_t attr; \
-    pthread_attr_init(&attr); \
-    pthread_attr_setstacksize(&attr,1024*1024*16); \
-    pthread_create(&(x),NULL,(pt_start_fn)f,t) \
+inline void thread_create(NativeHandle x,pt_start_fn f,void *t) {
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setstacksize(&attr,1024*1024*16);
+    pthread_create(&(x),NULL,(pt_start_fn)f,t);
 }
 #else
 #  define thread_create(x,f,t) pthread_create(&(x),NULL,(pt_start_fn)f,t)

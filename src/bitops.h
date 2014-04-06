@@ -51,9 +51,35 @@ FORCE_INLINE uint32_t pop_lsb(uint64_t* b) {
 
 #else // if !defined(USE_BSFQ)
 
-extern uint32_t msb(uint64_t b);
-extern uint32_t lsb(uint64_t b);
-extern uint32_t pop_lsb(uint64_t* b);
+//extern uint32_t msb(uint64_t b);
+//extern uint32_t lsb(uint64_t b);
+//extern uint32_t pop_lsb(uint64_t* b);
+
+FORCE_INLINE uint32_t msb(uint64_t b) {
+  unsigned long index;
+  uint64_t mask = 1ull<<63;
+  for( index = 63 ; index > 0 ; index-- ) {
+      if( b & mask ) { break; }
+      mask >>= 1;
+  }
+  return (uint32_t) index;
+}
+
+FORCE_INLINE uint32_t lsb(uint64_t b) {
+  unsigned long index;
+  uint64_t mask = 1ull;
+  for( index = 63 ; index > 0 ; index-- ) {
+      if( b & mask ) { break; }
+      mask <<= 1;
+  }
+  return (uint32_t) index;
+}
+
+FORCE_INLINE uint32_t pop_lsb(uint64_t* b) {
+  const uint32_t s = lsb(*b);
+  *b &= ~(1ULL << s);
+  return s;
+}
 
 #endif
 

@@ -261,7 +261,7 @@ static size_t perft(Position& pos, Depth depth) {
 #ifdef GPSFISH
       pos.do_undo_move(*it,st,
               [&](osl::Square){
-              assert(pos.is_ok());
+              assert(is_ok(*it));
 #else
       pos.do_move(*it, st, ci, pos.gives_check(*it, ci));
 #endif
@@ -370,7 +370,7 @@ void Search::think() {
       if(RootMoves[0].pv[0].isNormal())
           RootPos.do_undo_move(RootMoves[0].pv[0],st,
                   [&](osl::Square){
-                  assert(pos.is_ok());
+                  assert(is_ok(RootMoves[0].pv[0]));
 #else
       RootPos.do_move(RootMoves[0].pv[0], st);
 #endif
@@ -1099,7 +1099,11 @@ namespace {
 
         assert(rdepth >= ONE_PLY);
         assert((ss-1)->currentMove != MOVE_NONE);
+#ifdef GPSFISH
+        assert((ss-1)->currentMove != MOVE_NULL(pos));
+#else
         assert((ss-1)->currentMove != MOVE_NULL);
+#endif
 
         MovePicker mp(pos, ttMove, History, pos.captured_piece_type());
         CheckInfo ci(pos);
@@ -1111,7 +1115,7 @@ namespace {
 #ifdef GPSFISH
                 pos.do_undo_move(move,st,
                         [&](osl::Square){
-                        assert(pos.is_ok());
+                        assert(is_ok(move));
                         *(pos.eval+1)= *(pos.eval);
                         pos.eval++;
                         pos.eval->update(pos.osl_state,move);
@@ -1756,7 +1760,7 @@ moves_loop: // When in check and at SpNode search starts from here
 #ifdef GPSFISH
       pos.do_undo_move(move,st,
               [&](osl::Square){
-              assert(pos.is_ok());
+              assert(is_ok(move));
               *(pos.eval+1)= *(pos.eval);
               pos.eval++;
               pos.eval->update(pos.osl_state,move);
@@ -2110,7 +2114,7 @@ void RootMove::extract_pv_from_tt_rec(Position& pos,int ply)
       StateInfo st;
       pos.do_undo_move(tte->move(pos),st,
               [&](osl::Square){
-              assert(pos.is_ok());
+              assert(is_ok(tte->move(pos)));
               extract_pv_from_tt_rec(pos,ply+1);
       } );
   }
@@ -2135,7 +2139,7 @@ void RootMove::extract_pv_from_tt(Position& pos) {
   StateInfo st;
   pos.do_undo_move(pv[0],st,
           [&](osl::Square){
-          assert(pos.is_ok());
+          assert(is_ok(pv[0]));
           extract_pv_from_tt_rec(pos,1);
           } );
 #else
@@ -2177,7 +2181,7 @@ void RootMove::insert_pv_in_tt_rec(Position& pos,int ply)
       StateInfo st;
       pos.do_undo_move(pv[ply],st,
               [&](osl::Square){
-              assert(pos.is_ok());
+              assert(is_ok(pv[ply]));
               *(pos.eval+1)= *(pos.eval);
               pos.eval++;
               pos.eval->update(pos.osl_state,pv[ply]);
@@ -2388,11 +2392,11 @@ void do_checkmate(const Position& pos, int mateTime){
     for (size_t limit = step; true; limit = static_cast<size_t>(step*scale)) {
         result = dfpn.
             hasCheckmateMove(state, osl::hash::HashKey(state), path, limit, checkmate_move, Move(), &pv);
-        double elapsed = start.elapsedSeconds();
+        double elapsed = start.elapsedSeconds() + 1;
         double memory = osl::OslConfig::memoryUseRatio();
         uint64_t node_count = dfpn.nodeCount();
-        sync_cout << "info time " << static_cast<int>(elapsed*1000) << "nodes " << total+node_count
-                  << "nps %d " << static_cast<int>(node_count/elapsed) << "hashfull " << static_cast<int>(memory*1000) << sync_endl;
+        sync_cout << "info time " << static_cast<int>(elapsed*1000) << " nodes " << total+node_count
+                  << " nps " << static_cast<int>(node_count/elapsed) << " hashfull " << static_cast<int>(memory*1000) << sync_endl;
         //poll(pos);
         if (result.isFinal() || elapsed >= seconds || memory > 0.9 || Signals.stop)
             break;

@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
   std::cout << engine_info() << std::endl;
 
 #if defined(GPSFISH) && !defined(_WIN32)
-  setup_network(argc,argv);
+  setup_network(&argc,argv);
 #endif
 
   // Startup initializations
