@@ -2,13 +2,13 @@
 #define POSITION_TCC_INCLUDED
 #include "position.h"
 #include "tt.h"
-#include "osl/move.h"
-#include "osl/misc/carray3d.h"
+#include "osl/basic_type.h"
+//#include "osl/misc/carray3d.h"
 
 // defined in position.cpp
 namespace Zobrist {
 
-  extern osl::misc::CArray3d<Key,COLOR_NB,osl::PTYPE_SIZE,osl::Square::SIZE> psq;
+  extern osl::CArray3d<Key,COLOR_NB,osl::PTYPE_SIZE,osl::Square::SIZE> psq;
   extern Key side;
   extern Key exclusion;
 }

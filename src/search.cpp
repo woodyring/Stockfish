@@ -39,22 +39,24 @@
 #ifdef GPSFISH
 #include "bitops.h"
 #include "position.tcc"
-#include "osl/boardTable.h"
+#include "osl/bits/boardTable.h"
 using osl::Board_Table;
-#include "osl/ptypeTable.h"
+#include "osl/bits/ptypeTable.h"
 using osl::Ptype_Table;
-#include "osl/offset32.h"
+#include "osl/bits/offset32.h"
 using osl::Offset32;
 #include "osl/checkmate/immediateCheckmate.h"
+#include "osl/checkmate/immediateCheckmate.tcc"
 #include "osl/checkmate/fixedDepthSearcher.h"
-#include "osl/checkmate/dfpn.h"
+#include "osl/checkmate/fixedDepthSearcher.tcc"
+//#include "osl/checkmate/dfpn.h"
 using osl::checkmate::ImmediateCheckmate;
 using std::string;
-#include "osl/enter_king/enterKing.h"
-#include "osl/misc/milliSeconds.h"
-#include "osl/checkmate/dfpn.h"
-#include "osl/checkmate/dfpnParallel.h"
-#include "osl/hash/hashKey.h"
+#include "osl/enterKing.h"
+//#include "osl/misc/milliSeconds.h"
+//#include "osl/checkmate/dfpn.h"
+//#include "osl/checkmate/dfpnParallel.h"
+#include "osl/hashKey.h"
 #endif
 #ifdef MOVE_STACK_REJECTIONS
 #include "osl/search/moveStackRejections.h"
@@ -63,7 +65,7 @@ using std::string;
 #ifdef GPSFISH
 # define GPSFISH_CHECKMATE3
 # define GPSFISH_CHECKMATE3_QUIESCE
-# define GPSFISH_DFPN
+//# define GPSFISH_DFPN
 #endif
 
 namespace Search {
@@ -2363,7 +2365,7 @@ void Thread::idle_loop() {
   }
 }
 
-#ifdef GPSFISHONE
+#if defined GPSFISHONE || (! defined GPSFISH_DFPN)
 void do_checkmate(const Position& pos, int mateTime){
     sync_cout << "checkmate notimplemented";
     return;

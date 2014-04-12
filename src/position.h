@@ -24,9 +24,8 @@
 #include <cstddef>
 
 #ifdef GPSFISH
-#include "osl/state/numEffectState.h"
-#include "osl/misc/carray3d.h"
-#include "osl/eval/ml/openMidEndingEval.h"
+#include "osl/numEffectState.h"
+#include "osl/eval/openMidEndingEval.h"
 typedef osl::eval::ml::OpenMidEndingEval eval_t; 
 #include <iostream>
 #else
@@ -226,8 +225,8 @@ public:
 #endif
 
 #ifdef GPSFISH
-  osl::state::NumEffectState osl_state;
-  osl::misc::CArray<int,COLOR_NB> continuous_check; // number of a player's continuous check moves
+  osl::NumEffectState osl_state;
+  osl::CArray<int,COLOR_NB> continuous_check; // number of a player's continuous check moves
   eval_t *eval;
 #endif
 private:

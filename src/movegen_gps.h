@@ -82,7 +82,7 @@ struct NoCaptureStore{
 
 template<osl::Player P,GenType Type>
 ExtMove* generateC(const Position& pos, ExtMove* mlist) {
-    const osl::Player altP=osl::PlayerTraits<P>::opponent;
+    const osl::Player altP=alt(P);
     if(Type==CAPTURES){
         Store store(mlist);
         for(int num=0;num<osl::Piece::SIZE;num++){

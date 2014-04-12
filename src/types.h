@@ -110,7 +110,7 @@ const int MAX_PLY_PLUS_6 = MAX_PLY + 6;
 
 #ifdef GPSFISH
 extern bool using_tcp_connection; // to enable/disable Move::DeclareWin() at root
-#include "osl/move.h"
+#include "osl/basic_type.h"
 typedef osl::Move Move;
 static const Move MOVE_NONE=Move::INVALID();
 #define MOVE_NULL(pos)  Move::PASS(pos.side_to_move())
@@ -193,8 +193,7 @@ enum Value {
 
 #ifdef GPSFISH
 
-#include "osl/ptype.h"
-#include "osl/player.h"
+#include "osl/basic_type.h"
 typedef osl::Ptype PieceType;
 typedef osl::PtypeO Piece;
 typedef osl::Player Color;
@@ -240,7 +239,6 @@ enum Depth {
 };
 
 #ifdef GPSFISH
-#include "osl/square.h"
 typedef osl::Square Square;
 const int SQUARE_NB = Square::SIZE;
 #else

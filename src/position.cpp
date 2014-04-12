@@ -38,13 +38,12 @@
 #include "tt.h"
 
 #ifdef GPSFISH
-#include "osl/misc/carray3d.h"
+//#include "osl/misc/carray3d.h"
 #include "osl/eval/ptypeEvalTraits.h"
 using osl::eval::PtypeEvalTraits;
-#include "osl/state/simpleState.h"
-#include "osl/state/numEffectState.h"
+#include "osl/numEffectState.h"
 #include "osl/move_classifier/check_.h"
-#include "osl/record/usi.h"
+#include "osl/usi.h"
 #include "osl/eval/see.h"
 #include "osl/move_classifier/safeMove.h"
 #include "evaluate.h"
@@ -144,7 +143,7 @@ Value PieceValue[PHASE_NB][PIECE_NB] = {
 namespace Zobrist {
 
 #ifdef GPSFISH
-  osl::misc::CArray3d<Key,COLOR_NB,osl::PTYPE_SIZE,osl::Square::SIZE> psq;
+  osl::CArray3d<Key,COLOR_NB,osl::PTYPE_SIZE,osl::Square::SIZE> psq;
 #else
   Key psq[COLOR_NB][PIECE_TYPE_NB][SQUARE_NB];
   Key enpassant[FILE_NB];
@@ -350,7 +349,7 @@ void Position::set(const string& fenStr, bool isChess960, Thread* th) {
 
 #ifdef GPSFISH
   clear();
-  osl::record::usi::parse(string("sfen ")+fenStr,osl_state);
+  osl::usi::parse(string("sfen ")+fenStr,osl_state);
   std::istringstream ss(fenStr);
 #else
   char col, row, token;

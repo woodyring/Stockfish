@@ -21,7 +21,7 @@
 #define TT_H_INCLUDED
 
 #ifdef GPSFISH
-#include "osl/squareCompressor.h"
+#include "osl/bits/squareCompressor.h"
 using osl::SquareCompressor;
 #include "position.h"
 #endif
