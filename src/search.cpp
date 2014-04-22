@@ -1394,7 +1394,9 @@ moves_loop: // When in check and at SpNode search starts from here
       if (    depth > 3 * ONE_PLY
           && !pvMove
           && !captureOrPromotion
-          && !dangerous
+#ifdef GPSFISH
+          && !dangerous // XXX : 5d90c149b5804403e5e8c1a25d0b37577b059712 , missed checkmate move
+#endif
           &&  move != ttMove
           &&  move != ss->killers[0]
           &&  move != ss->killers[1])
