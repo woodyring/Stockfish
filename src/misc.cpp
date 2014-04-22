@@ -35,7 +35,7 @@ using namespace std;
 
 /// Version number. If Version is left empty, then compile date, in the
 /// format DD-MM-YY, is shown in engine_info.
-static const string Version = "4";
+static const string Version = "";
 
 
 /// engine_info() returns the full name of the current Stockfish version. This
@@ -50,7 +50,7 @@ const string engine_info(bool to_uci) {
   stringstream s, date(__DATE__); // From compiler, format is "Sep 21 2008"
 
 #ifdef GPSFISH
-  s << "GPSfish " << Version << "+" << gpsshogi::gpsshogi_revision;
+  s << "GPSfish " << Version << " + " << gpsshogi::gpsshogi_revision << " " << setfill('0');
 #else
   s << "Stockfish " << Version << setfill('0');
 #endif
