@@ -1914,8 +1914,12 @@ moves_loop: // When in check and at SpNode search starts from here
     // The piece is the same or second's destination was vacated by the first move
     // We exclude the trivial case where a sliding piece does in two moves what
     // it could do in one move: eg. Ra1a2, Ra2a3.
+#ifdef GPSFISH
+    if (m1to == m2from || m2to == m1from) // XXX : add any condition ?
+#else
     if (    m2to == m1from
         || (m1to == m2from && !squares_aligned(m1from, m2from, m2to)))
+#endif
         return true;
 
     // Second one moves through the square vacated by first one
