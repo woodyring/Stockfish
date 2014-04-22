@@ -231,21 +231,21 @@ void Position::init() {
   RKISS rk;
 
 #ifdef GPSFISH
-  for (int i = 0; i < COLOR_NB; i++)
-      for (int j = 0; j < osl::PTYPE_SIZE; j++)
-          for (int k = 0; k < osl::Square::SIZE; k++)
+  for (int i = 0; i < COLOR_NB; ++i)
+      for (int j = 0; j < osl::PTYPE_SIZE; ++j)
+          for (int k = 0; k < osl::Square::SIZE; ++k)
 #if USE_GPSFISH_ZOBRIST
               Zobrist::psq[i][j][k] = rk.rand<Key>() & ~1;
 #else
               Zobrist::psq[i][j][k] = rk.rand<Key>();
 #endif
 #else
-  for (Color c = WHITE; c <= BLACK; c++)
-      for (PieceType pt = PAWN; pt <= KING; pt++)
-          for (Square s = SQ_A1; s <= SQ_H8; s++)
+  for (Color c = WHITE; c <= BLACK; ++c)
+      for (PieceType pt = PAWN; pt <= KING; ++pt)
+          for (Square s = SQ_A1; s <= SQ_H8; ++s)
               Zobrist::psq[c][pt][s] = rk.rand<Key>();
 
-  for (File f = FILE_A; f <= FILE_H; f++)
+  for (File f = FILE_A; f <= FILE_H; ++f)
       Zobrist::enpassant[f] = rk.rand<Key>();
 
   for (int cr = CASTLES_NONE; cr <= ALL_CASTLES; cr++)
@@ -269,14 +269,14 @@ void Position::init() {
 #endif
 
 #ifndef GPSFISH
-  for (PieceType pt = PAWN; pt <= KING; pt++)
+  for (PieceType pt = PAWN; pt <= KING; ++pt)
   {
       PieceValue[MG][make_piece(BLACK, pt)] = PieceValue[MG][pt];
       PieceValue[EG][make_piece(BLACK, pt)] = PieceValue[EG][pt];
 
       Score v = make_score(PieceValue[MG][pt], PieceValue[EG][pt]);
 
-      for (Square s = SQ_A1; s <= SQ_H8; s++)
+      for (Square s = SQ_A1; s <= SQ_H8; ++s)
       {
          psq[WHITE][pt][ s] =  (v + PSQT[pt][s]);
          psq[BLACK][pt][~s] = -(v + PSQT[pt][s]);
@@ -371,7 +371,7 @@ void Position::set(const string& fenStr, bool isChess960, Thread* th) {
       else if ((p = PieceToChar.find(token)) != string::npos)
       {
           put_piece(sq, color_of(Piece(p)), type_of(Piece(p)));
-          sq++;
+          ++sq;
       }
   }
 
@@ -393,10 +393,10 @@ void Position::set(const string& fenStr, bool isChess960, Thread* th) {
       token = char(toupper(token));
 
       if (token == 'K')
-          for (rsq = relative_square(c, SQ_H1); type_of(piece_on(rsq)) != ROOK; rsq--) {}
+          for (rsq = relative_square(c, SQ_H1); type_of(piece_on(rsq)) != ROOK; --rsq) {}
 
       else if (token == 'Q')
-          for (rsq = relative_square(c, SQ_A1); type_of(piece_on(rsq)) != ROOK; rsq++) {}
+          for (rsq = relative_square(c, SQ_A1); type_of(piece_on(rsq)) != ROOK; ++rsq) {}
 
       else if (token >= 'A' && token <= 'H')
           rsq = File(token - 'A') | relative_rank(c, RANK_1);
@@ -465,11 +465,11 @@ void Position::set_castle_right(Color c, Square rfrom) {
   Square kto = relative_square(c, cs == KING_SIDE ? SQ_G1 : SQ_C1);
   Square rto = relative_square(c, cs == KING_SIDE ? SQ_F1 : SQ_D1);
 
-  for (Square s = std::min(rfrom, rto); s <= std::max(rfrom, rto); s++)
+  for (Square s = std::min(rfrom, rto); s <= std::max(rfrom, rto); ++s)
       if (s != kfrom && s != rfrom)
           castlePath[c][cs] |= s;
 
-  for (Square s = std::min(kfrom, kto); s <= std::max(kfrom, kto); s++)
+  for (Square s = std::min(kfrom, kto); s <= std::max(kfrom, kto); ++s)
       if (s != kfrom && s != rfrom)
           castlePath[c][cs] |= s;
 }
@@ -484,15 +484,15 @@ const string Position::fen() const {
   std::ostringstream ss;
 
 #ifdef GPSFISH
-  for (Rank rank = RANK_1; rank <= RANK_9; rank++)
+  for (Rank rank = RANK_1; rank <= RANK_9; ++rank)
 #else
-  for (Rank rank = RANK_8; rank >= RANK_1; rank--)
+  for (Rank rank = RANK_8; rank >= RANK_1; --rank)
 #endif
   {
 #ifdef GPSFISH
-      for (File file = FILE_9; file >= FILE_1; file--)
+      for (File file = FILE_9; file >= FILE_1; --file)
 #else
-      for (File file = FILE_A; file <= FILE_H; file++)
+      for (File file = FILE_A; file <= FILE_H; ++file)
 #endif
       {
           Square sq = file | rank;
@@ -502,9 +502,9 @@ const string Position::fen() const {
               int emptyCnt = 1;
 
 #ifdef GPSFISH
-              for ( ; file >= FILE_1 && is_empty(sq--); file--)
+              for ( ; file >= FILE_1 && is_empty(--sq); --file)
 #else
-              for ( ; file < FILE_H && is_empty(sq++); file++)
+              for ( ; file < FILE_H && is_empty(++sq); ++file)
 #endif
                   emptyCnt++;
 
@@ -1419,7 +1419,7 @@ void Position::clear() {
 
 #ifndef GPSFISH
 
-  for (int i = 0; i < PIECE_TYPE_NB; i++)
+  for (int i = 0; i < PIECE_TYPE_NB; ++i)
       for (int j = 0; j < 16; j++)
           pieceList[WHITE][i][j] = pieceList[BLACK][i][j] = SQ_NONE;
 
@@ -1500,9 +1500,9 @@ Key Position::compute_material_key() const {
 
   Key k = 0;
 
-  for (Color c = WHITE; c <= BLACK; c++)
-      for (PieceType pt = PAWN; pt <= QUEEN; pt++)
-          for (int cnt = 0; cnt < pieceCount[c][pt]; cnt++)
+  for (Color c = WHITE; c <= BLACK; ++c)
+      for (PieceType pt = PAWN; pt <= QUEEN; ++pt)
+          for (int cnt = 0; cnt < pieceCount[c][pt]; ++cnt)
               k ^= Zobrist::psq[c][pt][cnt];
 
   return k;
@@ -1540,7 +1540,7 @@ Value Position::compute_non_pawn_material(Color c) const {
 
   Value value = VALUE_ZERO;
 
-  for (PieceType pt = KNIGHT; pt <= QUEEN; pt++)
+  for (PieceType pt = KNIGHT; pt <= QUEEN; ++pt)
       value += pieceCount[c][pt] * PieceValue[MG][pt];
 
   return value;
@@ -1574,9 +1574,9 @@ bool Position::is_draw(int& ret) const {
 }
 #endif
 
-/// Position::is_draw() tests whether the position is drawn by 50 moves rule
-/// or by repetition. It does not detect stalemates.
-
+/// Position::is_draw() tests whether the position is drawn by material,
+/// repetition, or the 50 moves rule. It does not detect stalemates, this
+/// must be done by the search.
 bool Position::is_draw() const {
 
 #ifdef GPSFISH
@@ -1584,7 +1584,12 @@ bool Position::is_draw() const {
   return is_draw(dummy);
 #else
 
+  // Draw by material?
+  if (   !pieces(PAWN)
+      && (non_pawn_material(WHITE) + non_pawn_material(BLACK) <= BishopValueMg))
+      return true;
 
+  // Draw by the 50 moves rule?
   if (st->rule50 > 99 && (!checkers() || MoveList<LEGAL>(*this).size()))
       return true;
 
@@ -1624,7 +1629,7 @@ void Position::flip() {
   string f, token;
   std::stringstream ss(fen());
 
-  for (Rank rank = RANK_8; rank >= RANK_1; rank--) // Piece placement
+  for (Rank rank = RANK_8; rank >= RANK_1; --rank) // Piece placement
   {
       std::getline(ss, token, rank > RANK_1 ? '/' : ' ');
       f.insert(0, token + (f.empty() ? " " : "/"));
@@ -1700,7 +1705,7 @@ bool Position::pos_is_ok(int* failedStep) const {
   {
       int kingCount[COLOR_NB] = {};
 
-      for (Square s = SQ_A1; s <= SQ_H8; s++)
+      for (Square s = SQ_A1; s <= SQ_H8; ++s)
           if (type_of(piece_on(s)) == KING)
               kingCount[color_of(piece_on(s))]++;
 
@@ -1727,8 +1732,8 @@ bool Position::pos_is_ok(int* failedStep) const {
           return false;
 
       // Separate piece type bitboards must have empty intersections
-      for (PieceType p1 = PAWN; p1 <= KING; p1++)
-          for (PieceType p2 = PAWN; p2 <= KING; p2++)
+      for (PieceType p1 = PAWN; p1 <= KING; ++p1)
+          for (PieceType p2 = PAWN; p2 <= KING; ++p2)
               if (p1 != p2 && (pieces(p1) & pieces(p2)))
                   return false;
   }
@@ -1758,21 +1763,21 @@ bool Position::pos_is_ok(int* failedStep) const {
           return false;
 
   if ((*step)++, debugPieceCounts)
-      for (Color c = WHITE; c <= BLACK; c++)
-          for (PieceType pt = PAWN; pt <= KING; pt++)
+      for (Color c = WHITE; c <= BLACK; ++c)
+          for (PieceType pt = PAWN; pt <= KING; ++pt)
               if (pieceCount[c][pt] != popcount<Full>(pieces(c, pt)))
                   return false;
 
   if ((*step)++, debugPieceList)
-      for (Color c = WHITE; c <= BLACK; c++)
-          for (PieceType pt = PAWN; pt <= KING; pt++)
-              for (int i = 0; i < pieceCount[c][pt]; i++)
+      for (Color c = WHITE; c <= BLACK; ++c)
+          for (PieceType pt = PAWN; pt <= KING; ++pt)
+              for (int i = 0; i < pieceCount[c][pt];  ++i)
                   if (   board[pieceList[c][pt][i]] != make_piece(c, pt)
                       || index[pieceList[c][pt][i]] != i)
                       return false;
 
   if ((*step)++, debugCastleSquares)
-      for (Color c = WHITE; c <= BLACK; c++)
+      for (Color c = WHITE; c <= BLACK; ++c)
           for (CastlingSide s = KING_SIDE; s <= QUEEN_SIDE; s = CastlingSide(s + 1))
           {
               CastleRight cr = make_castle_right(c, s);

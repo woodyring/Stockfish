@@ -294,7 +294,7 @@ namespace Eval {
     const int MaxSlope = 30;
     const int Peak = 1280;
 
-    for (int t = 0, i = 1; i < 100; i++)
+    for (int t = 0, i = 1; i < 100; ++i)
     {
         t = std::min(Peak, std::min(int(0.4 * i * i), t + MaxSlope));
 
@@ -628,11 +628,11 @@ Value do_evaluate(const Position& pos, Value& margin) {
     // type of attacking piece, from knights to queens. Kings are not
     // considered because are already handled in king evaluation.
     if (weakEnemies)
-        for (PieceType pt1 = KNIGHT; pt1 < KING; pt1++)
+        for (PieceType pt1 = KNIGHT; pt1 < KING; ++pt1)
         {
             b = ei.attackedBy[Us][pt1] & weakEnemies;
             if (b)
-                for (PieceType pt2 = PAWN; pt2 < KING; pt2++)
+                for (PieceType pt2 = PAWN; pt2 < KING; ++pt2)
                     if (b & pos.pieces(pt2))
                         score += Threat[pt1][pt2];
         }
@@ -878,9 +878,16 @@ Value do_evaluate(const Position& pos, Value& margin) {
         {
             if (pos.non_pawn_material(Them) <= KnightValueMg)
                 ebonus += ebonus / 4;
+
             else if (pos.pieces(Them, ROOK, QUEEN))
                 ebonus -= ebonus / 4;
         }
+
+        // Increase the bonus if we have more non-pawn pieces
+        if (pos.count<ALL_PIECES>(  Us) - pos.count<PAWN>(  Us) >
+            pos.count<ALL_PIECES>(Them) - pos.count<PAWN>(Them))
+            ebonus += ebonus / 4;
+
         score += make_score(mbonus, ebonus);
 
     }
@@ -907,7 +914,7 @@ Value do_evaluate(const Position& pos, Value& margin) {
 
     // Step 1. Hunt for unstoppable passed pawns. If we find at least one,
     // record how many plies are required for promotion.
-    for (c = WHITE; c <= BLACK; c++)
+    for (c = WHITE; c <= BLACK; ++c)
     {
         // Skip if other side has non-pawn pieces
         if (pos.non_pawn_material(~c))
