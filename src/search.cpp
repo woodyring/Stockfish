@@ -116,7 +116,7 @@ namespace {
 
   size_t PVSize, PVIdx;
   TimeManager TimeMgr;
-  int BestMoveChanges;
+  float BestMoveChanges;
 #ifdef GPSFISH
   osl::CArray<Value,COLOR_NB> DrawValue;
 #else
@@ -548,7 +548,7 @@ namespace {
   void id_loop(Position& pos) {
 
     Stack stack[MAX_PLY_PLUS_6], *ss = stack+2; // To allow referencing (ss-2)
-    int depth, prevBestMoveChanges;
+    int depth;
     Value bestValue, alpha, beta, delta;
 
 #ifdef GPSFISH
@@ -567,7 +567,8 @@ namespace {
     (ss-1)->currentMove = MOVE_NULL; // Hack to skip update gains
 #endif
 
-    depth = BestMoveChanges = 0;
+    depth = 0;
+    BestMoveChanges = 0;
     bestValue = delta = alpha = -VALUE_INFINITE;
     beta = VALUE_INFINITE;
 
@@ -598,13 +599,13 @@ namespace {
     // Iterative deepening loop until requested to stop or target depth reached
     while (++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))
     {
+        // Age out PV variability metric
+        BestMoveChanges *= 0.8;
+
         // Save last iteration's scores before first PV line is searched and all
         // the move scores but the (new) PV are set to -VALUE_INFINITE.
         for (size_t i = 0; i < RootMoves.size(); i++)
             RootMoves[i].prevScore = RootMoves[i].score;
-
-        prevBestMoveChanges = BestMoveChanges; // Only sensible when PVSize == 1
-        BestMoveChanges = 0;
 
 #ifdef GPSFISH_DFPN
         if ((uint64_t)pos.nodes_searched() > next_checkmate
@@ -717,7 +718,7 @@ namespace {
 
             // Take in account some extra time if the best move has changed
             if (depth > 4 && depth < 50 &&  PVSize == 1)
-                TimeMgr.pv_instability(BestMoveChanges, prevBestMoveChanges);
+                TimeMgr.pv_instability(BestMoveChanges);
 
             // Stop search if most of available time is already consumed. We
             // probably don't have enough time to search the first move at the
