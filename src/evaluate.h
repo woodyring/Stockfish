@@ -22,7 +22,7 @@
 
 #include "types.h"
 #ifdef GPSFISH
-#include "osl/eval/ml/openMidEndingEval.h"
+#include "osl/eval/openMidEndingEval.h"
 typedef osl::eval::ml::OpenMidEndingEval eval_t;
 #endif
 

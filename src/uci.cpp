@@ -32,11 +32,9 @@
 #ifdef GPSFISH
 #include "tt.h"
 #include "movegen.h"
-#include "osl/misc/carray.h"
-#include "osl/eval/ml/openMidEndingEval.h"
-#include "osl/rating/featureSet.h"
-#include "osl/progress/ml/newProgress.h"
-#include "osl/enter_king/enterKing.h"
+#include "osl/eval/openMidEndingEval.h"
+#include "osl/progress.h"
+#include "osl/enterKing.h"
 #include <vector>
 #endif
 

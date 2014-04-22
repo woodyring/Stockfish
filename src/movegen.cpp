@@ -26,8 +26,7 @@
 #include "osl/move_generator/escape_.tcc"
 #include "osl/move_generator/addEffectWithEffect.tcc"
 #include "osl/move_generator/drop.tcc"
-#include "osl/move_action/notKingOpenFilter.h"
-#include "osl/player.h"
+#include "osl/move_generator/move_action.h"
 #endif
 
 #include "movegen.h"

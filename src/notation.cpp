@@ -26,8 +26,8 @@
 #include "notation.h"
 #include "position.h"
 #ifdef GPSFISH
-#include "osl/record/usi.h"
-#include "osl/record/csa.h"
+#include "osl/usi.h"
+#include "osl/csa.h"
 #endif
 
 using namespace std;
@@ -78,7 +78,7 @@ string score_to_uci(Value v, Value alpha, Value beta) {
 const string move_to_uci(Move m, bool chess960) {
 
 #ifdef GPSFISH
-  return osl::record::usi::show(m);
+  return osl::usi::show(m);
 #else
   Square from = from_sq(m);
   Square to = to_sq(m);
@@ -111,7 +111,7 @@ Move move_from_uci(const Position& pos, string& str) {
       str[4] = char(tolower(str[4]));
 
 #ifdef GPSFISH
-  return osl::record::usi::strToMove(str,pos.osl_state);
+  return osl::usi::strToMove(str,pos.osl_state);
 #else
   for (MoveList<LEGAL> it(pos); *it; ++it)
       if (str == move_to_uci(*it, pos.is_chess960()))
@@ -127,7 +127,7 @@ Move move_from_uci(const Position& pos, string& str) {
 
 #ifdef GPSFISH
 const string move_to_san(Position&, Move m) {
-  return osl::record::csa::show(m);
+  return osl::csa::show(m);
 }
 #else
 const string move_to_san(Position& pos, Move m) {
