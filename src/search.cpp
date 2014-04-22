@@ -1728,6 +1728,7 @@ moves_loop: // When in check and at SpNode search starts from here
           && !givesCheck
           &&  move != ttMove
           &&  type_of(move) != PROMOTION
+          &&  futilityBase > -VALUE_KNOWN_WIN
 #ifndef GPSFISH
           && !pos.is_passed_pawn_push(move)
 #endif
