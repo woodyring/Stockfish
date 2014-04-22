@@ -1196,7 +1196,11 @@ moves_loop: // When in check and at SpNode search starts from here
 
     singularExtensionNode =   !RootNode
                            && !SpNode
-                           &&  depth >= (PvNode ? 6 * ONE_PLY : 8 * ONE_PLY)
+#ifdef GPSFISH
+                           &&  depth >= (PvNode ? 6 * ONE_PLY : 8 * ONE_PLY) // XXX : could not found checkmate
+#else
+                           &&  depth >= 8 * ONE_PLY
+#endif
                            &&  ttMove != MOVE_NONE
 #ifdef GPSFISH
                            && excludedMove==MOVE_NONE // Recursive singular search is not allowed
