@@ -105,13 +105,13 @@ const TTEntry* TranspositionTable::probe(const Key key) const {
 /// a previous search, or if the depth of t1 is bigger than the depth of t2.
 
 #ifdef GPSFISH
-void TranspositionTable::store(const Key key, Value v, Bound b, Depth d, Move m, Value statV, Value evalM) {
-  store(key,v,b,d,toMove16(m),statV,evalM);
+void TranspositionTable::store(const Key key, Value v, Bound b, Depth d, Move m, Value statV) {
+  store(key,v,b,d,toMove16(m),statV);
 }
 
-void TranspositionTable::store(const Key key, Value v, Bound b, Depth d, Move16 m, Value statV, Value evalM) {
+void TranspositionTable::store(const Key key, Value v, Bound b, Depth d, Move16 m, Value statV) {
 #else
-void TranspositionTable::store(const Key key, Value v, Bound b, Depth d, Move m, Value statV, Value evalM) {
+void TranspositionTable::store(const Key key, Value v, Bound b, Depth d, Move m, Value statV) {
 #endif
 
   int c1, c2, c3;
@@ -147,5 +147,5 @@ void TranspositionTable::store(const Key key, Value v, Bound b, Depth d, Move m,
           replace = tte;
   }
 
-  replace->save(key32, v, b, d, m, generation, statV, evalM);
+  replace->save(key32, v, b, d, m, generation, statV);
 }
