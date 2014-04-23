@@ -52,10 +52,15 @@ namespace {
     S(33, 31), S(33, 31), S(29, 31), S(20, 28) }};
 
   // Pawn chain membership bonus by file
-  const Score ChainMember[FILE_NB] = {
-    S(11,-1), S(13,-1), S(13,-1), S(14,-1),
-    S(14,-1), S(13,-1), S(13,-1), S(11,-1)
-  };
+  const Score ChainMember[FILE_NB][RANK_NB] = {
+  { S(0, 0), S(14, 0), S(16, 4), S(18,  9), S(28, 28), S(52, 104), S(118, 236) },
+  { S(0, 0), S(16, 0), S(18, 5), S(20, 10), S(30, 30), S(54, 108), S(120, 240) },
+  { S(0, 0), S(16, 0), S(18, 5), S(20, 10), S(30, 30), S(54, 108), S(120, 240) },
+  { S(0, 0), S(17, 0), S(19, 6), S(22, 11), S(33, 33), S(59, 118), S(127, 254) },
+  { S(0, 0), S(17, 0), S(19, 6), S(22, 11), S(33, 33), S(59, 118), S(127, 254) },
+  { S(0, 0), S(16, 0), S(18, 5), S(20, 10), S(30, 30), S(54, 108), S(120, 240) },
+  { S(0, 0), S(16, 0), S(18, 5), S(20, 10), S(30, 30), S(54, 108), S(120, 240) },
+  { S(0, 0), S(14, 0), S(16, 4), S(18,  9), S(28, 28), S(52, 104), S(118, 236) }};
 
   // Candidate passed pawn bonus by rank
   const Score CandidatePassed[RANK_NB] = {
@@ -176,7 +181,7 @@ namespace {
             value -= Backward[opposed][f];
 
         if (chain)
-            value += ChainMember[f];
+            value += ChainMember[f][relative_rank(Us, s)];
 
         if (candidate)
         {
