@@ -314,7 +314,7 @@ Move MovePicker::next_move<false>() {
       switch (stage) {
 
       case MAIN_SEARCH: case EVASION: case QSEARCH_0: case QSEARCH_1: case PROBCUT:
-          cur++;
+          ++cur;
           return ttMove;
 
       case CAPTURES_S1:
