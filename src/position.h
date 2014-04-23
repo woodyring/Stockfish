@@ -55,10 +55,10 @@ struct CheckInfo {
 };
 
 
-/// The StateInfo struct stores information we need to restore a Position
+/// The StateInfo struct stores information needed to restore a Position
 /// object to its previous state when we retract a move. Whenever a move
-/// is made on the board (by calling Position::do_move), a StateInfo object
-/// must be passed as a parameter.
+/// is made on the board (by calling Position::do_move), a StateInfo
+/// object must be passed as a parameter.
 
 struct StateInfo {
 #ifdef GPSFISH
@@ -86,27 +86,10 @@ struct StateInfo {
 const size_t StateCopySize64 = offsetof(StateInfo, key) / sizeof(uint64_t) + 1;
 
 
-/// The position data structure. A position consists of the following data:
-///
-///    * For each piece type, a bitboard representing the squares occupied
-///      by pieces of that type.
-///    * For each color, a bitboard representing the squares occupied by
-///      pieces of that color.
-///    * A bitboard of all occupied squares.
-///    * A bitboard of all checking pieces.
-///    * A 64-entry array of pieces, indexed by the squares of the board.
-///    * The current side to move.
-///    * Information about the castling rights for both sides.
-///    * The initial files of the kings and both pairs of rooks. This is
-///      used to implement the Chess960 castling rules.
-///    * The en passant square (which is SQ_NONE if no en passant capture is
-///      possible).
-///    * The squares of the kings for both sides.
-///    * Hash keys for the position itself, the current pawn structure, and
-///      the current material situation.
-///    * Hash keys for all previous positions in the game for detecting
-///      repetition draws.
-///    * A counter for detecting 50 move rule draws.
+/// The Position class stores the information regarding the board representation
+/// like pieces, side to move, hash keys, castling info, etc. The most important
+/// methods are do_move() and undo_move(), used by the search to update node info
+/// when traversing the search tree.
 
 class Position {
 public:
@@ -134,7 +117,7 @@ public:
   Piece piece_on(Square s) const;
   Square king_square(Color c) const;
   Square ep_square() const;
-  bool is_empty(Square s) const;
+  bool empty(Square s) const;
   template<PieceType Pt> int count(Color c) const;
   template<PieceType Pt> const Square* list(Color c) const;
 
@@ -168,20 +151,20 @@ public:
   bool pl_move_is_legal(Move m) const;
   bool pl_move_is_evasion(Move m) const;
 #endif
-  bool move_gives_check(Move m, const CheckInfo& ci) const;
-  bool pl_move_is_legal(Move m, Bitboard pinned) const;
-  bool is_pseudo_legal(const Move m) const;
-  bool is_capture(Move m) const;
-  bool is_capture_or_promotion(Move m) const;
-  bool is_passed_pawn_push(Move m) const;
-  Piece piece_moved(Move m) const;
+  bool legal(Move m, Bitboard pinned) const;
+  bool pseudo_legal(const Move m) const;
+  bool capture(Move m) const;
+  bool capture_or_promotion(Move m) const;
+  bool gives_check(Move m, const CheckInfo& ci) const;
+  bool passed_pawn_push(Move m) const;
+  Piece moved_piece(Move m) const;
   PieceType captured_piece_type() const;
 
   // Piece specific
-  bool pawn_is_passed(Color c, Square s) const;
+  bool pawn_passed(Color c, Square s) const;
   bool pawn_on_7th(Color c) const;
-  bool opposite_bishops() const;
   bool bishop_pair(Color c) const;
+  bool opposite_bishops() const;
 
   // Doing and undoing moves
   void do_move(Move m, StateInfo& st);
@@ -313,7 +296,7 @@ inline Piece Position::piece_on(Square s) const {
 #endif
 }
 
-inline Piece Position::piece_moved(Move m) const {
+inline Piece Position::moved_piece(Move m) const {
 #ifdef GPSFISH
   //return m.ptypeO(); //XXX should be better?
   return piece_on(from_sq(m));
@@ -322,7 +305,7 @@ inline Piece Position::piece_moved(Move m) const {
 #endif
 }
 
-inline bool Position::is_empty(Square s) const {
+inline bool Position::empty(Square s) const {
 #ifdef GPSFISH
   return osl_state.pieceAt(s).isEmpty();
 #else
@@ -446,8 +429,13 @@ inline Bitboard Position::pinned_pieces() const {
 }
 
 #ifndef GPSFISH
-inline bool Position::pawn_is_passed(Color c, Square s) const {
+inline bool Position::pawn_passed(Color c, Square s) const {
   return !(pieces(~c, PAWN) & passed_pawn_mask(c, s));
+}
+
+inline bool Position::passed_pawn_push(Move m) const {
+  return   type_of(moved_piece(m)) == PAWN
+        && pawn_passed(sideToMove, to_sq(m));
 }
 #endif
 
@@ -472,11 +460,6 @@ inline Value Position::non_pawn_material(Color c) const {
   return st->npMaterial[c];
 }
 
-inline bool Position::is_passed_pawn_push(Move m) const {
-
-  return   type_of(piece_moved(m)) == PAWN
-        && pawn_is_passed(sideToMove, to_sq(m));
-}
 #endif
 
 inline int Position::game_ply() const {
@@ -510,19 +493,19 @@ inline bool Position::is_chess960() const {
 #endif
 }
 
-inline bool Position::is_capture_or_promotion(Move m) const {
+inline bool Position::capture_or_promotion(Move m) const {
 
   assert(is_ok(m));
-  return type_of(m) ? type_of(m) != CASTLE : !is_empty(to_sq(m));
+  return type_of(m) ? type_of(m) != CASTLE : !empty(to_sq(m));
 }
 
-inline bool Position::is_capture(Move m) const {
+inline bool Position::capture(Move m) const {
 #ifdef GPSFISH
   return m.isCapture();
 #else
   // Note that castle is coded as "king captures the rook"
   assert(is_ok(m));
-  return (!is_empty(to_sq(m)) && type_of(m) != CASTLE) || type_of(m) == ENPASSANT;
+  return (!empty(to_sq(m)) && type_of(m) != CASTLE) || type_of(m) == ENPASSANT;
 #endif
 }
 

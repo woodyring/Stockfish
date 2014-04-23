@@ -167,7 +167,7 @@ namespace {
       Move m=tte->move(pos);
       int dummy;
       if(m != MOVE_NONE
-              && pos.is_pseudo_legal(m)
+              && pos.pseudo_legal(m)
               && !pos.is_draw(dummy)) {
           std::cerr << "move=" << m << std::endl;
           pos.do_undo_move(m,st,
@@ -271,7 +271,7 @@ static size_t perft(Position& pos, Depth depth) {
               [&](osl::Square){
               assert(pos.is_ok());
 #else
-      pos.do_move(*it, st, ci, pos.move_gives_check(*it, ci));
+      pos.do_move(*it, st, ci, pos.gives_check(*it, ci));
 #endif
       cnt += leaf ? MoveList<LEGAL>(pos).size() : ::perft(pos, depth - ONE_PLY);
 #ifdef GPSFISH
@@ -941,7 +941,7 @@ namespace {
 
         if (    ttValue >= beta
             &&  ttMove
-            && !pos.is_capture_or_promotion(ttMove)
+            && !pos.capture_or_promotion(ttMove)
             &&  ttMove != ss->killers[0])
         {
             ss->killers[1] = ss->killers[0];
@@ -1131,7 +1131,7 @@ namespace {
         CheckInfo ci(pos);
 
         while ((move = mp.next_move<false>()) != MOVE_NONE)
-            if (pos.pl_move_is_legal(move, ci.pinned))
+            if (pos.legal(move, ci.pinned))
             {
                 ss->currentMove = move;
 #ifdef GPSFISH
@@ -1142,7 +1142,7 @@ namespace {
                         pos.eval++;
                         pos.eval->update(pos.osl_state,move);
 #else
-                pos.do_move(move, st, ci, pos.move_gives_check(move, ci));
+                pos.do_move(move, st, ci, pos.gives_check(move, ci));
 #endif
                 value = -search<NonPV>(pos, ss+1, -rbeta, -rbeta+1, rdepth, !cutNode);
 #ifdef GPSFISH
@@ -1227,7 +1227,7 @@ moves_loop: // When in check and at SpNode search starts from here
       if (SpNode)
       {
           // Shared counter cannot be decremented later if move turns out to be illegal
-          if (!pos.pl_move_is_legal(move, ci.pinned))
+          if (!pos.legal(move, ci.pinned))
               continue;
 
           moveCount = ++splitPoint->moveCount;
@@ -1256,13 +1256,13 @@ moves_loop: // When in check and at SpNode search starts from here
       }
 
       ext = DEPTH_ZERO;
-      captureOrPromotion = pos.is_capture_or_promotion(move);
-      givesCheck = pos.move_gives_check(move, ci);
+      captureOrPromotion = pos.capture_or_promotion(move);
+      givesCheck = pos.gives_check(move, ci);
 #ifdef GPSFISH
       dangerous =   givesCheck; // XXX : add other condition ?
 #else
       dangerous =   givesCheck
-                 || pos.is_passed_pawn_push(move)
+                 || pos.passed_pawn_push(move)
                  || type_of(move) == CASTLE;
 #endif
 
@@ -1288,7 +1288,7 @@ moves_loop: // When in check and at SpNode search starts from here
       if (    singularExtensionNode
           &&  move == ttMove
           && !ext
-          &&  pos.pl_move_is_legal(move, ci.pinned)
+          &&  pos.legal(move, ci.pinned)
           &&  abs(ttValue) < VALUE_KNOWN_WIN)
       {
           assert(ttValue != VALUE_NONE);
@@ -1334,7 +1334,7 @@ moves_loop: // When in check and at SpNode search starts from here
 #ifdef GPSFISH
                          + Gains[move.ptypeO()][to_sq(move).index()]; // XXX
 #else
-                         + Gains[pos.piece_moved(move)][to_sq(move)];
+                         + Gains[pos.moved_piece(move)][to_sq(move)];
 #endif
 
           if (futilityValue < beta)
@@ -1368,7 +1368,7 @@ moves_loop: // When in check and at SpNode search starts from here
           ss->futilityMoveCount = 0;
 
       // Check for legality only before to do the move
-      if (!RootNode && !SpNode && !pos.pl_move_is_legal(move, ci.pinned))
+      if (!RootNode && !SpNode && !pos.legal(move, ci.pinned))
       {
           moveCount--;
           continue;
@@ -1588,7 +1588,7 @@ moves_loop: // When in check and at SpNode search starts from here
 
     // Quiet best move: update killers, history and countermoves
     if (    bestValue >= beta
-        && !pos.is_capture_or_promotion(bestMove)
+        && !pos.capture_or_promotion(bestMove)
         && !inCheck)
     {
         if (ss->killers[0] != bestMove)
@@ -1600,11 +1600,11 @@ moves_loop: // When in check and at SpNode search starts from here
         // Increase history value of the cut-off move and decrease all the other
         // played non-capture moves.
         Value bonus = Value(int(depth) * int(depth));
-        History.update(pos.piece_moved(bestMove), to_sq(bestMove), bonus);
+        History.update(pos.moved_piece(bestMove), to_sq(bestMove), bonus);
         for (int i = 0; i < quietCount - 1; ++i)
         {
             Move m = quietsSearched[i];
-            History.update(pos.piece_moved(m), to_sq(m), -bonus);
+            History.update(pos.moved_piece(m), to_sq(m), -bonus);
         }
 
         if (is_ok((ss-1)->currentMove))
@@ -1739,7 +1739,7 @@ moves_loop: // When in check and at SpNode search starts from here
       if(move_stack_rejections_probe(move,pos,ss,alpha)) continue;
 #endif
 
-      givesCheck = pos.move_gives_check(move, ci);
+      givesCheck = pos.gives_check(move, ci);
 
       // Futility pruning
       if (   !PvNode
@@ -1749,7 +1749,7 @@ moves_loop: // When in check and at SpNode search starts from here
           &&  type_of(move) != PROMOTION
           &&  futilityBase > -VALUE_KNOWN_WIN
 #ifndef GPSFISH
-          && !pos.is_passed_pawn_push(move)
+          && !pos.passed_pawn_push(move)
 #endif
          )
       {
@@ -1782,7 +1782,7 @@ moves_loop: // When in check and at SpNode search starts from here
       // Detect non-capture evasions that are candidate to be pruned
       evasionPrunable =    InCheck
                        &&  bestValue > VALUE_MATED_IN_MAX_PLY
-                       && !pos.is_capture(move)
+                       && !pos.capture(move)
 #ifndef GPSFISH
                        && !pos.can_castle(pos.side_to_move())
 #endif
@@ -1799,7 +1799,7 @@ moves_loop: // When in check and at SpNode search starts from here
           continue;
 
       // Check for legality only before to do the move
-      if (!pos.pl_move_is_legal(move, ci.pinned))
+      if (!pos.legal(move, ci.pinned))
           continue;
 
       ss->currentMove = move;
@@ -2003,7 +2003,7 @@ moves_loop: // When in check and at SpNode search starts from here
 
     // If the threatened piece has value less than or equal to the value of the
     // threat piece, don't prune moves which defend it.
-    if (    pos.is_capture(second)
+    if (    pos.capture(second)
         && (   PieceValue[MG][pos.piece_on(m2from)] >= PieceValue[MG][pos.piece_on(m2to)]
 #ifdef GPSFISH
             || type_of(pos.piece_on(m2from)) == osl::KING))
@@ -2152,8 +2152,8 @@ void RootMove::extract_pv_from_tt_rec(Position& pos,int ply)
 
   if ( tte != NULL
           && tte->move(pos) != MOVE_NONE
-          && pos.is_pseudo_legal(tte->move(pos))
-          && pos.pl_move_is_legal(tte->move(pos), pos.pinned_pieces())
+          && pos.pseudo_legal(tte->move(pos))
+          && pos.legal(tte->move(pos), pos.pinned_pieces())
           && ply < MAX_PLY
           && (!pos.is_draw() || ply < 2))
   {
@@ -2200,8 +2200,8 @@ void RootMove::extract_pv_from_tt(Position& pos) {
       tte = TT.probe(pos.key());
 
   } while (   tte
-           && pos.is_pseudo_legal(m = tte->move()) // Local copy, TT could change
-           && pos.pl_move_is_legal(m, pos.pinned_pieces())
+           && pos.pseudo_legal(m = tte->move()) // Local copy, TT could change
+           && pos.legal(m, pos.pinned_pieces())
            && ply < MAX_PLY
            && (!pos.is_draw() || ply < 2));
 
