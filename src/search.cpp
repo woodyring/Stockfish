@@ -116,7 +116,7 @@ namespace {
 
   size_t PVSize, PVIdx;
   TimeManager TimeMgr;
-  float BestMoveChanges;
+  double BestMoveChanges;
 #ifdef GPSFISH
   osl::CArray<Value,COLOR_NB> DrawValue;
 #else
@@ -599,7 +599,7 @@ namespace {
     while (++depth <= MAX_PLY && !Signals.stop && (!Limits.depth || depth <= Limits.depth))
     {
         // Age out PV variability metric
-        BestMoveChanges *= 0.8f;
+        BestMoveChanges *= 0.8;
 
         // Save last iteration's scores before first PV line is searched and all
         // the move scores but the (new) PV are set to -VALUE_INFINITE.
