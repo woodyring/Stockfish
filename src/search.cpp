@@ -1227,7 +1227,7 @@ moves_loop: // When in check and at SpNode search starts from here
       {
           Signals.firstRootMove = (moveCount == 1);
 
-#if 1 //ndef GPSFISH
+#ifndef GPSFISH
           if (thisThread == Threads.main() && Time::now() - SearchTime > 3000)
               sync_cout << "info depth " << depth / ONE_PLY
                         << " currmove " << move_to_uci(move, pos.is_chess960())

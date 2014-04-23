@@ -1,3 +1,6 @@
+#ifndef __BITOPS_H__
+#define __BITOPS_H__
+
 #ifdef GPSFISH
 
 /// lsb()/msb() finds the least/most significant bit in a nonzero uint64_t.
@@ -57,4 +60,7 @@ extern uint32_t pop_lsb(uint64_t* b);
 
 #endif
 
-#endif
+#endif // GPSFISH
+
+#endif // __BITOPS_H__
+
