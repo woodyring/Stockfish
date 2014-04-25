@@ -1568,6 +1568,30 @@ bool Position::is_draw(int& ret) const {
           else return true;
       }
   }
+#else
+  int i = 4, e = st->pliesFromNull, cnt = 0;
+
+  if (i <= e)
+  {
+      Color us = side_to_move();
+      Color them = ~us;
+      StateInfo* stp = st->previous->previous;
+
+      do {
+          stp = stp->previous->previous;
+
+          if (stp->key == st->key)
+          {
+              if(continuous_check[us]*2>=i) {ret= -1; return false;}
+              else if(continuous_check[them]*2>=i) {ret= 1; return false;}
+              else if(++cnt>=4) { ret= 0; return true; }// Draw after first repetition
+          }
+
+          i += 2;
+
+      } while (i <= e);
+  }
+
 #endif
   return false;
 }

@@ -781,6 +781,7 @@ namespace {
 
 #ifdef GPSFISH
     const Value VALUE_DRAW = value_draw(pos);
+    int repeat_check = 0;
 
     if(can_capture_king(pos)){
         return mate_in(0);
@@ -815,70 +816,46 @@ namespace {
     if (PvNode && thisThread->maxPly < ss->ply)
         thisThread->maxPly = ss->ply;
 
+    if (!RootNode)
+    {
+        // Step 2. Check for aborted search and immediate draw
+#ifdef GPSFISH
+        if (Signals.stop || pos.is_draw(repeat_check) || ss->ply > MAX_PLY)
+#else
+        if (Signals.stop || pos.is_draw() || ss->ply > MAX_PLY)
+#endif
+            return DrawValue[pos.side_to_move()];
 
 #ifdef GPSFISH
-    // Step X. Check for aborted search and immediate draw
-    // Check for an instant draw or maximum ply reached
-#if 0
-    // XXX : is_draw is NOT implemented
-    int repeat_check = 0;
-    if (Signals.stop || ss->ply > MAX_PLY || pos.is_draw(repeat_check))
-        return VALUE_DRAW;
-
-    if(repeat_check<0)
-        return mated_in(ss->ply+1);
-    else if(repeat_check>0)
-        return mate_in(ss->ply);
-
-    // Step 2. Check for aborted search and immediate draw
-    if ((   Signals.stop
-         || pos.is_draw()
-         || ss->ply > MAX_PLY) && !RootNode)
-        return VALUE_DRAW;
-
-    if ( !RootNode ){
         if(repeat_check<0)
             return mated_in(ss->ply);
         else if(repeat_check>0)
             return mate_in(ss->ply);
         else if(osl::EnterKing::canDeclareWin(pos.osl_state))
             return mate_in(ss->ply+1);
-    }
-#endif
 
-#if 0
-    if (!ss->checkmateTested) {
-        ss->checkmateTested = true;
-        if(!pos.osl_state.inCheck()
-                && ImmediateCheckmate::hasCheckmateMove
-                (pos.side_to_move(),pos.osl_state,bestMove)) {
-            return mate_in(ss->ply);
-        }
+        if (!ss->checkmateTested) {
+            ss->checkmateTested = true;
+            if(!pos.osl_state.inCheck()
+                    && ImmediateCheckmate::hasCheckmateMove(pos.side_to_move(),pos.osl_state,bestMove)) {
+                return mate_in(ss->ply);
+            }
 #  ifdef GPSFISH_CHECKMATE3
-        if ((! (ss-1)->currentMove.isNormal()
-            || (ss-1)->currentMove.ptype() == osl::KING)) {
-            osl::checkmate::King8Info king8=pos.osl_state.king8Info(alt(pos.side_to_move()));
-            assert(king8.uint64Value() == osl::checkmate::King8Info::make(pos.side_to_move(), pos.osl_state).uint64Value());
-            bool in_danger = king8.dropCandidate() | king8.moveCandidate2();
-            if (in_danger) {
-                osl::checkmate::FixedDepthSearcher solver(pos.osl_state);
-                if (solver.hasCheckmateMoveOfTurn(2,bestMove)
-                        .isCheckmateSuccess()) {
-                    return mate_in(ss->ply+2);;
+            if ((! (ss-1)->currentMove.isNormal()
+                        || (ss-1)->currentMove.ptype() == osl::KING)) {
+                osl::checkmate::King8Info king8=pos.osl_state.king8Info(alt(pos.side_to_move()));
+                assert(king8.uint64Value() == osl::checkmate::King8Info::make(pos.side_to_move(), pos.osl_state).uint64Value());
+                bool in_danger = king8.dropCandidate() | king8.moveCandidate2();
+                if (in_danger) {
+                    osl::checkmate::FixedDepthSearcher solver(pos.osl_state);
+                    if (solver.hasCheckmateMoveOfTurn(2,bestMove).isCheckmateSuccess()) {
+                        return mate_in(ss->ply+2);
+                    }
                 }
             }
-        }
 #  endif
-    }
-#endif
-#endif
-
-
-    if (!RootNode)
-    {
-        // Step 2. Check for aborted search and immediate draw
-        if (Signals.stop || pos.is_draw() || ss->ply > MAX_PLY)
-            return DrawValue[pos.side_to_move()];
+        }
+#endif // GPSFISH
 
         // Step 3. Mate distance pruning. Even if we mate at the next move our score
         // would be at best mate_in(ss->ply+1), but if alpha is already bigger because
@@ -1834,14 +1811,14 @@ moves_loop: // When in check and at SpNode search starts from here
 #ifdef GPSFISH_CHECKMATE3_QUIESCE
     if (bestValue < beta && depth >= DEPTH_QS_CHECKS
             && (!(ss-1)->currentMove.isNormal()
-                || (ss-1)->currentMove.ptype() == osl::KING)) {
+            || (ss-1)->currentMove.ptype() == osl::KING)) {
         osl::checkmate::King8Info king8=pos.osl_state.king8Info(alt(pos.side_to_move()));
         assert(king8.uint64Value() == osl::checkmate::King8Info::make(pos.side_to_move(), pos.osl_state).uint64Value());
         bool in_danger = king8.dropCandidate() | king8.moveCandidate2();
         if (in_danger) {
             osl::checkmate::FixedDepthSearcher solver(pos.osl_state);
             if (solver.hasCheckmateMoveOfTurn(2,bestMove).isCheckmateSuccess()) {
-                return mate_in(ss->ply+2);;
+                return mate_in(ss->ply+2);
             }
         }
     }
