@@ -53,9 +53,6 @@ using osl::Offset32;
 using osl::checkmate::ImmediateCheckmate;
 using std::string;
 #include "osl/enterKing.h"
-//#include "osl/misc/milliSeconds.h"
-//#include "osl/checkmate/dfpn.h"
-//#include "osl/checkmate/dfpnParallel.h"
 #include "osl/hashKey.h"
 #endif
 #ifdef MOVE_STACK_REJECTIONS
@@ -65,7 +62,14 @@ using std::string;
 #ifdef GPSFISH
 # define GPSFISH_CHECKMATE3
 # define GPSFISH_CHECKMATE3_QUIESCE
-//# define GPSFISH_DFPN
+# define GPSFISH_DFPN
+#endif
+
+#ifdef GPSFISH_DFPN
+#include <boost/scoped_ptr.hpp>
+#include "osl/misc/milliSeconds.h"
+#include "osl/checkmate/dfpn.h"
+#include "osl/checkmate/dfpnParallel.h"
 #endif
 
 namespace Search {
@@ -438,15 +442,14 @@ struct CheckmateSolver
         osl::PathEncoding path(pos.osl_state.turn());
         osl::Move checkmate_move;
         osl::NumEffectState& state = pos.osl_state;
-        osl::stl::vector<osl::Move> pv;
+        std::vector<osl::Move> pv;
         osl::checkmate::ProofDisproof result
             = dfpn[playerToIndex(state.turn())].
             hasCheckmateMove(state, osl::HashKey(state), path, nodes,
                     checkmate_move, Move(), &pv);
         if (result.isCheckmateSuccess()) {
             TT.store(pos.key(), mate_in(pv.size()),
-                    BOUND_EXACT, CheckmateDepth, checkmate_move,
-                    VALUE_NONE, VALUE_NONE);
+                    BOUND_EXACT, CheckmateDepth, checkmate_move, VALUE_NONE);
             return checkmate_move;
         }
         return Move();
@@ -490,7 +493,7 @@ struct TestCheckmate
             next.first++;
             next.nodes /= 2;
             next.result = &move;
-            if (next.first < last && pos->is_pseudo_legal(moves[next.first])
+            if (next.first < last && pos->pl_move_is_legal(moves[next.first])
                     && next.nodes >= 1024) {
                 StateInfo st;
                 pos->do_undo_move(moves[next.first], st, next);
@@ -2367,7 +2370,7 @@ void Thread::idle_loop() {
   }
 }
 
-#if defined GPSFISHONE || (! defined GPSFISH_DFPN)
+#ifndef GPSFISH_DFPN
 void do_checkmate(const Position& pos, int mateTime){
     sync_cout << "checkmate notimplemented";
     return;
@@ -2375,7 +2378,7 @@ void do_checkmate(const Position& pos, int mateTime){
 #else
 void do_checkmate(const Position& pos, int mateTime){
     Signals.stop=false;
-    osl::state::NumEffectState state(pos.osl_state);
+    osl::NumEffectState state(pos.osl_state);
 #if (! defined ALLOW_KING_ABSENCE)
     if (state.kingSquare(state.turn()).isPieceStand()) {
         sync_cout << "checkmate notimplemented";
@@ -2385,22 +2388,22 @@ void do_checkmate(const Position& pos, int mateTime){
     osl::checkmate::DfpnTable table(state.turn());
     const osl::PathEncoding path(state.turn());
     osl::Move checkmate_move;
-    osl::stl::vector<osl::Move> pv;
+    std::vector<osl::Move> pv;
     osl::checkmate::ProofDisproof result;
     osl::checkmate::Dfpn dfpn;
     dfpn.setTable(&table);
     double seconds=(double)mateTime/1000.0;
-    osl::misc::MilliSeconds start = osl::misc::MilliSeconds::now();
+    osl::misc::time_point start = osl::misc::clock::now();
     size_t step = 100000, total = 0;
     double scale = 1.0;
     for (size_t limit = step; true; limit = static_cast<size_t>(step*scale)) {
         result = dfpn.
             hasCheckmateMove(state, osl::hash::HashKey(state), path, limit, checkmate_move, Move(), &pv);
-        double elapsed = start.elapsedSeconds();
+        double elapsed = osl::misc::elapsedSeconds(start) + 1;
         double memory = osl::OslConfig::memoryUseRatio();
         uint64_t node_count = dfpn.nodeCount();
-        sync_cout << "info time " << static_cast<int>(elapsed*1000) << "nodes " << total+node_count
-                  << "nps %d " << static_cast<int>(node_count/elapsed) << "hashfull " << static_cast<int>(memory*1000) << sync_endl;
+        sync_cout << "info time " << static_cast<int>(elapsed*1000) << " nodes " << total+node_count
+                  << " nps " << static_cast<int>(node_count/elapsed) << " hashfull " << static_cast<int>(memory*1000) << sync_endl;
         //poll(pos);
         if (result.isFinal() || elapsed >= seconds || memory > 0.9 || Signals.stop)
             break;

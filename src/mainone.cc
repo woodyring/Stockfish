@@ -5,6 +5,7 @@
 #  define NDEBUG
 #endif
 #define GPSFISHONE
+#define GPSFISH_DFPN
 
 #include "../../osl/core/osl/checkmate/immediateCheckmate.cc"
 #include "../../osl/core/osl/checkmate/immediateCheckmateTable.cc"
@@ -51,6 +52,11 @@
 #include "../../osl/core/osl/book/compactBoard.cc"
 #include "../../osl/core/osl/bits/king8Info.cc"
 #include "../../osl/core/osl/move_classifier/kingOpenMove.cc"
+
+#ifdef GPSFISH_DFPN
+#include "../../osl/std/osl/checkmate/dfpn.cc"
+#include "../../osl/std/osl/checkmate/dfpnParallel.cc"
+#endif
 
 #include "tables.cc"
 
