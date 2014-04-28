@@ -165,6 +165,7 @@ void init(OptionsMap& o) {
 
 #ifdef GPSFISH
   o["DrawValue"]                   = Option(0, -30000, 30000);
+  o["Resign"]                      = Option(32765, 1000, 32765);
 #endif
 }
 

@@ -1,5 +1,7 @@
 #include "osl/book/bookInMemory.h"
 #include "osl/random.h"
+#include "notation.h"
+
 using osl::book::BookInMemory;
 
 PolyglotBook::PolyglotBook() {}
@@ -18,7 +20,11 @@ Move PolyglotBook::probe(const Position& pos, const std::string& fName, bool pic
 
     if(pickBest)
         return moves[0];
-    else
+    else {
+        for( size_t i = 0 ; i < moves.size() ; i++ ) {
+            sync_cout << "info pv " << move_to_uci(moves[i],false) << sync_endl;
+        }
         return moves[osl::time_seeded_random()%moves.size()];
+    }
 }
 

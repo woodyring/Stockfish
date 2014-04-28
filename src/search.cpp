@@ -318,6 +318,9 @@ void Search::think() {
       if (bookMove && std::count(RootMoves.begin(), RootMoves.end(), bookMove))
       {
           std::swap(RootMoves[0], *std::find(RootMoves.begin(), RootMoves.end(), bookMove));
+#ifdef GPSFISH
+          RootMoves[0].score = (Value)0;
+#endif
           goto finalize;
       }
   }
@@ -403,6 +406,14 @@ finalize:
   {
       Signals.stopOnPonderhit = true;
       RootPos.this_thread()->wait_for(Signals.stop);
+  }
+
+  //if( Options["Resign"] )
+  {
+      //sync_cout << "info string score " << RootMoves[0].score << " resign " <<  -Options["Resign"] << sync_endl;
+      if( RootMoves[0].score/2 <= -Options["Resign"] ) {
+          RootMoves[0].pv[0] = MOVE_NONE;
+      }
   }
 
   // Best move could be MOVE_NONE when searching on a stalemate position
