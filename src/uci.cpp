@@ -271,7 +271,7 @@ void UCI::loop(int argc, char* argv[]) {
                     << "position key: "   << setw(16) << pos.key()
                     << "\nmaterial key: " << setw(16) << pos.material_key()
                     << "\npawn key:     " << setw(16) << pos.pawn_key()
-                    << dec << sync_endl;
+                    << dec << nouppercase << setfill(' ') << sync_endl;
 
 #endif
 #ifdef GPSFISH
