@@ -62,9 +62,9 @@ string score_to_uci(Value v, Value alpha, Value beta) {
       s << "cp " << v * 100 / int(PawnValueMg);
   else
       s << "mate " << (v > 0 ? VALUE_MATE - v + 1 : -VALUE_MATE - v) / 2;
+#endif
 
   s << (v >= beta ? " lowerbound" : v <= alpha ? " upperbound" : "");
-#endif
 
   return s.str();
 }

@@ -2096,9 +2096,8 @@ moves_loop: // When in check and at SpNode search starts from here
           << " time "      << elapsed
 #ifdef GPSFISH
           << " hashfull "  << TT.get_hashfull()
-#else
-          << " multipv "   << i + 1
 #endif
+          << " multipv "   << i + 1
           << " pv";
 
         for (size_t j = 0; RootMoves[i].pv[j] != MOVE_NONE; ++j)
