@@ -180,7 +180,7 @@ public:
 #endif
 
   // Static exchange evaluation
-  int see(Move m, int asymmThreshold = 0) const;
+  int see(Move m) const;
   int see_sign(Move m) const;
 
   // Accessing hash keys
