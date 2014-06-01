@@ -952,7 +952,7 @@ namespace {
     // Step 6. Razoring (skipped when in check)
     if (   !PvNode
         &&  depth < 4 * ONE_PLY
-        &&  eval + razor_margin(depth) < beta
+        &&  eval + razor_margin(depth) <= alpha
         &&  ttMove == MOVE_NONE
         &&  abs(beta) < VALUE_MATE_IN_MAX_PLY
 #ifndef GPSFISH
@@ -1025,24 +1025,8 @@ namespace {
         pos.undo_null_move();
 #endif
 
-        if (nullValue >= beta)
-        {
-            // Do not return unproven mate scores
-            if (nullValue >= VALUE_MATE_IN_MAX_PLY)
-                nullValue = beta;
-
-            if (depth < 12 * ONE_PLY)
-                return nullValue;
-
-            // Do verification search at high depths
-            ss->skipNullMove = true;
-            Value v = depth-R < ONE_PLY ? qsearch<NonPV, false>(pos, ss, beta-1, beta, DEPTH_ZERO)
-                                        :  search<NonPV>(pos, ss, beta-1, beta, depth-R, false);
-            ss->skipNullMove = false;
-
-            if (v >= beta)
-                return nullValue;
-        }
+        if (nullValue >= beta) // Do not return unproven mate scores
+            return nullValue >= VALUE_MATE_IN_MAX_PLY ? beta : nullValue;
     }
 
     // Step 9. ProbCut (skipped when in check)
