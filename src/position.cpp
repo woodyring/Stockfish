@@ -305,6 +305,31 @@ Position& Position::operator=(const Position& pos) {
 }
 
 
+/// Position::clear() erases the position object to a pristine state, with an
+/// empty board, white to move, and no castling rights.
+
+void Position::clear() {
+
+  std::memset(this, 0, sizeof(Position));
+#ifndef GPSFISH
+  startState.epSquare = SQ_NONE;
+#endif
+  st = &startState;
+
+#ifndef GPSFISH
+  for (int i = 0; i < PIECE_TYPE_NB; ++i)
+      for (int j = 0; j < 16; ++j)
+          pieceList[WHITE][i][j] = pieceList[BLACK][i][j] = SQ_NONE;
+#endif
+
+#ifdef GPSFISH
+  osl_state=osl::NumEffectState();
+  osl_state.setTurn(BLACK);
+  continuous_check[BLACK]=continuous_check[WHITE]=0;
+#endif
+}
+
+
 /// Position::set() initializes the position object with the given FEN string.
 /// This function is not very robust - make sure that input FENs are correct,
 /// this is assumed to be the responsibility of the GUI.
@@ -427,16 +452,13 @@ void Position::set(const string& fenStr, bool isChess960, Thread* th) {
   // handle also common incorrect FEN with fullmove = 0.
   gamePly = std::max(2 * (gamePly - 1), 0) + int(sideToMove == BLACK);
 
-  compute_keys(st);
 #ifdef GPSFISH
   if(eval!=NULL) *eval=eval_t(osl_state,false);
 #else
-  compute_non_pawn_material(st);
-  st->psq = compute_psq_score();
-  st->checkersBB = attackers_to(king_square(sideToMove)) & pieces(~sideToMove);
   chess960 = isChess960;
 #endif
   thisThread = th;
+  set_state(st);
 
   assert(pos_is_ok());
 }
@@ -470,6 +492,68 @@ void Position::set_castling_right(Color c, Square rfrom) {
 }
 
 #endif
+
+/// Position::set_state() computes the hash keys of the position, and other
+/// data that once computed is updated incrementally as moves are made.
+/// The function is only used when a new position is set up, and to verify
+/// the correctness of the StateInfo data when running in debug mode.
+
+void Position::set_state(StateInfo* si) const {
+
+#ifdef GPSFISH
+
+  si->key = 0;
+
+  for(int num=0;num<osl::Piece::SIZE;num++){
+    osl::Piece p=osl_state.pieceOf(num);
+    if(osl_state.usedMask().test(num))
+      si->key += Zobrist::psq[playerToIndex(p.owner())][p.ptype()][p.square().index()];
+  }
+
+  if (sideToMove == BLACK)
+      si->key ^= Zobrist::side;
+
+#else
+
+  si->key = si->pawnKey = si->materialKey = 0;
+  si->npMaterial[WHITE] = si->npMaterial[BLACK] = VALUE_ZERO;
+  si->psq = SCORE_ZERO;
+
+  si->checkersBB = attackers_to(king_square(sideToMove)) & pieces(~sideToMove);
+
+  for (Bitboard b = pieces(); b; )
+  {
+      Square s = pop_lsb(&b);
+      Piece pc = piece_on(s);
+      si->key ^= Zobrist::psq[color_of(pc)][type_of(pc)][s];
+      si->psq += psq[color_of(pc)][type_of(pc)][s];
+  }
+
+  if (ep_square() != SQ_NONE)
+      si->key ^= Zobrist::enpassant[file_of(ep_square())];
+
+  if (sideToMove == BLACK)
+      si->key ^= Zobrist::side;
+
+  si->key ^= Zobrist::castling[st->castlingRights];
+
+  for (Bitboard b = pieces(PAWN); b; )
+  {
+      Square s = pop_lsb(&b);
+      si->pawnKey ^= Zobrist::psq[color_of(piece_on(s))][PAWN][s];
+  }
+
+  for (Color c = WHITE; c <= BLACK; ++c)
+      for (PieceType pt = PAWN; pt <= KING; ++pt)
+          for (int cnt = 0; cnt < pieceCount[c][pt]; ++cnt)
+              si->materialKey ^= Zobrist::psq[c][pt][cnt];
+
+  for (Color c = WHITE; c <= BLACK; ++c)
+      for (PieceType pt = KNIGHT; pt <= QUEEN; ++pt)
+          si->npMaterial[c] += pieceCount[c][pt] * PieceValue[MG][pt];
+#endif
+}
+
 
 /// Position::fen() returns a FEN representation of the position. In case of
 /// Chess960 the Shredder-FEN notation is used. This is mainly a debugging function.
@@ -1329,120 +1413,6 @@ Value Position::see(Move m) const {
 }
 
 
-/// Position::clear() erases the position object to a pristine state, with an
-/// empty board, white to move, and no castling rights.
-
-void Position::clear() {
-
-  std::memset(this, 0, sizeof(Position));
-
-#ifndef GPSFISH
-  startState.epSquare = SQ_NONE;
-#endif
-  st = &startState;
-
-#ifndef GPSFISH
-
-  for (int i = 0; i < PIECE_TYPE_NB; ++i)
-      for (int j = 0; j < 16; ++j)
-          pieceList[WHITE][i][j] = pieceList[BLACK][i][j] = SQ_NONE;
-
-#endif
-
-#ifdef GPSFISH
-  osl_state=osl::NumEffectState();
-  osl_state.setTurn(BLACK);
-  continuous_check[BLACK]=continuous_check[WHITE]=0;
-#endif
-}
-
-
-/// Position::compute_keys() computes the hash keys of the position, pawns and
-/// material configuration. The hash keys are usually updated incrementally as
-/// moves are made and unmade. The function is only used when a new position is
-/// set up, and to verify the correctness of the keys when running in debug mode.
-
-void Position::compute_keys(StateInfo* si) const {
-
-#ifdef GPSFISH
-
-  for(int num=0;num<osl::Piece::SIZE;num++){
-    osl::Piece p=osl_state.pieceOf(num);
-    if(osl_state.usedMask().test(num))
-      si->key += Zobrist::psq[playerToIndex(p.owner())][p.ptype()][p.square().index()];
-  }
-
-#else
-
-  si->key = si->pawnKey = si->materialKey = 0;
-
-  for (Bitboard b = pieces(); b; )
-  {
-      Square s = pop_lsb(&b);
-      si->key ^= Zobrist::psq[color_of(piece_on(s))][type_of(piece_on(s))][s];
-  }
-
-  if (ep_square() != SQ_NONE)
-      si->key ^= Zobrist::enpassant[file_of(ep_square())];
-#endif
-
-  if (sideToMove == BLACK)
-      si->key ^= Zobrist::side;
-
-#ifndef GPSFISH
-  si->key ^= Zobrist::castling[st->castlingRights];
-
-  for (Bitboard b = pieces(PAWN); b; )
-  {
-      Square s = pop_lsb(&b);
-      si->pawnKey ^= Zobrist::psq[color_of(piece_on(s))][PAWN][s];
-  }
-
-  for (Color c = WHITE; c <= BLACK; ++c)
-      for (PieceType pt = PAWN; pt <= KING; ++pt)
-          for (int cnt = 0; cnt < pieceCount[c][pt]; ++cnt)
-              si->materialKey ^= Zobrist::psq[c][pt][cnt];
-#endif
-}
-
-
-#ifndef GPSFISH
-/// Position::compute_non_pawn_material() computes the total non-pawn middlegame
-/// material value for each side. Material values are updated incrementally during
-/// the search. This function is only used when initializing a new Position object.
-
-void Position::compute_non_pawn_material(StateInfo* si) const {
-
-  si->npMaterial[WHITE] = si->npMaterial[BLACK] = VALUE_ZERO;
-
-  for (Color c = WHITE; c <= BLACK; ++c)
-      for (PieceType pt = KNIGHT; pt <= QUEEN; ++pt)
-          si->npMaterial[c] += pieceCount[c][pt] * PieceValue[MG][pt];
-}
-#endif
-
-
-/// Position::compute_psq_score() computes the incremental scores for the middlegame
-/// and the endgame. These functions are used to initialize the incremental scores
-/// when a new position is set up, and to verify that the scores are correctly
-/// updated by do_move and undo_move when the program is running in debug mode.
-#ifndef GPSFISH
-Score Position::compute_psq_score() const {
-
-  Score score = SCORE_ZERO;
-
-  for (Bitboard b = pieces(); b; )
-  {
-      Square s = pop_lsb(&b);
-      Piece pc = piece_on(s);
-      score += psq[color_of(pc)][type_of(pc)][s];
-  }
-
-  return score;
-}
-#endif
-
-
 /// Position::is_draw() tests whether the position is drawn by material, 50 moves
 /// rule or repetition. It does not detect stalemates.
 
@@ -1581,12 +1551,10 @@ bool Position::pos_is_ok(int* failedStep) const {
   const bool testBitboards       = all || false;
   const bool testKingCount       = all || false;
   const bool testKingCapture     = all || false;
-  const bool testCheckerCount    = all || false;
 #endif
-  const bool testKeys            = all || false;
+  const bool testState           = all || false;
 #ifndef GPSFISH
-  const bool testIncrementalEval = all || false;
-  const bool testNonPawnMaterial = all || false;
+  const bool testCheckerCount    = all || false;
   const bool testPieceCounts     = all || false;
   const bool testPieceList       = all || false;
   const bool testCastlingSquares = all || false;
@@ -1607,6 +1575,10 @@ bool Position::pos_is_ok(int* failedStep) const {
 #ifdef GPSFISH
   if(!osl_state.isConsistent()) return false;
 #else
+
+  if ((*step)++, ep_square() != SQ_NONE && relative_rank(sideToMove, ep_square()) != RANK_6)
+      return false;
+
   if ((*step)++, testKingCount)
       if (   std::count(board, board + SQUARE_NB, W_KING) != 1
           || std::count(board, board + SQUARE_NB, B_KING) != 1)
@@ -1615,9 +1587,6 @@ bool Position::pos_is_ok(int* failedStep) const {
   if ((*step)++, testKingCapture)
       if (attackers_to(king_square(~sideToMove)) & pieces(sideToMove))
           return false;
-
-  if ((*step)++, testCheckerCount && popcount<Full>(st->checkersBB) > 2)
-      return false;
 
   if ((*step)++, testBitboards)
   {
@@ -1636,35 +1605,27 @@ bool Position::pos_is_ok(int* failedStep) const {
               if (p1 != p2 && (pieces(p1) & pieces(p2)))
                   return false;
   }
-
-  if ((*step)++, ep_square() != SQ_NONE && relative_rank(sideToMove, ep_square()) != RANK_6)
-      return false;
 #endif
 
-
-  if ((*step)++, testKeys)
+  if ((*step)++, testState)
   {
       StateInfo si;
-      compute_keys(&si);
+      set_state(&si);
+      if (   st->key != si.key
 #ifdef GPSFISH
-      if (st->key != si.key )
+         )
 #else
-      if (st->key != si.key || st->pawnKey != si.pawnKey || st->materialKey != si.materialKey)
+          || st->pawnKey != si.pawnKey
+          || st->materialKey != si.materialKey
+          || st->npMaterial[WHITE] != si.npMaterial[WHITE]
+          || st->npMaterial[BLACK] != si.npMaterial[BLACK]
+          || st->psq != si.psq)
 #endif
           return false;
   }
 
 #ifndef GPSFISH
-  if ((*step)++, testNonPawnMaterial)
-  {
-      StateInfo si;
-      compute_non_pawn_material(&si);
-      if (   st->npMaterial[WHITE] != si.npMaterial[WHITE]
-          || st->npMaterial[BLACK] != si.npMaterial[BLACK])
-          return false;
-  }
-
-  if ((*step)++, testIncrementalEval && st->psq != compute_psq_score())
+  if ((*step)++, testCheckerCount && popcount<Full>(st->checkersBB) > 2)
       return false;
 
   if ((*step)++, testPieceCounts)

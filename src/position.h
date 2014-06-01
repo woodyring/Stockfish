@@ -234,11 +234,7 @@ private:
 #ifndef GPSFISH
   void set_castling_right(Color c, Square rfrom);
 #endif
-  void compute_keys(StateInfo* si) const;
-#ifndef GPSFISH
-  void compute_non_pawn_material(StateInfo* si) const;
-  Score compute_psq_score() const;
-#endif
+  void set_state(StateInfo* si) const;
 
 #ifndef GPSFISH
   // Helper functions
