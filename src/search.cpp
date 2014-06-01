@@ -960,11 +960,9 @@ namespace {
 #endif
       )
     {
-        Value rbeta = beta - razor_margin(depth);
-        Value v = qsearch<NonPV, false>(pos, ss, rbeta-1, rbeta, DEPTH_ZERO);
-        if (v < rbeta)
-            // Logically we should return (v + razor_margin(depth)), but
-            // surprisingly this performed slightly weaker in tests.
+        Value ralpha = alpha - razor_margin(depth);
+        Value v = qsearch<NonPV, false>(pos, ss, ralpha, ralpha+1, DEPTH_ZERO);
+        if (v <= ralpha)
             return v;
     }
 
