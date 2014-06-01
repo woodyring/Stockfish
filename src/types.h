@@ -426,14 +426,6 @@ inline Square operator~(Square s) {
 #endif
 }
 
-inline Square operator|(File f, Rank r) {
-#ifdef GPSFISH
-  return Square(f,r);
-#else
-  return Square((r << 3) | f);
-#endif
-}
-
 #ifndef GPSFISH
 inline CastlingRight operator|(Color c, CastlingSide s) {
   return CastlingRight(WHITE_OO << ((s == QUEEN_SIDE) + 2 * c));
@@ -446,6 +438,14 @@ inline Value mate_in(int ply) {
 
 inline Value mated_in(int ply) {
   return -VALUE_MATE + ply;
+}
+
+inline Square make_square(File f, Rank r) {
+#ifdef GPSFISH
+  return Square(f,r);
+#else
+  return Square((r << 3) | f);
+#endif
 }
 
 inline Piece make_piece(Color c, PieceType pt) {
