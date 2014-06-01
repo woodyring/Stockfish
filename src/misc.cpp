@@ -44,30 +44,30 @@ const string engine_info(bool to_uci) {
 
   const string months("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec");
   string month, day, year;
-  stringstream s, date(__DATE__); // From compiler, format is "Sep 21 2008"
+  stringstream ss, date(__DATE__); // From compiler, format is "Sep 21 2008"
 
 #ifdef GPSFISH
-  s << "GPSfish " << Version << " + " << gpsshogi::gpsshogi_revision << " " << setfill('0');
+  ss << "GPSfish " << Version << " + " << gpsshogi::gpsshogi_revision << " " << setfill('0');
 #else
-  s << "Stockfish " << Version << setfill('0');
+  ss << "Stockfish " << Version << setfill('0');
 #endif
 
   if (Version.empty())
   {
       date >> month >> day >> year;
-      s << setw(2) << day << setw(2) << (1 + months.find(month) / 4) << year.substr(2);
+      ss << setw(2) << day << setw(2) << (1 + months.find(month) / 4) << year.substr(2);
   }
 
-  s << (Is64Bit ? " 64" : "")
-    << (HasPopCnt ? " SSE4.2" : "")
-    << (to_uci ? "\nid author ": " by ")
+  ss << (Is64Bit ? " 64" : "")
+     << (HasPopCnt ? " SSE4.2" : "")
+     << (to_uci ? "\nid author ": " by ")
 #ifdef GPSFISH
-    << "Team GPS (GPSshogi) / Tord Romstad, Marco Costalba and Joona Kiiski (Stockfish)";
+     << "Team GPS (GPSshogi) / Tord Romstad, Marco Costalba and Joona Kiiski (Stockfish)";
 #else
-    << "Tord Romstad, Marco Costalba and Joona Kiiski";
+     << "Tord Romstad, Marco Costalba and Joona Kiiski";
 #endif
 
-  return s.str();
+  return ss.str();
 }
 
 

@@ -43,40 +43,39 @@ struct Stats {
   static const Value Max = Value(2000);
 
 #ifdef GPSFISH
-  const T* operator[](Piece p) const { return table[ptypeOIndex(p)]; }
+  const T* operator[](Piece pc) const { return table[ptypeOIndex(pc)]; }
 #else
-  const T* operator[](Piece p) const { return table[p]; }
+  const T* operator[](Piece pc) const { return table[pc]; }
 #endif
   void clear() { std::memset(table, 0, sizeof(table)); }
 
 #ifdef GPSFISH
-  void update(Piece p_, Square to_, Move m) {
-      int p  = ptypeOIndex(p_);
+  void update(Piece pc_, Square to_, Move m) {
+      int pc  = ptypeOIndex(pc_);
       int to = to_.index();
 #else
-  void update(Piece p, Square to, Move m) {
+  void update(Piece pc, Square to, Move m) {
 #endif
-    if (m == table[p][to].first)
+    if (m == table[pc][to].first)
         return;
 
-    table[p][to].second = table[p][to].first;
-    table[p][to].first = m;
+    table[pc][to].second = table[pc][to].first;
+    table[pc][to].first = m;
   }
 
-
 #ifdef GPSFISH
-  void update(Piece p_, Square to_, Value v) {
-      int p  = ptypeOIndex(p_);
+  void update(Piece pc_, Square to_, Value v) {
+      int pc  = ptypeOIndex(pc_);
       int to = to_.index();
 #else
-  void update(Piece p, Square to, Value v) {
+  void update(Piece pc, Square to, Value v) {
 #endif
 
     if (Gain)
-        table[p][to] = std::max(v, table[p][to] - 1);
+        table[pc][to] = std::max(v, table[pc][to] - 1);
 
-    else if (abs(table[p][to] + v) < Max)
-        table[p][to] +=  v;
+    else if (abs(table[pc][to] + v) < Max)
+        table[pc][to] +=  v;
   }
 
 private:

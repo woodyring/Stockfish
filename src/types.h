@@ -456,20 +456,20 @@ inline Piece make_piece(Color c, PieceType pt) {
 #endif
 }
 
-inline PieceType type_of(Piece p)  {
+inline PieceType type_of(Piece pc)  {
 #ifdef GPSFISH
-  return getPtype(p);
+  return getPtype(pc);
 #else
-  return PieceType(p & 7);
+  return PieceType(pc & 7);
 #endif
 }
 
-inline Color color_of(Piece p) {
+inline Color color_of(Piece pc) {
 #ifdef GPSFISH
-  return getOwner(p); // XXX : should return NO_COLOR ?
+  return getOwner(pc); // XXX : should return NO_COLOR ?
 #else
-  assert(p != NO_PIECE);
-  return Color(p >> 3);
+  assert(pc != NO_PIECE);
+  return Color(pc >> 3);
 #endif
 }
 
