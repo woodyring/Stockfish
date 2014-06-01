@@ -83,7 +83,7 @@ int main(int argc, char* argv[]) {
 #endif
 
   Threads.init();
-  TT.set_size(Options["Hash"]);
+  TT.resize(Options["Hash"]);
 
   std::string args;
 

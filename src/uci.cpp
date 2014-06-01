@@ -285,15 +285,13 @@ namespace {
   void go(const Position& pos, istringstream& is) {
 
     Search::LimitsType limits;
-    vector<Move> searchMoves;
-
     string token;
 
     while (is >> token)
     {
         if (token == "searchmoves")
             while (is >> token)
-                searchMoves.push_back(move_from_uci(pos, token));
+                limits.searchmoves.push_back(move_from_uci(pos, token));
 
         else if (token == "wtime")     is >> limits.time[WHITE];
         else if (token == "btime")     is >> limits.time[BLACK];
@@ -339,6 +337,6 @@ namespace {
     }
 #endif
 
-    Threads.start_thinking(pos, limits, searchMoves, SetupStates);
+    Threads.start_thinking(pos, limits, SetupStates);
   }
 }

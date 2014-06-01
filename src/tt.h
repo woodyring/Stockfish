@@ -108,7 +108,7 @@ public:
   const TTEntry* probe(const Key key) const;
   TTEntry* first_entry(const Key key) const;
   void refresh(const TTEntry* tte) const;
-  void set_size(uint64_t mbSize);
+  void resize(uint64_t mbSize);
   void clear();
 #ifdef GPSFISH
   void store(const Key key, Value v, Bound b, Depth d, Move16 m, Value statV);
