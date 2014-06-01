@@ -93,7 +93,7 @@ const int MAX_MOVES      = 1024; //593;
 const int MAX_PLY        = 256;
 #else
 const int MAX_MOVES      = 256;
-const int MAX_PLY        = 100;
+const int MAX_PLY        = 120;
 #endif
 const int MAX_PLY_PLUS_6 = MAX_PLY + 6;
 
