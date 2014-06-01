@@ -33,7 +33,7 @@
 #include "position.h"
 
 #ifndef GPSFISH
-/// Simple macro to wrap a very common while loop, no facny, no flexibility,
+/// Simple macro to wrap a very common while loop, no fancy, no flexibility,
 /// hardcoded names 'mlist' and 'from'.
 #define SERIALIZE(b) while (b) (mlist++)->move = make_move(from, pop_lsb(&b))
 
@@ -358,7 +358,7 @@ ExtMove* generate<QUIET_CHECKS>(const Position& pos, ExtMove* mlist) {
      PieceType pt = type_of(pos.piece_on(from));
 
      if (pt == PAWN)
-         continue; // Will be generated togheter with direct checks
+         continue; // Will be generated together with direct checks
 
      Bitboard b = pos.attacks_from(Piece(pt), from) & ~pos.pieces();
 
