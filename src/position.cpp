@@ -1345,7 +1345,6 @@ int Position::see(Move m) const {
 
       // Add the new entry to the swap list
       swapList[slIndex] = -swapList[slIndex - 1] + PieceValue[MG][captured];
-      ++slIndex;
 
       // Locate and remove the next least valuable attacker
       captured = min_attacker<PAWN>(byTypeBB, to, stmAttackers, occupied, attackers);
@@ -1354,10 +1353,9 @@ int Position::see(Move m) const {
 
       // Stop before processing a king capture
       if (captured == KING && stmAttackers)
-      {
-          swapList[slIndex++] = QueenValueMg * 16;
           break;
-      }
+
+      ++slIndex;
 
   } while (stmAttackers);
 
