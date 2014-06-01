@@ -17,10 +17,10 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <algorithm>
 #include <cassert>
 #include <iomanip>
 #include <sstream>
-#include <algorithm>
 
 #ifndef GPSFISH
 #include "bitcount.h"
@@ -796,7 +796,8 @@ namespace {
     // Stealmate detection
     Color stm = pos.side_to_move();
     if (   (ei.attackedBy[stm][ALL_PIECES] == ei.attackedBy[stm][KING])
-        && (!(ei.attackedBy[stm][KING] & ~ei.attackedBy[~stm][ALL_PIECES])))
+        && (!(ei.attackedBy[stm][KING] & ~ei.attackedBy[~stm][ALL_PIECES]))
+        && !MoveList<LEGAL>(pos).size())
         sf = SCALE_FACTOR_DRAW;
 
     // Interpolate between a middlegame and a (scaled by 'sf') endgame score
