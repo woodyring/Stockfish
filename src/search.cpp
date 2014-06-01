@@ -1497,10 +1497,6 @@ moves_loop: // When in check and at SpNode search starts from here
               : inCheck ? mated_in(ss->ply) : DrawValue[pos.side_to_move()];
 #endif
 
-    // If we have pruned all the moves without searching return a fail-low score
-    if (bestValue == -VALUE_INFINITE)
-        bestValue = alpha;
-
     TT.store(posKey, value_to_tt(bestValue, ss->ply),
              bestValue >= beta  ? BOUND_LOWER :
 #ifdef GPSFISH
