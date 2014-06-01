@@ -102,7 +102,7 @@ const int MAX_PLY_PLUS_6 = MAX_PLY + 6;
 /// bit  0- 5: destination square (from 0 to 63)
 /// bit  6-11: origin square (from 0 to 63)
 /// bit 12-13: promotion piece type - 2 (from KNIGHT-2 to QUEEN-2)
-/// bit 14-15: special move flag: promotion (1), en passant (2), castle (3)
+/// bit 14-15: special move flag: promotion (1), en passant (2), castling (3)
 ///
 /// Special cases are MOVE_NONE and MOVE_NULL. We can sneak these in because in
 /// any normal move destination square is always different from origin square
@@ -124,18 +124,18 @@ enum MoveType {
   NORMAL,
   PROMOTION = 1 << 14,
   ENPASSANT = 2 << 14,
-  CASTLE    = 3 << 14
+  CASTLING  = 3 << 14
 };
 
-#ifdef GPSFISH
-enum CastleRight {  // Defined as in PolyGlot book hash key
-  CASTLES_NONE,
+#ifndef GPSFISH
+enum CastlingFlag {  // Defined as in PolyGlot book hash key
+  NO_CASTLING,
   WHITE_OO,
   WHITE_OOO   = WHITE_OO << 1,
   BLACK_OO    = WHITE_OO << 2,
   BLACK_OOO   = WHITE_OO << 3,
-  ALL_CASTLES = WHITE_OO | WHITE_OOO | BLACK_OO | BLACK_OOO,
-  CASTLE_RIGHT_NB = 16
+  ANY_CASTLING = WHITE_OO | WHITE_OOO | BLACK_OO | BLACK_OOO,
+  CASTLING_FLAG_NB = 16
 };
 
 enum CastlingSide {
@@ -143,6 +143,7 @@ enum CastlingSide {
   QUEEN_SIDE,
   CASTLING_SIDE_NB = 2
 };
+#endif
 
 enum Phase {
   PHASE_ENDGAME,
@@ -150,6 +151,7 @@ enum Phase {
   MG = 0, EG = 1, PHASE_NB = 2
 };
 
+#ifndef GPSFISH
 enum ScaleFactor {
   SCALE_FACTOR_DRAW   = 0,
   SCALE_FACTOR_NORMAL = 64,
@@ -440,8 +442,8 @@ inline Piece make_piece(Color c, PieceType pt) {
 }
 
 #ifndef GPSFISH
-inline CastleRight make_castle_right(Color c, CastlingSide s) {
-  return CastleRight(WHITE_OO << ((s == QUEEN_SIDE) + 2 * c));
+inline CastlingFlag make_castling_flag(Color c, CastlingSide s) {
+  return CastlingFlag(WHITE_OO << ((s == QUEEN_SIDE) + 2 * c));
 }
 #endif
 

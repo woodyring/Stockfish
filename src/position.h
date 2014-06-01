@@ -69,7 +69,7 @@ struct StateInfo {
 #else
   Key pawnKey, materialKey;
   Value npMaterial[COLOR_NB];
-  int castleRights, rule50, pliesFromNull;
+  int castlingFlags, rule50, pliesFromNull;
   Score psq;
   Square epSquare;
 
@@ -123,10 +123,10 @@ public:
 
 #ifndef GPSFISH
   // Castling
-  int can_castle(CastleRight f) const;
+  int can_castle(CastlingFlag f) const;
   int can_castle(Color c) const;
-  bool castle_impeded(Color c, CastlingSide s) const;
-  Square castle_rook_square(Color c, CastlingSide s) const;
+  bool castling_impeded(Color c, CastlingSide s) const;
+  Square castling_rook_square(Color c, CastlingSide s) const;
 #endif
 
   // Checking
@@ -232,12 +232,12 @@ private:
   // Initialization helpers (used while setting up a position)
   void clear();
 #ifndef GPSFISH
-  void set_castle_right(Color c, Square rfrom);
+  void set_castling_flag(Color c, Square rfrom);
 #endif
 
 #ifndef GPSFISH
   // Helper functions
-  void do_castle(Square kfrom, Square kto, Square rfrom, Square rto);
+  void do_castling(Square kfrom, Square kto, Square rfrom, Square rto);
   Bitboard hidden_checkers(Square ksq, Color c, Color toMove) const;
   void put_piece(Square s, Color c, PieceType pt);
   void remove_piece(Square s, Color c, PieceType pt);
@@ -263,9 +263,9 @@ private:
   int index[SQUARE_NB];
 
   // Other info
-  int castleRightsMask[SQUARE_NB];
-  Square castleRookSquare[COLOR_NB][CASTLING_SIDE_NB];
-  Bitboard castlePath[COLOR_NB][CASTLING_SIDE_NB];
+  int castlingFlagsMask[SQUARE_NB];
+  Square castlingRookSquare[COLOR_NB][CASTLING_SIDE_NB];
+  Bitboard castlingPath[COLOR_NB][CASTLING_SIDE_NB];
 #endif
   StateInfo startState;
   int64_t nodes;
@@ -367,20 +367,20 @@ inline Square Position::king_square(Color c) const {
 }
 
 #ifndef GPSFISH
-inline int Position::can_castle(CastleRight f) const {
-  return st->castleRights & f;
+inline int Position::can_castle(CastlingFlag f) const {
+  return st->castlingFlags & f;
 }
 
 inline int Position::can_castle(Color c) const {
-  return st->castleRights & ((WHITE_OO | WHITE_OOO) << (2 * c));
+  return st->castlingFlags & ((WHITE_OO | WHITE_OOO) << (2 * c));
 }
 
-inline bool Position::castle_impeded(Color c, CastlingSide s) const {
-  return byTypeBB[ALL_PIECES] & castlePath[c][s];
+inline bool Position::castling_impeded(Color c, CastlingSide s) const {
+  return byTypeBB[ALL_PIECES] & castlingPath[c][s];
 }
 
-inline Square Position::castle_rook_square(Color c, CastlingSide s) const {
-  return castleRookSquare[c][s];
+inline Square Position::castling_rook_square(Color c, CastlingSide s) const {
+  return castlingRookSquare[c][s];
 }
 
 template<PieceType Pt>
@@ -495,16 +495,16 @@ inline bool Position::is_chess960() const {
 inline bool Position::capture_or_promotion(Move m) const {
 
   assert(is_ok(m));
-  return type_of(m) ? type_of(m) != CASTLE : !empty(to_sq(m));
+  return type_of(m) ? type_of(m) != CASTLING : !empty(to_sq(m));
 }
 
 inline bool Position::capture(Move m) const {
 #ifdef GPSFISH
   return m.isCapture();
 #else
-  // Note that castle is coded as "king captures the rook"
+  // Note that castling is encoded as "king captures the rook"
   assert(is_ok(m));
-  return (!empty(to_sq(m)) && type_of(m) != CASTLE) || type_of(m) == ENPASSANT;
+  return (!empty(to_sq(m)) && type_of(m) != CASTLING) || type_of(m) == ENPASSANT;
 #endif
 }
 
