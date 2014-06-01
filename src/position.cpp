@@ -1348,13 +1348,18 @@ int Position::see(Move m) const {
 
       // Locate and remove the next least valuable attacker
       captured = min_attacker<PAWN>(byTypeBB, to, stmAttackers, occupied, attackers);
-      stm = ~stm;
-      stmAttackers = attackers & pieces(stm);
 
       // Stop before processing a king capture
-      if (captured == KING && stmAttackers)
-          break;
+      if (captured == KING)
+      {
+          if (stmAttackers == attackers)
+              ++slIndex;
 
+          break;
+      }
+
+      stm = ~stm;
+      stmAttackers = attackers & pieces(stm);
       ++slIndex;
 
   } while (stmAttackers);
