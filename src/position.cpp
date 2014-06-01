@@ -21,7 +21,6 @@
 #include <cassert>
 #include <cstring>
 #include <iomanip>
-#include <iostream>
 #include <sstream>
 
 #ifndef GPSFISH
@@ -49,8 +48,6 @@ using osl::eval::PtypeEvalTraits;
 #endif
 
 using std::string;
-using std::cout;
-using std::endl;
 
 #ifdef GPSFISH
 static const string PieceToChar(".PLNSGBRK  plnsgbrk");
@@ -577,7 +574,7 @@ const string Position::pretty(Move move) const {
          << move_to_san(*const_cast<Position*>(this), move);
 
 #ifdef GPSFISH
-  cout << osl_state << endl;
+  ss << osl_state;
 #else
 
   ss << brd << "\nFen: " << fen() << "\nKey: " << std::hex << std::uppercase
