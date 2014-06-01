@@ -1531,11 +1531,10 @@ void Position::flip() {
 /// Position::pos_is_ok() performs some consistency checks for the position object.
 /// This is meant to be helpful when debugging.
 
-bool Position::pos_is_ok(int* failedStep) const {
+bool Position::pos_is_ok(int* step) const {
 
 #ifndef MINIMAL
 
-  int dummy, *step = failedStep ? failedStep : &dummy;
 
   // Which parts of the position should be verified?
   const bool all = false;
@@ -1552,26 +1551,28 @@ bool Position::pos_is_ok(int* failedStep) const {
   const bool testCastlingSquares = all || false;
 #endif
 
-  if (*step = 1, sideToMove != WHITE && sideToMove != BLACK)
-      return false;
+  if (step)
+      *step = 1;
 
-#ifndef GPSFISH
-  if ((*step)++, piece_on(king_square(WHITE)) != W_KING)
-      return false;
-
-  if ((*step)++, piece_on(king_square(BLACK)) != B_KING)
-      return false;
-
+  if (   (sideToMove != WHITE && sideToMove != BLACK)
+#ifdef GPSFISH
+     )
+#else
+      || piece_on(king_square(WHITE)) != W_KING
+      || piece_on(king_square(BLACK)) != B_KING
+      || (   ep_square() != SQ_NONE
+          && relative_rank(sideToMove, ep_square()) != RANK_6))
 #endif
+      return false;
 
 #ifdef GPSFISH
-  if(!osl_state.isConsistent()) return false;
-#else
 
-  if ((*step)++, ep_square() != SQ_NONE && relative_rank(sideToMove, ep_square()) != RANK_6)
+  if(!osl_state.isConsistent())
       return false;
 
-  if ((*step)++, testBitboards)
+#else
+
+  if (step && ++*step, testBitboards)
   {
       // The intersection of the white and black pieces must be empty
       if (pieces(WHITE) & pieces(BLACK))
@@ -1590,7 +1591,7 @@ bool Position::pos_is_ok(int* failedStep) const {
   }
 #endif
 
-  if ((*step)++, testState)
+  if (step && ++*step, testState)
   {
       StateInfo si;
       set_state(&si);
@@ -1609,22 +1610,22 @@ bool Position::pos_is_ok(int* failedStep) const {
   }
 
 #ifndef GPSFISH
-  if ((*step)++, testKingCount)
+  if (step && ++*step, testKingCount)
       if (   std::count(board, board + SQUARE_NB, W_KING) != 1
           || std::count(board, board + SQUARE_NB, B_KING) != 1)
           return false;
 
-  if ((*step)++, testKingCapture)
+  if (step && ++*step, testKingCapture)
       if (attackers_to(king_square(~sideToMove)) & pieces(sideToMove))
           return false;
 
-  if ((*step)++, testPieceCounts)
+  if (step && ++*step, testPieceCounts)
       for (Color c = WHITE; c <= BLACK; ++c)
           for (PieceType pt = PAWN; pt <= KING; ++pt)
               if (pieceCount[c][pt] != popcount<Full>(pieces(c, pt)))
                   return false;
 
-  if ((*step)++, testPieceList)
+  if (step && ++*step, testPieceList)
       for (Color c = WHITE; c <= BLACK; ++c)
           for (PieceType pt = PAWN; pt <= KING; ++pt)
               for (int i = 0; i < pieceCount[c][pt];  ++i)
@@ -1632,7 +1633,7 @@ bool Position::pos_is_ok(int* failedStep) const {
                       || index[pieceList[c][pt][i]] != i)
                       return false;
 
-  if ((*step)++, testCastlingSquares)
+  if (step && ++*step, testCastlingSquares)
       for (Color c = WHITE; c <= BLACK; ++c)
           for (CastlingSide s = KING_SIDE; s <= QUEEN_SIDE; s = CastlingSide(s + 1))
           {
@@ -1646,7 +1647,6 @@ bool Position::pos_is_ok(int* failedStep) const {
           }
 #endif
 
-  *step = 0;
 #endif
 
   return true;
