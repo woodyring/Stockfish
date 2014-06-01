@@ -105,65 +105,65 @@ static size_t get_memory()
 
 void init(OptionsMap& o) {
 
-  o["Write Debug Log"]             = Option(false, on_logger);
-  o["Write Search Log"]            = Option(false);
-  o["Search Log Filename"]         = Option("SearchLog.txt");
+  o["Write Debug Log"]          = Option(false, on_logger);
+  o["Write Search Log"]         = Option(false);
+  o["Search Log Filename"]      = Option("SearchLog.txt");
 #ifndef GPSFISH
-  o["Book File"]                   = Option("book.bin");
+  o["Book File"]                = Option("book.bin");
 #endif
-  o["Best Book Move"]              = Option(false);
+  o["Best Book Move"]           = Option(false);
 
 #ifndef GPSFISH
-  o["Contempt Factor"]             = Option(0, -50,  50);
-  o["Mobility (Midgame)"]          = Option(100, 0, 200, on_eval);
-  o["Mobility (Endgame)"]          = Option(100, 0, 200, on_eval);
-  o["Pawn Structure (Midgame)"]    = Option(100, 0, 200, on_eval);
-  o["Pawn Structure (Endgame)"]    = Option(100, 0, 200, on_eval);
-  o["Passed Pawns (Midgame)"]      = Option(100, 0, 200, on_eval);
-  o["Passed Pawns (Endgame)"]      = Option(100, 0, 200, on_eval);
-  o["Space"]                       = Option(100, 0, 200, on_eval);
-  o["Aggressiveness"]              = Option(100, 0, 200, on_eval);
-  o["Cowardice"]                   = Option(100, 0, 200, on_eval);
+  o["Contempt Factor"]          = Option(0, -50,  50);
+  o["Mobility (Midgame)"]       = Option(100, 0, 200, on_eval);
+  o["Mobility (Endgame)"]       = Option(100, 0, 200, on_eval);
+  o["Pawn Structure (Midgame)"] = Option(100, 0, 200, on_eval);
+  o["Pawn Structure (Endgame)"] = Option(100, 0, 200, on_eval);
+  o["Passed Pawns (Midgame)"]   = Option(100, 0, 200, on_eval);
+  o["Passed Pawns (Endgame)"]   = Option(100, 0, 200, on_eval);
+  o["Space"]                    = Option(100, 0, 200, on_eval);
+  o["Aggressiveness"]           = Option(100, 0, 200, on_eval);
+  o["Cowardice"]                = Option(100, 0, 200, on_eval);
 #endif
-  o["Min Split Depth"]             = Option(0, 0, 12, on_threads);
-  o["Threads"]                     = Option(1, 1, MAX_THREADS, on_threads);
-  o["Idle Threads Sleep"]          = Option(true);
+  o["Min Split Depth"]          = Option(0, 0, 12, on_threads);
+  o["Threads"]                  = Option(1, 1, MAX_THREADS, on_threads);
+  o["Idle Threads Sleep"]       = Option(true);
 
 #ifdef GPSFISH
-  o["Hash"]                        = Option(get_memory(), 1, 16384, on_hash_size);
+  o["Hash"]                     = Option(get_memory(), 1, 16384, on_hash_size);
 #else
-  o["Hash"]                        = Option(32, 1, 16384, on_hash_size);
+  o["Hash"]                     = Option(32, 1, 16384, on_hash_size);
 #endif
-  o["Clear Hash"]                  = Option(on_clear_hash);
+  o["Clear Hash"]               = Option(on_clear_hash);
 #ifdef GPSFISH
-  o["Ponder"]                      = Option(false);
-  o["OwnBook"]                     = Option(true);
+  o["Ponder"]                   = Option(false);
+  o["OwnBook"]                  = Option(true);
 #else
-  o["Ponder"]                      = Option(true);
-  o["OwnBook"]                     = Option(false);
+  o["Ponder"]                   = Option(true);
+  o["OwnBook"]                  = Option(false);
 #endif
 
-  o["MultiPV"]                     = Option(1, 1, 500);
-  o["Skill Level"]                 = Option(20, 0, 20);
+  o["MultiPV"]                  = Option(1, 1, 500);
+  o["Skill Level"]              = Option(20, 0, 20);
 #ifdef GPSFISH
-  o["Emergency Move Horizon"]      = Option(50, 0, 60);
-  o["Emergency Base Time"]         = Option(20000, 0, 30000);
-  o["Emergency Move Time"]         = Option(1000, 0, 5000);
+  o["Emergency Move Horizon"]   = Option(50, 0, 60);
+  o["Emergency Base Time"]      = Option(20000, 0, 30000);
+  o["Emergency Move Time"]      = Option(1000, 0, 5000);
 #else
-  o["Emergency Move Horizon"]      = Option(40, 0, 50);
-  o["Emergency Base Time"]         = Option(60, 0, 30000);
-  o["Emergency Move Time"]         = Option(30, 0, 5000);
+  o["Emergency Move Horizon"]   = Option(40, 0, 50);
+  o["Emergency Base Time"]      = Option(60, 0, 30000);
+  o["Emergency Move Time"]      = Option(30, 0, 5000);
 
 #endif
-  o["Minimum Thinking Time"]       = Option(20, 0, 5000);
-  o["Slow Mover"]                  = Option(80, 10, 1000);
+  o["Minimum Thinking Time"]    = Option(20, 0, 5000);
+  o["Slow Mover"]               = Option(80, 10, 1000);
 #ifndef GPSFISH
-  o["UCI_Chess960"]                = Option(false);
+  o["UCI_Chess960"]             = Option(false);
 #endif
 
 #ifdef GPSFISH
-  o["DrawValue"]                   = Option(0, -30000, 30000);
-  o["Resign"]                      = Option(32765, 1000, 32765);
+  o["DrawValue"]                = Option(0, -30000, 30000);
+  o["Resign"]                   = Option(32765, 1000, 32765);
 #endif
 }
 
