@@ -821,7 +821,7 @@ namespace {
 #else
         if (Signals.stop || pos.is_draw() || ss->ply > MAX_PLY)
 #endif
-            return DrawValue[pos.side_to_move()];
+            return ss->ply > MAX_PLY && !inCheck ? evaluate(pos) : DrawValue[pos.side_to_move()];
 
 #ifdef GPSFISH
         if(repeat_check<0)
@@ -1574,7 +1574,7 @@ moves_loop: // When in check and at SpNode search starts from here
 
     // Check for an instant draw or if the maximum ply has been reached
     if (pos.is_draw() || ss->ply > MAX_PLY)
-        return DrawValue[pos.side_to_move()];
+        return ss->ply > MAX_PLY && !InCheck ? evaluate(pos) : DrawValue[pos.side_to_move()];
 
     // Decide whether or not to include checks: this fixes also the type of
     // TT entry depth that we are going to use. Note that in qsearch we use
