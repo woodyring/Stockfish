@@ -298,11 +298,11 @@ void Search::think() {
 
   // Dynamic draw value: try to avoid repetition draws at early midgame
 #ifdef GPSFISH
-  const Value VALUE_DRAW = value_draw(RootPos);
+  const Value VALUE_DRAW = value_draw(RootPos); // XXX : need check value
   DrawValue[ RootColor] = VALUE_DRAW; // XXX : should fix black/white
   DrawValue[~RootColor] = -VALUE_DRAW;
 #else
-  int cf = std::max(70 - RootPos.game_ply(), 0);
+  int cf = Options["Contempt Factor"] * PawnValueMg / 100; // From centipawns
   DrawValue[ RootColor] = VALUE_DRAW - Value(cf);
   DrawValue[~RootColor] = VALUE_DRAW + Value(cf);
 #endif
