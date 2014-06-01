@@ -234,6 +234,11 @@ private:
 #ifndef GPSFISH
   void set_castling_right(Color c, Square rfrom);
 #endif
+  void compute_keys(StateInfo* si) const;
+#ifndef GPSFISH
+  void compute_non_pawn_material(StateInfo* si) const;
+  Score compute_psq_score() const;
+#endif
 
 #ifndef GPSFISH
   // Helper functions
@@ -242,17 +247,6 @@ private:
   void put_piece(Square s, Color c, PieceType pt);
   void remove_piece(Square s, Color c, PieceType pt);
   void move_piece(Square from, Square to, Color c, PieceType pt);
-#endif
-
-  // Computing hash keys from scratch (for initialization and debugging)
-  Key compute_key() const;
-#ifndef GPSFISH
-  Key compute_pawn_key() const;
-  Key compute_material_key() const;
-
-  // Computing incremental evaluation scores and material counts
-  Score compute_psq_score() const;
-  Value compute_non_pawn_material(Color c) const;
 
   // Board and pieces
   Piece board[SQUARE_NB];
