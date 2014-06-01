@@ -999,12 +999,12 @@ namespace {
         ss->currentMove = MOVE_NULL;
 #endif
 
-        // Null move dynamic reduction based on depth
-        Depth R = 3 * ONE_PLY + depth / 4;
+        assert(eval - beta >= 0);
 
-        // Null move dynamic reduction based on value
-        if (eval - PawnValueMg > beta)
-            R += ONE_PLY;
+        // Null move dynamic reduction based on depth and value
+        Depth R =  3 * ONE_PLY
+                 + depth / (2 * ONE_PLY)
+                 + int(eval - beta) / PawnValueMg * ONE_PLY;
 
 #ifdef GPSFISH
         pos.do_undo_null_move(st,
@@ -1038,7 +1038,8 @@ namespace {
 
             // Do verification search at high depths
             ss->skipNullMove = true;
-            Value v = search<NonPV>(pos, ss, alpha, beta, depth-R, false);
+            Value v = depth-R < ONE_PLY ? qsearch<NonPV, false>(pos, ss, alpha, beta, DEPTH_ZERO)
+                                        :  search<NonPV>(pos, ss, alpha, beta, depth-R, false);
             ss->skipNullMove = false;
 
             if (v >= beta)
