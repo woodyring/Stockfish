@@ -385,6 +385,7 @@ extern Value PieceValue[PHASE_NB][PIECE_NB];
 #include "osl/eval/ptypeEvalTraits.h"
 using osl::PAWN;
 const Value PawnValueMg   = (Value)osl::eval::PtypeEvalTraits<osl::PAWN>::val;
+const Value PawnValueEg   = (Value)osl::eval::PtypeEvalTraits<osl::PAWN>::val;
 
 extern const Value PromoteValue[osl::PTYPE_SIZE];
 extern const Value PieceValueType[osl::PTYPE_SIZE];

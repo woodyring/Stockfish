@@ -301,7 +301,7 @@ void Search::think() {
   DrawValue[ RootColor] = VALUE_DRAW; // XXX : should fix black/white
   DrawValue[~RootColor] = -VALUE_DRAW;
 #else
-  int cf = Options["Contempt Factor"] * PawnValueMg / 100; // From centipawns
+  int cf = Options["Contempt Factor"] * PawnValueEg / 100; // From centipawns
   DrawValue[ RootColor] = VALUE_DRAW - Value(cf);
   DrawValue[~RootColor] = VALUE_DRAW + Value(cf);
 #endif
