@@ -56,143 +56,10 @@ namespace {
   // to the position just before the search starts). This is needed by the repetition
   // draw detection code.
   Search::StateStackPtr SetupStates;
-
-  void setoption(istringstream& up);
-  void position(Position& pos, istringstream& up);
-  void go(const Position& pos, istringstream& up);
-}
 #ifdef GPSFISH
-std::vector<Move> ignore_moves;
+  std::vector<Move> ignore_moves;
 #endif
 
-/// Wait for a command from the user, parse this text string as an UCI command,
-/// and call the appropriate functions. Also intercepts EOF from stdin to ensure
-/// that we exit gracefully if the GUI dies unexpectedly. In addition to the UCI
-/// commands, the function also supports a few debug commands.
-
-void UCI::loop(const string& args) {
-
-  Position pos(StartFEN, false, Threads.main()); // The root position
-  string token, cmd = args;
-
-  do {
-      if (args.empty() && !getline(cin, cmd)) // Block here waiting for input
-          cmd = "quit";
-
-      istringstream is(cmd);
-
-      is >> skipws >> token;
-
-#ifdef GPSFISH
-      if (token.size() >= 5 && string(token,0,5) == "echo ")
-          cout << string(token,5) << endl;
-      else
-      if (token == "quit" || token == "stop" || token == "ponderhit" || token.find("gameover")==0)
-#else
-      if (token == "quit" || token == "stop" || token == "ponderhit")
-#endif
-      {
-          // The GUI sends 'ponderhit' to tell us to ponder on the same move the
-          // opponent has played. In case Signals.stopOnPonderhit is set we are
-          // waiting for 'ponderhit' to stop the search (for instance because we
-          // already ran out of time), otherwise we should continue searching but
-          // switch from pondering to normal search.
-          if (token != "ponderhit" || Search::Signals.stopOnPonderhit)
-          {
-              Search::Signals.stop = true;
-              Threads.main()->notify_one(); // Could be sleeping
-          }
-          else
-              Search::Limits.ponder = false;
-      }
-      else if (token == "perft" && (is >> token)) // Read perft depth
-      {
-          stringstream ss;
-
-          ss << Options["Hash"]    << " "
-             << Options["Threads"] << " " << token << " current perft";
-
-          benchmark(pos, ss);
-      }
-
-#ifdef GPSFISH
-      else if (token == "key")
-          sync_cout <<   "position key: " << hex << pos.key() << sync_endl;
-#else
-      else if (token == "key")
-          sync_cout << hex << uppercase << setfill('0')
-                    << "position key: "   << setw(16) << pos.key()
-                    << "\nmaterial key: " << setw(16) << pos.material_key()
-                    << "\npawn key:     " << setw(16) << pos.pawn_key()
-                    << dec << sync_endl;
-
-#endif
-#ifdef GPSFISH
-      else if (token == "usi")
-          sync_cout << "id name " << engine_info(true)
-                    << Options
-                    << "\nusiok"  << sync_endl;
-#else
-      else if (token == "uci")
-          sync_cout << "id name " << engine_info(true)
-                    << "\n"       << Options
-                    << "\nuciok"  << sync_endl;
-#endif
-
-#ifdef GPSFISH
-      else if (token == "usinewgame") {  pos.set(StartFEN, false, Threads.main()); TT.clear(); }
-#else
-      else if (token == "eval")
-      {
-          Search::RootColor = pos.side_to_move(); // Ensure it is set
-          sync_cout << Eval::trace(pos) << sync_endl;
-      }
-      else if (token == "ucinewgame") TT.clear();
-#endif
-      else if (token == "go")         go(pos, is);
-      else if (token == "position")   position(pos, is);
-      else if (token == "setoption")  setoption(is);
-#ifndef GPSFISH
-      else if (token == "flip")       pos.flip();
-#endif
-      else if (token == "bench")      benchmark(pos, is);
-      else if (token == "d")          sync_cout << pos.pretty() << sync_endl;
-#ifdef GPSFISH
-      else if (token == "isready") {
-          bool ok = osl::eval::ml::OpenMidEndingEval::setUp();
-          ok &= osl::progress::ml::NewProgress::setUp();
-          if (! ok) {
-              std::cerr << "set up failed\n";
-              return;
-          }
-          sync_cout << "readyok" << sync_endl;
-      }
-      else if ( token == "ignore_moves"){
-          ignore_moves.clear();
-          while(is >> token) ignore_moves.push_back(move_from_uci(pos, token));
-      }
-      else if (token == "stop"){
-      }
-      else if (token == "echo"){
-          is >> token;
-          cout << token << endl;
-      }
-      else if (token == "show_tree"){
-          show_tree(pos);
-      }
-#else
-      else if (token == "isready")    sync_cout << "readyok" << sync_endl;
-#endif
-      else
-          sync_cout << "Unknown command: " << cmd << sync_endl;
-
-  } while (token != "quit" && args.empty()); // Args have one-shot behaviour
-
-  Threads.wait_for_think_finished(); // Cannot quit whilst the search is running
-}
-
-
-namespace {
 
   // position() is called when engine receives the "position" UCI command.
   // The function sets up the position described in the given FEN string ("fen")
@@ -339,4 +206,131 @@ namespace {
 
     Threads.start_thinking(pos, limits, SetupStates);
   }
+
+} // namespace
+
+
+/// Wait for a command from the user, parse this text string as an UCI command,
+/// and call the appropriate functions. Also intercepts EOF from stdin to ensure
+/// that we exit gracefully if the GUI dies unexpectedly. In addition to the UCI
+/// commands, the function also supports a few debug commands.
+
+void UCI::loop(const string& args) {
+
+  Position pos(StartFEN, false, Threads.main()); // The root position
+  string token, cmd = args;
+
+  do {
+      if (args.empty() && !getline(cin, cmd)) // Block here waiting for input
+          cmd = "quit";
+
+      istringstream is(cmd);
+
+      is >> skipws >> token;
+
+#ifdef GPSFISH
+      if (token.size() >= 5 && string(token,0,5) == "echo ")
+          cout << string(token,5) << endl;
+      else
+      if (token == "quit" || token == "stop" || token == "ponderhit" || token.find("gameover")==0)
+#else
+      if (token == "quit" || token == "stop" || token == "ponderhit")
+#endif
+      {
+          // The GUI sends 'ponderhit' to tell us to ponder on the same move the
+          // opponent has played. In case Signals.stopOnPonderhit is set we are
+          // waiting for 'ponderhit' to stop the search (for instance because we
+          // already ran out of time), otherwise we should continue searching but
+          // switch from pondering to normal search.
+          if (token != "ponderhit" || Search::Signals.stopOnPonderhit)
+          {
+              Search::Signals.stop = true;
+              Threads.main()->notify_one(); // Could be sleeping
+          }
+          else
+              Search::Limits.ponder = false;
+      }
+      else if (token == "perft" && (is >> token)) // Read perft depth
+      {
+          stringstream ss;
+
+          ss << Options["Hash"]    << " "
+             << Options["Threads"] << " " << token << " current perft";
+
+          benchmark(pos, ss);
+      }
+#ifdef GPSFISH
+      else if (token == "key")
+          sync_cout <<   "position key: " << hex << pos.key() << sync_endl;
+#else
+      else if (token == "key")
+          sync_cout << hex << uppercase << setfill('0')
+                    << "position key: "   << setw(16) << pos.key()
+                    << "\nmaterial key: " << setw(16) << pos.material_key()
+                    << "\npawn key:     " << setw(16) << pos.pawn_key()
+                    << dec << sync_endl;
+
+#endif
+#ifdef GPSFISH
+      else if (token == "usi")
+          sync_cout << "id name " << engine_info(true)
+                    << Options
+                    << "\nusiok"  << sync_endl;
+#else
+      else if (token == "uci")
+          sync_cout << "id name " << engine_info(true)
+                    << "\n"       << Options
+                    << "\nuciok"  << sync_endl;
+#endif
+
+#ifdef GPSFISH
+      else if (token == "usinewgame") {  pos.set(StartFEN, false, Threads.main()); TT.clear(); }
+#else
+      else if (token == "eval")
+      {
+          Search::RootColor = pos.side_to_move(); // Ensure it is set
+          sync_cout << Eval::trace(pos) << sync_endl;
+      }
+      else if (token == "ucinewgame") TT.clear();
+#endif
+      else if (token == "go")         go(pos, is);
+      else if (token == "position")   position(pos, is);
+      else if (token == "setoption")  setoption(is);
+#ifndef GPSFISH
+      else if (token == "flip")       pos.flip();
+#endif
+      else if (token == "bench")      benchmark(pos, is);
+      else if (token == "d")          sync_cout << pos.pretty() << sync_endl;
+#ifdef GPSFISH
+      else if (token == "isready") {
+          bool ok = osl::eval::ml::OpenMidEndingEval::setUp();
+          ok &= osl::progress::ml::NewProgress::setUp();
+          if (! ok) {
+              std::cerr << "set up failed\n";
+              return;
+          }
+          sync_cout << "readyok" << sync_endl;
+      }
+      else if ( token == "ignore_moves"){
+          ignore_moves.clear();
+          while(is >> token) ignore_moves.push_back(move_from_uci(pos, token));
+      }
+      else if (token == "stop"){
+      }
+      else if (token == "echo"){
+          is >> token;
+          cout << token << endl;
+      }
+      else if (token == "show_tree"){
+          show_tree(pos);
+      }
+#else
+      else if (token == "isready")    sync_cout << "readyok" << sync_endl;
+#endif
+      else
+          sync_cout << "Unknown command: " << cmd << sync_endl;
+
+  } while (token != "quit" && args.empty()); // Args have one-shot behaviour
+
+  Threads.wait_for_think_finished(); // Cannot quit whilst the search is running
 }
