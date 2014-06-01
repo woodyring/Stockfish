@@ -101,7 +101,7 @@ static size_t get_memory()
 }
 #endif
 
-/// init() initializes the UCI options to their hard coded default values
+/// init() initializes the UCI options to their hard-coded default values
 
 void init(OptionsMap& o) {
 
