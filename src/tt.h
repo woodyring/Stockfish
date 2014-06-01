@@ -38,7 +38,6 @@ using osl::SquareCompressor;
 /// value: 16 bit
 /// depth: 16 bit
 /// static value: 16 bit
-/// static margin: 16 bit
 
 #ifdef GPSFISH
 
