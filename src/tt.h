@@ -29,15 +29,15 @@ using osl::SquareCompressor;
 #include "misc.h"
 #include "types.h"
 
-/// The TTEntry is the 128 bit transposition table entry, defined as below:
+/// The TTEntry is the 14 bytes transposition table entry, defined as below:
 ///
-/// key: 32 bit
-/// move: 16 bit
-/// bound type: 8 bit
-/// generation: 8 bit
-/// value: 16 bit
-/// depth: 16 bit
-/// static value: 16 bit
+/// key        32 bit
+/// move       16 bit
+/// bound type  8 bit
+/// generation  8 bit
+/// value      16 bit
+/// depth      16 bit
+/// eval value 16 bit
 
 #ifdef GPSFISH
 
@@ -49,13 +49,28 @@ using osl::SquareCompressor;
 struct TTEntry {
 
 #ifdef GPSFISH
-  void save(uint32_t k, Value v, Bound b, Depth d, Move m, int g, Value ev) {
+  Move16 move16Val() const { return (Move16)move16; }
+  Move move(Position const& pos) const { return fromMove16((Move16)move16,pos); }
+#else
+  Move  move()  const      { return (Move )move16; }
+#endif
+  Bound bound() const      { return (Bound)bound8; }
+  Value value() const      { return (Value)value16; }
+  Depth depth() const      { return (Depth)depth16; }
+  Value eval_value() const { return (Value)evalValue; }
+
+private:
+  friend class TranspositionTable;
+
+#ifdef GPSFISH
+  void save(uint32_t k, Value v, Bound b, Depth d, Move m, uint8_t g, Value ev) {
     save(k,v,b,d,toMove16(m),g,ev);
   }
-  void save(uint32_t k, Value v, Bound b, Depth d, Move16 m, int g, Value ev) {
+  void save(uint32_t k, Value v, Bound b, Depth d, Move16 m, uint8_t g, Value ev) {
 #else
 
   void save(uint32_t k, Value v, Bound b, Depth d, Move m, int g, Value ev) {
+  void save(uint32_t k, Value v, Bound b, Depth d, Move m, uint8_t g, Value ev) {
 #endif
 
     key32       = (uint32_t)k;
@@ -66,21 +81,6 @@ struct TTEntry {
     depth16     = (int16_t)d;
     evalValue   = (int16_t)ev;
   }
-
-  uint32_t key() const     { return key32; }
-#ifdef GPSFISH
-  Move16 move16Val() const { return (Move16)move16; }
-  Move move(Position const& pos) const { return fromMove16((Move16)move16,pos); }
-#else
-  Move move() const        { return (Move)move16; }
-#endif
-  Bound bound() const      { return (Bound)bound8; }
-  Value value() const      { return (Value)value16; }
-  Depth depth() const      { return (Depth)depth16; }
-  Value eval_value() const { return (Value)evalValue; }
-
-private:
-  friend class TranspositionTable;
 
   uint32_t key32;
   uint16_t move16;
@@ -97,7 +97,7 @@ private:
 
 class TranspositionTable {
 
-  static const unsigned ClusterSize = 4; // A cluster is 64 Bytes
+  static const unsigned ClusterSize = 4;
 
 public:
  ~TranspositionTable() { free(mem); }
