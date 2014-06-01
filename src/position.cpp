@@ -1526,6 +1526,36 @@ Value Position::compute_non_pawn_material(Color c) const {
 #endif
 
 
+/// Position::is_draw() tests whether the position is drawn by material, 50 moves
+/// rule or repetition. It does not detect stalemates.
+
+bool Position::is_draw() const {
+
+#ifdef GPSFISH
+  int dummy;
+  return is_draw(dummy);
+#else
+
+  if (   !pieces(PAWN)
+      && (non_pawn_material(WHITE) + non_pawn_material(BLACK) <= BishopValueMg))
+      return true;
+
+  if (st->rule50 > 99 && (!checkers() || MoveList<LEGAL>(*this).size()))
+      return true;
+
+  StateInfo* stp = st;
+  for (int i = 2, e = std::min(st->rule50, st->pliesFromNull); i <= e; i += 2)
+  {
+      stp = stp->previous->previous;
+
+      if (stp->key == st->key)
+          return true; // Draw at first repetition
+  }
+
+  return false;
+#endif
+}
+
 #ifdef GPSFISH
 bool Position::is_draw(int& ret) const {
 
@@ -1576,45 +1606,6 @@ bool Position::is_draw(int& ret) const {
 }
 #endif
 
-/// Position::is_draw() tests whether the position is drawn by material,
-/// repetition, or the 50 moves rule. It does not detect stalemates: this
-/// must be done by the search.
-bool Position::is_draw() const {
-
-#ifdef GPSFISH
-  int dummy;
-  return is_draw(dummy);
-#else
-
-  // Draw by material?
-  if (   !pieces(PAWN)
-      && (non_pawn_material(WHITE) + non_pawn_material(BLACK) <= BishopValueMg))
-      return true;
-
-  // Draw by the 50 moves rule?
-  if (st->rule50 > 99 && (!checkers() || MoveList<LEGAL>(*this).size()))
-      return true;
-
-  int i = 4, e = std::min(st->rule50, st->pliesFromNull);
-
-  if (i <= e)
-  {
-      StateInfo* stp = st->previous->previous;
-
-      do {
-          stp = stp->previous->previous;
-
-          if (stp->key == st->key)
-              return true; // Draw after first repetition
-
-          i += 2;
-
-      } while (i <= e);
-  }
-
-  return false;
-#endif
-}
 
 
 /// Position::flip() flips position with the white and black sides reversed. This
