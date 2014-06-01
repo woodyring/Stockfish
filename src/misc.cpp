@@ -59,8 +59,8 @@ const string engine_info(bool to_uci) {
   }
 
   ss << (Is64Bit ? " 64" : "")
-     << (HasPopCnt ? " SSE4.2" : "")
-     << (to_uci ? "\nid author ": " by ")
+     << (HasPext ? " BMI2" : (HasPopCnt ? " SSE4.2" : ""))
+     << (to_uci  ? "\nid author ": " by ")
 #ifdef GPSFISH
      << "Team GPS (GPSshogi) / Tord Romstad, Marco Costalba and Joona Kiiski (Stockfish)";
 #else
