@@ -1221,7 +1221,7 @@ moves_loop: // When in check and at SpNode search starts from here
           ext = inCheck || ss->staticEval <= alpha ? ONE_PLY : ONE_PLY / 2;
 #else
       // Step 12. Extend checks
-      if (givesCheck && pos.see_sign(move) >= 0)
+      if (givesCheck && pos.see_sign(move) >= VALUE_ZERO)
           ext = ONE_PLY;
 #endif
 
@@ -1297,7 +1297,7 @@ moves_loop: // When in check and at SpNode search starts from here
           }
 
           // Prune moves with negative SEE at low depths
-          if (predictedDepth < 4 * ONE_PLY && pos.see_sign(move) < 0)
+          if (predictedDepth < 4 * ONE_PLY && pos.see_sign(move) < VALUE_ZERO)
           {
               if (SpNode)
                   splitPoint->mutex.lock();
@@ -1703,7 +1703,7 @@ moves_loop: // When in check and at SpNode search starts from here
               continue;
           }
 
-          if (futilityBase < beta && pos.see(move) <= 0)
+          if (futilityBase < beta && pos.see(move) <= VALUE_ZERO)
           {
               bestValue = std::max(bestValue, futilityBase);
               continue;
@@ -1726,7 +1726,7 @@ moves_loop: // When in check and at SpNode search starts from here
 #ifndef GPSFISH
           &&  type_of(move) != PROMOTION
 #endif
-          &&  pos.see_sign(move) < 0)
+          &&  pos.see_sign(move) < VALUE_ZERO)
           continue;
 
       // Check for legality just before making the move
