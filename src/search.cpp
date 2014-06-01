@@ -88,16 +88,6 @@ using std::string;
 using Eval::evaluate;
 using namespace Search;
 
-// Fast wrapper for common case of pos.gives_check()
-#ifdef GPSFISH
-#define FAST_GIVES_CHECK(pos, m, ci) (pos.gives_check(m, ci))
-#else
-#define FAST_GIVES_CHECK(pos, m, ci) \
-    ((type_of(m) == NORMAL && ci.dcCandidates == 0) \
-       ? (ci.checkSq[type_of(pos.piece_on(from_sq(m)))] & to_sq(m)) \
-	   : pos.gives_check(m, ci))
-#endif
-
 namespace {
 
   // Set to true to force running with one thread. Used for debugging
@@ -1194,10 +1184,14 @@ moves_loop: // When in check and at SpNode search starts from here
 
       ext = DEPTH_ZERO;
       captureOrPromotion = pos.capture_or_promotion(move);
-      givesCheck = FAST_GIVES_CHECK(pos, move, ci);
 #ifdef GPSFISH
+      givesCheck = pos.gives_check(move, ci);
       dangerous =   givesCheck; // XXX : add other condition ?
 #else
+      givesCheck =  type_of(move) == NORMAL && !ci.dcCandidates
+                  ? ci.checkSq[type_of(pos.piece_on(from_sq(move)))] & to_sq(move)
+                  : pos.gives_check(move, ci);
+
       dangerous =   givesCheck
                  || type_of(move) != NORMAL
                  || pos.advanced_pawn_push(move);
@@ -1659,7 +1653,13 @@ moves_loop: // When in check and at SpNode search starts from here
       if(move_stack_rejections_probe(move,pos,ss,alpha)) continue;
 #endif
 
-      givesCheck = FAST_GIVES_CHECK(pos, move, ci);
+#ifdef GPSFISH
+      givesCheck = pos.gives_check(move, ci);
+#else
+      givesCheck =  type_of(move) == NORMAL && !ci.dcCandidates
+                  ? ci.checkSq[type_of(pos.piece_on(from_sq(move)))] & to_sq(move)
+                  : pos.gives_check(move, ci);
+#endif
 
       // Futility pruning
       if (   !PvNode
