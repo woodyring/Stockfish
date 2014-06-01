@@ -143,7 +143,7 @@ namespace Zobrist {
 #else
   Key psq[COLOR_NB][PIECE_TYPE_NB][SQUARE_NB];
   Key enpassant[FILE_NB];
-  Key castling[CASTLING_FLAG_NB];
+  Key castling[CASTLING_RIGHT_NB];
 #endif
   Key side;
   Key exclusion;
@@ -401,7 +401,7 @@ void Position::set(const string& fenStr, bool isChess960, Thread* th) {
       else
           continue;
 
-      set_castling_flag(c, rsq);
+      set_castling_right(c, rsq);
   }
 
   // 4. En passant square. Ignore if no pawn capture is possible
@@ -445,30 +445,30 @@ void Position::set(const string& fenStr, bool isChess960, Thread* th) {
 
 #ifndef GPSFISH
 
-/// Position::set_castling_flag() is a helper function used to set castling
-/// flags given the corresponding color and the rook starting square.
+/// Position::set_castling_right() is a helper function used to set castling
+/// rights given the corresponding color and the rook starting square.
 
-void Position::set_castling_flag(Color c, Square rfrom) {
+void Position::set_castling_right(Color c, Square rfrom) {
 
   Square kfrom = king_square(c);
   CastlingSide cs = kfrom < rfrom ? KING_SIDE : QUEEN_SIDE;
-  CastlingFlag cf = (c | cs);
+  CastlingRight cr = (c | cs);
 
-  st->castlingFlags |= cf;
-  castlingFlagsMask[kfrom] |= cf;
-  castlingFlagsMask[rfrom] |= cf;
-  castlingRookSquare[cf] = rfrom;
+  st->castlingRights |= cr;
+  castlingRightsMask[kfrom] |= cr;
+  castlingRightsMask[rfrom] |= cr;
+  castlingRookSquare[cr] = rfrom;
 
   Square kto = relative_square(c, cs == KING_SIDE ? SQ_G1 : SQ_C1);
   Square rto = relative_square(c, cs == KING_SIDE ? SQ_F1 : SQ_D1);
 
   for (Square s = std::min(rfrom, rto); s <= std::max(rfrom, rto); ++s)
       if (s != kfrom && s != rfrom)
-          castlingPath[cf] |= s;
+          castlingPath[cr] |= s;
 
   for (Square s = std::min(kfrom, kto); s <= std::max(kfrom, kto); ++s)
       if (s != kfrom && s != rfrom)
-          castlingPath[cf] |= s;
+          castlingPath[cr] |= s;
 }
 
 #endif
@@ -1052,12 +1052,12 @@ void Position::do_move(Move m, StateInfo& newSt, const CheckInfo& ci, bool moveI
       st->epSquare = SQ_NONE;
   }
 
-  // Update castling flags if needed
-  if (st->castlingFlags && (castlingFlagsMask[from] | castlingFlagsMask[to]))
+  // Update castling rights if needed
+  if (st->castlingRights && (castlingRightsMask[from] | castlingRightsMask[to]))
   {
-      int cf = castlingFlagsMask[from] | castlingFlagsMask[to];
-      k ^= Zobrist::castling[st->castlingFlags & cf];
-      st->castlingFlags &= ~cf;
+      int cr = castlingRightsMask[from] | castlingRightsMask[to];
+      k ^= Zobrist::castling[st->castlingRights & cr];
+      st->castlingRights &= ~cr;
   }
 
   // Prefetch TT access as soon as we know the new hash key
@@ -1420,7 +1420,7 @@ Key Position::compute_key() const {
 
 #else
 
-  Key k = Zobrist::castling[st->castlingFlags];
+  Key k = Zobrist::castling[st->castlingRights];
 
   for (Bitboard b = pieces(); b; )
   {
@@ -1768,9 +1768,9 @@ bool Position::pos_is_ok(int* failedStep) const {
               if (!can_castle(c | s))
                   continue;
 
-              if (  (castlingFlagsMask[king_square(c)] & (c | s)) != (c | s)
+              if (  (castlingRightsMask[king_square(c)] & (c | s)) != (c | s)
                   || piece_on(castlingRookSquare[c | s]) != make_piece(c, ROOK)
-                  || castlingFlagsMask[castlingRookSquare[c | s]] != (c | s))
+                  || castlingRightsMask[castlingRookSquare[c | s]] != (c | s))
                   return false;
           }
 #endif
