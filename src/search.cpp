@@ -1491,12 +1491,16 @@ moves_loop: // When in check and at SpNode search starts from here
     // return a fail low score.
     if (!moveCount)
 #ifdef GPSFISH
-        return  (excludedMove != MOVE_NONE) ? alpha
-              : (inCheck ? (move_is_pawn_drop((ss-1)->currentMove) ? mate_in(ss->ply) : mated_in(ss->ply) ) : VALUE_DRAW); // XXX : checking checkmate by pawn drop
+        bestValue = (excludedMove != MOVE_NONE) ? alpha
+                   :    (inCheck ? (move_is_pawn_drop((ss-1)->currentMove) ? mate_in(ss->ply) : mated_in(ss->ply) ) : VALUE_DRAW); // XXX : SHOGI's rule, checking checkmate by pawn drop
 #else
-        return  excludedMove ? alpha
-              : inCheck ? mated_in(ss->ply) : DrawValue[pos.side_to_move()];
+        bestValue = excludedMove ? alpha
+                   :     inCheck ? mated_in(ss->ply) : DrawValue[pos.side_to_move()];
 #endif
+
+    // Quiet best move: update killers, history, countermoves and followupmoves
+    else if (bestValue >= beta && !pos.capture_or_promotion(bestMove) && !inCheck)
+        update_stats(pos, ss, bestMove, depth, quietsSearched, quietCount - 1);
 
     TT.store(posKey, value_to_tt(bestValue, ss->ply),
              bestValue >= beta  ? BOUND_LOWER :
@@ -1506,10 +1510,6 @@ moves_loop: // When in check and at SpNode search starts from here
              PvNode && bestMove ? BOUND_EXACT : BOUND_UPPER,
 #endif
              depth, bestMove, ss->staticEval);
-
-    // Quiet best move: update killers, history, countermoves and followupmoves
-    if (bestValue >= beta && !pos.capture_or_promotion(bestMove) && !inCheck)
-        update_stats(pos, ss, bestMove, depth, quietsSearched, quietCount - 1);
 
     assert(bestValue > -VALUE_INFINITE && bestValue < VALUE_INFINITE);
 
