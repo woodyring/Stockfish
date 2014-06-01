@@ -450,7 +450,7 @@ void Position::set(const string& fenStr, bool isChess960, Thread* th) {
 
   // Convert from fullmove starting from 1 to ply starting from 0,
   // handle also common incorrect FEN with fullmove = 0.
-  gamePly = std::max(2 * (gamePly - 1), 0) + int(sideToMove == BLACK);
+  gamePly = std::max(2 * (gamePly - 1), 0) + (sideToMove == BLACK);
 
 #ifdef GPSFISH
   if(eval!=NULL) *eval=eval_t(osl_state,false);
@@ -618,7 +618,7 @@ const string Position::fen() const {
       ss << '-';
 
   ss << (ep_square() == SQ_NONE ? " - " : " " + to_string(ep_square()) + " ")
-     << st->rule50 << " " << 1 + (gamePly - int(sideToMove == BLACK)) / 2;
+     << st->rule50 << " " << 1 + (gamePly - (sideToMove == BLACK)) / 2;
 
 #endif
 
