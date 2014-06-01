@@ -82,6 +82,7 @@ namespace Search {
   Color RootColor;
   Time::point SearchTime;
   StateStackPtr SetupStates;
+  Value Contempt[2]; // [bestValue > VALUE_DRAW]
 }
 
 using std::string;
@@ -295,16 +296,8 @@ void Search::think() {
   RootColor = RootPos.side_to_move();
   TimeMgr.init(Limits, RootPos.game_ply(), RootColor);
 
-  // Dynamic draw value: try to avoid repetition draws at early midgame
-#ifdef GPSFISH
-  const Value VALUE_DRAW = value_draw(RootPos); // XXX : need check value
-  DrawValue[ RootColor] = VALUE_DRAW; // XXX : should fix black/white
-  DrawValue[~RootColor] = -VALUE_DRAW;
-#else
-  int cf = Options["Contempt Factor"] * PawnValueEg / 100; // From centipawns
-  DrawValue[ RootColor] = VALUE_DRAW - Value(cf);
-  DrawValue[~RootColor] = VALUE_DRAW + Value(cf);
-#endif
+  Contempt[0] =  Options["Contempt Factor"] * PawnValueEg / 100; // From centipawns
+  Contempt[1] = (Options["Contempt Factor"] + 12) * PawnValueEg / 100;
 
   if (RootMoves.empty())
   {
@@ -630,6 +623,9 @@ namespace {
             {
                 bestValue = search<Root>(pos, ss, alpha, beta, depth * ONE_PLY, false);
 
+                DrawValue[ RootColor] = VALUE_DRAW - Contempt[bestValue > VALUE_DRAW];
+                DrawValue[~RootColor] = VALUE_DRAW + Contempt[bestValue > VALUE_DRAW];
+
                 // Bring the best move to the front. It is critical that sorting
                 // is done with a stable algorithm because all the values but the
                 // first and eventually the new best one are set to -VALUE_INFINITE
@@ -761,7 +757,6 @@ namespace {
     Thread* thisThread = pos.this_thread();
 
 #ifdef GPSFISH
-    const Value VALUE_DRAW = value_draw(pos);
     int repeat_check = 0;
 
     if(can_capture_king(pos)){

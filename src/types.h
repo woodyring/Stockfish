@@ -193,9 +193,7 @@ enum Bound {
 
 enum Value {
   VALUE_ZERO      = 0,
-#ifndef GPSFISH
   VALUE_DRAW      = 0,
-#endif
   VALUE_KNOWN_WIN = 10000,
   VALUE_MATE      = 32000,
   VALUE_INFINITE  = 32001,
