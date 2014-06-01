@@ -930,6 +930,10 @@ namespace {
 #endif
       )
     {
+        if (   depth <= ONE_PLY
+            && eval + razor_margin(3 * ONE_PLY) <= alpha)
+            return qsearch<NonPV, false>(pos, ss, alpha, beta, DEPTH_ZERO);
+
         Value ralpha = alpha - razor_margin(depth);
         Value v = qsearch<NonPV, false>(pos, ss, ralpha, ralpha+1, DEPTH_ZERO);
         if (v <= ralpha)
