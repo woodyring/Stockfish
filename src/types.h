@@ -128,7 +128,17 @@ enum MoveType {
   CASTLING  = 3 << 14
 };
 
+
 #ifndef GPSFISH
+
+enum Color {
+  WHITE, BLACK, NO_COLOR, COLOR_NB = 2
+};
+
+enum CastlingSide {
+  KING_SIDE, QUEEN_SIDE, CASTLING_SIDE_NB = 2
+};
+
 enum CastlingFlag {  // Defined as in PolyGlot book hash key
   NO_CASTLING,
   WHITE_OO,
@@ -139,10 +149,10 @@ enum CastlingFlag {  // Defined as in PolyGlot book hash key
   CASTLING_FLAG_NB = 16
 };
 
-enum CastlingSide {
-  KING_SIDE,
-  QUEEN_SIDE,
-  CASTLING_SIDE_NB = 2
+template<Color C, CastlingSide S> struct MakeCastling {
+  static const CastlingFlag
+  flag = C == WHITE ? S == QUEEN_SIDE ? WHITE_OOO : WHITE_OO
+                    : S == QUEEN_SIDE ? BLACK_OOO : BLACK_OO;
 };
 #endif
 
@@ -223,11 +233,7 @@ enum Piece {
   PIECE_NB = 16
 };
 
-enum Color {
-  WHITE, BLACK, NO_COLOR, COLOR_NB = 2
-};
 #endif
-
 
 enum Depth {
 
@@ -428,6 +434,12 @@ inline Square operator|(File f, Rank r) {
 #endif
 }
 
+#ifndef GPSFISH
+inline CastlingFlag operator|(Color c, CastlingSide s) {
+  return CastlingFlag(WHITE_OO << ((s == QUEEN_SIDE) + 2 * c));
+}
+#endif
+
 inline Value mate_in(int ply) {
   return VALUE_MATE - ply;
 }
@@ -443,12 +455,6 @@ inline Piece make_piece(Color c, PieceType pt) {
   return Piece((c << 3) | pt);
 #endif
 }
-
-#ifndef GPSFISH
-inline CastlingFlag make_castling_flag(Color c, CastlingSide s) {
-  return CastlingFlag(WHITE_OO << ((s == QUEEN_SIDE) + 2 * c));
-}
-#endif
 
 inline PieceType type_of(Piece p)  {
 #ifdef GPSFISH
