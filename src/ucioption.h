@@ -61,7 +61,7 @@ private:
 };
 
 void init(OptionsMap&);
-void loop(const std::string&);
+void loop(int argc, char* argv[]);
 
 #ifdef GPSFISH
 std::string strReplace (const std::string& orig, const std::string& from, const std::string& to);
