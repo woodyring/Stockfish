@@ -60,7 +60,7 @@ namespace {
 }
 
 
-// ThreadBase::notify_one() wakes up the thread when there is some work to do
+// notify_one() wakes up the thread when there is some work to do
 
 void ThreadBase::notify_one() {
 
@@ -70,7 +70,7 @@ void ThreadBase::notify_one() {
 }
 
 
-// ThreadBase::wait_for() set the thread to sleep until condition 'b' turns true
+// wait_for() set the thread to sleep until condition 'b' turns true
 
 void ThreadBase::wait_for(volatile const bool& b) {
 
@@ -93,7 +93,7 @@ Thread::Thread() /* : splitPoints() */ { // Value-initialization bug in MSVC
 }
 
 
-// Thread::cutoff_occurred() checks whether a beta cutoff has occurred in the
+// cutoff_occurred() checks whether a beta cutoff has occurred in the
 // current active split point, or in some ancestor of the split point.
 
 bool Thread::cutoff_occurred() const {
@@ -220,12 +220,9 @@ void ThreadPool::read_uci_options() {
 
   assert(requested > 0);
 
-  // Value 0 has a special meaning: We determine the optimal minimum split depth
-  // automatically. Anyhow the minimumSplitDepth should never be under 4 plies.
+  // If zero (default) then set best minimum split depth automatically
   if (!minimumSplitDepth)
-      minimumSplitDepth = (requested < 8 ? 4 : 7) * ONE_PLY;
-  else
-      minimumSplitDepth = std::max(4 * ONE_PLY, minimumSplitDepth);
+      minimumSplitDepth = requested < 8 ? 4 * ONE_PLY : 7 * ONE_PLY;
 
   while (size() < requested)
       push_back(new_thread<Thread>());
@@ -238,7 +235,7 @@ void ThreadPool::read_uci_options() {
 }
 
 
-// slave_available() tries to find an idle thread which is available as a slave
+// available_slave() tries to find an idle thread which is available as a slave
 // for the thread 'master'.
 
 Thread* ThreadPool::available_slave(const Thread* master) const {
