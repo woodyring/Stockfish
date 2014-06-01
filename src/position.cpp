@@ -1293,7 +1293,7 @@ Value Position::see(Move m) const {
   assert(move_is_ok(m));
 #ifdef GPSFISH
   Player p=osl_state.turn();
-  return osl::See::see(osl_state,m,osl_state.pin(p),osl_state.pin(alt(p)));
+  return (Value)osl::See::see(osl_state,m,osl_state.pin(p),osl_state.pin(alt(p)));
 #else
 
   Square from, to;
