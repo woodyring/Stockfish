@@ -63,6 +63,7 @@ using std::string;
 # define GPSFISH_CHECKMATE3
 # define GPSFISH_CHECKMATE3_QUIESCE
 # define GPSFISH_DFPN
+# define GPSFISH_FIX // some commit from sf_4 to sf_dd prevent to find checkmate move
 #endif
 
 #ifdef GPSFISH_DFPN
@@ -1166,8 +1167,8 @@ moves_loop: // When in check and at SpNode search starts from here
 
     singularExtensionNode =   !RootNode
                            && !SpNode
-#ifdef GPSFISH
-                           &&  depth >= (PvNode ? 6 * ONE_PLY : 8 * ONE_PLY) // XXX : could not found checkmate
+#ifdef GPSFISH_FIX
+                           &&  depth >= (PvNode ? 6 * ONE_PLY : 8 * ONE_PLY)
 #else
                            &&  depth >= 8 * ONE_PLY
 #endif
@@ -1237,9 +1238,8 @@ moves_loop: // When in check and at SpNode search starts from here
                  || type_of(move) == CASTLE;
 #endif
 
-#ifdef GPSFISH
+#ifdef GPSFISH_FIX
       // Step 12. Extend checks and, in PV nodes, also dangerous moves
-      // XXX : find checkmate, too late
       if (PvNode && dangerous)
           ext = ONE_PLY;
 
@@ -1370,8 +1370,8 @@ moves_loop: // When in check and at SpNode search starts from here
       if (    depth >= 3 * ONE_PLY
           && !pvMove
           && !captureOrPromotion
-#ifdef GPSFISH
-          && !dangerous // XXX : 5d90c149b5804403e5e8c1a25d0b37577b059712 , missed checkmate move
+#ifdef GPSFISH_FIX
+          && !dangerous
 #endif
           &&  move != ttMove
           &&  move != ss->killers[0]
