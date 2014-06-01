@@ -127,7 +127,6 @@ void init(OptionsMap& o) {
 #endif
   o["Min Split Depth"]          << Option(0, 0, 12, on_threads);
   o["Threads"]                  << Option(1, 1, MAX_THREADS, on_threads);
-  o["Idle Threads Sleep"]       << Option(true);
 
 #ifdef GPSFISH
   o["Hash"]                     << Option(get_memory(), 1, 16384, on_hash_size);
