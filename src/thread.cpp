@@ -113,9 +113,9 @@ bool Thread::cutoff_occurred() const {
 // which are busy searching the split point at the top of slave's split point
 // stack (the "helpful master concept" in YBWC terminology).
 
-bool Thread::available_to(const Thread* master) const {
+bool Thread::available_to(const Thread* master, bool latejoin) const {
 
-  if (searching)
+  if (searching && !latejoin)
       return false;
 
   // Make a local copy to be sure it doesn't become zero under our feet while
@@ -240,7 +240,7 @@ void ThreadPool::read_uci_options() {
 Thread* ThreadPool::available_slave(const Thread* master) const {
 
   for (const_iterator it = begin(); it != end(); ++it)
-      if ((*it)->available_to(master))
+      if ((*it)->available_to(master, false))
           return *it;
 
   return NULL;
@@ -293,6 +293,7 @@ void Thread::split(Position& pos, const Stack* ss, Value alpha, Value beta, Valu
   Threads.mutex.lock();
   sp.mutex.lock();
 
+  sp.allowLatejoin = true; // Only set this under lock protection
   ++splitPointsSize;
   activeSplitPoint = &sp;
   activePosition = NULL;

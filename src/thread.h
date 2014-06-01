@@ -81,6 +81,7 @@ struct SplitPoint {
   // Shared data
   Mutex mutex;
   std::bitset<MAX_THREADS> slavesMask;
+  volatile bool allowLatejoin;
   volatile uint64_t nodes;
   volatile Value alpha;
   volatile Value bestValue;
@@ -117,8 +118,9 @@ struct Thread : public ThreadBase {
 
   Thread();
   virtual void idle_loop();
+  bool attempt_to_latejoin();
   bool cutoff_occurred() const;
-  bool available_to(const Thread* master) const;
+  bool available_to(const Thread* master, bool latejoin) const;
 
   template <bool Fake>
   void split(Position& pos, const Search::Stack* ss, Value alpha, Value beta, Value* bestValue, Move* bestMove,
