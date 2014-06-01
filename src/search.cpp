@@ -1235,7 +1235,7 @@ moves_loop: // When in check and at SpNode search starts from here
       dangerous =   givesCheck; // XXX : add other condition ?
 #else
       dangerous =   givesCheck
-                 || pos.passed_pawn_push(move)
+                 || pos.advanced_pawn_push(move)
                  || type_of(move) == CASTLING;
 #endif
 
@@ -1717,10 +1717,9 @@ moves_loop: // When in check and at SpNode search starts from here
           && !InCheck
           && !givesCheck
           &&  move != ttMove
-          &&  type_of(move) != PROMOTION
           &&  futilityBase > -VALUE_KNOWN_WIN
 #ifndef GPSFISH
-          && !pos.passed_pawn_push(move)
+          && !pos.advanced_pawn_push(move)
 #endif
          )
       {
