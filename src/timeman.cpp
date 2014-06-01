@@ -38,8 +38,6 @@ namespace {
 
   const double xscale     = 9.3;
   const double xshift     = 59.8;
-  const double yscale     = 7780;
-  const double yshift     = 1e-3; // Larger than 0. Ensures a non-zero importance
   const double skewfactor = 0.172;
 
 
@@ -50,7 +48,7 @@ namespace {
 
   double move_importance(int ply) {
 
-    return yscale / pow((1 + exp((ply - xshift) / xscale)), skewfactor) + yshift;
+    return 1 / pow((1 + exp((ply - xshift) / xscale)), skewfactor) + 1e-3; // Ensure non-zero
   }
 
 
