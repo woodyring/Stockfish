@@ -1235,8 +1235,8 @@ moves_loop: // When in check and at SpNode search starts from here
       dangerous =   givesCheck; // XXX : add other condition ?
 #else
       dangerous =   givesCheck
-                 || pos.advanced_pawn_push(move)
-                 || type_of(move) == CASTLING;
+                 || type_of(move) != NORMAL
+                 || pos.advanced_pawn_push(move);
 #endif
 
 #ifdef GPSFISH_FIX
@@ -1726,11 +1726,11 @@ moves_loop: // When in check and at SpNode search starts from here
 #ifdef GPSFISH
           futilityValue =  futilityBase
                          + PieceValue[EG][pos.piece_on(to_sq(move))]
-                         + (type_of(move) == PROMOTION ? promote_value_of_piece_on(pos.piece_on(from_sq(move))) : VALUE_ZERO);
+                         + (type_of(move) == PROMOTION ? promote_value_of_piece_on(pos.piece_on(from_sq(move))) : VALUE_ZERO); // XXX : need condition ?
 #else
-          futilityValue =  futilityBase
-                         + PieceValue[EG][pos.piece_on(to_sq(move))]
-                         + (type_of(move) == ENPASSANT ? PawnValueEg : VALUE_ZERO);
+          assert(type_of(move) != ENPASSANT); // Due to !pos.advanced_pawn_push
+
+          futilityValue = futilityBase + PieceValue[EG][pos.piece_on(to_sq(move))];
 #endif
 
           if (futilityValue < beta)
