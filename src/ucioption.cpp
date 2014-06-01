@@ -160,7 +160,6 @@ void init(OptionsMap& o) {
   o["Slow Mover"]                  = Option(80, 10, 1000);
 #ifndef GPSFISH
   o["UCI_Chess960"]                = Option(false);
-  o["UCI_AnalyseMode"]             = Option(false, on_eval);
 #endif
 
 #ifdef GPSFISH

@@ -296,10 +296,16 @@ void Search::think() {
   RootColor = RootPos.side_to_move();
   TimeMgr.init(Limits, RootPos.game_ply(), RootColor);
 
+  // Dynamic draw value: try to avoid repetition draws at early midgame
 #ifdef GPSFISH
   const Value VALUE_DRAW = value_draw(RootPos);
+  DrawValue[ RootColor] = VALUE_DRAW; // XXX : should fix black/white
+  DrawValue[~RootColor] = -VALUE_DRAW;
+#else
+  int cf = std::max(70 - RootPos.game_ply(), 0);
+  DrawValue[ RootColor] = VALUE_DRAW - Value(cf);
+  DrawValue[~RootColor] = VALUE_DRAW + Value(cf);
 #endif
-
 
   if (RootMoves.empty())
   {
@@ -324,21 +330,6 @@ void Search::think() {
           goto finalize;
       }
   }
-
-#ifdef GPSFISH
-  DrawValue[BLACK] =  VALUE_DRAW;
-  DrawValue[WHITE] = -VALUE_DRAW;
-#else
-  if (!Options["UCI_AnalyseMode"])
-  {
-      // Dynamic draw value: try to avoid repetition draws at early midgame
-      int cf = std::max(70 - RootPos.game_ply(), 0);
-      DrawValue[ RootColor] = VALUE_DRAW - Value(cf);
-      DrawValue[~RootColor] = VALUE_DRAW + Value(cf);
-  }
-  else
-      DrawValue[WHITE] = DrawValue[BLACK] = VALUE_DRAW;
-#endif
 
   if (Options["Write Search Log"])
   {
