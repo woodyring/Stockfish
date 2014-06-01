@@ -1928,7 +1928,7 @@ moves_loop: // When in check and at SpNode search starts from here
     if(pos.osl_state.hasEffectByPiece(pc,m2to))
         return true;
 #else
-    Bitboard m1att = pos.attacks_from(pos.piece_on(m1to), m1to, pos.pieces() ^ m2from);
+    Bitboard m1att = attacks_bb(pos.piece_on(m1to), m1to, pos.pieces() ^ m2from);
     if (m1att & m2to)
         return true;
 #endif
@@ -1991,7 +1991,7 @@ moves_loop: // When in check and at SpNode search starts from here
         Piece pc = pos.piece_on(m1from);
 
         // The moved piece attacks the square 'tto' ?
-        if (pos.attacks_from(pc, m1to, occ) & m2to)
+        if (attacks_bb(pc, m1to, occ) & m2to)
             return true;
 
         // Scan for possible X-ray attackers behind the moved piece

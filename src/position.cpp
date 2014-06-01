@@ -635,24 +635,7 @@ Bitboard Position::attackers_to(Square s, Bitboard occ) const {
 }
 
 
-/// Position::attacks_from() computes a bitboard of all attacks of a given piece
-/// put in a given square. Slider attacks use occ bitboard as occupancy.
-
-Bitboard Position::attacks_from(Piece p, Square s, Bitboard occ) {
-
-  assert(is_ok(s));
-
-  switch (type_of(p))
-  {
-  case BISHOP: return attacks_bb<BISHOP>(s, occ);
-  case ROOK  : return attacks_bb<ROOK>(s, occ);
-  case QUEEN : return attacks_bb<BISHOP>(s, occ) | attacks_bb<ROOK>(s, occ);
-  default    : return StepAttacksBB[p][s];
-  }
-}
 #endif
-
-/// Position::legal() tests whether a pseudo-legal move is legal
 
 #ifdef GPSFISH
 bool Position::pl_move_is_legal(Move m) const {
@@ -665,6 +648,7 @@ bool Position::pl_move_is_legal(Move m) const {
 }
 #endif
 
+/// Position::legal() tests whether a pseudo-legal move is legal
 bool Position::legal(Move m, Bitboard pinned) const {
 
 #ifdef GPSFISH
@@ -879,7 +863,7 @@ bool Position::gives_check(Move m, const CheckInfo& ci) const {
   switch (type_of(m))
   {
   case PROMOTION:
-      return attacks_from(Piece(promotion_type(m)), to, pieces() ^ from) & ksq;
+      return attacks_bb(Piece(promotion_type(m)), to, pieces() ^ from) & ksq;
 
   // En passant capture with check ? We have already handled the case
   // of direct checks and ordinary discovered check, the only case we
