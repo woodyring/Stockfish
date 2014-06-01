@@ -161,7 +161,6 @@ namespace {
     if ( tte != NULL ) {
       std::cerr << "tte->value=" << tte->value() << std::endl;
       std::cerr << "tte->bound=" << tte->bound() << std::endl;
-      std::cerr << "tte->generation=" << tte->generation() << std::endl;
       std::cerr << "tte->depth=" << tte->depth() << std::endl;
       Move m=tte->move(pos);
       int dummy;
@@ -880,7 +879,6 @@ namespace {
             : ttValue >= beta ? (tte->bound() &  BOUND_LOWER)
                               : (tte->bound() &  BOUND_UPPER)))
     {
-        TT.refresh(tte);
         ss->currentMove = ttMove; // Can be MOVE_NONE
 
         // If ttMove is quiet, update killers, history, counter move and followup move on TT hit
