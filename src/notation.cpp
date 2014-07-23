@@ -64,7 +64,9 @@ string score_to_uci(Value v, Value alpha, Value beta) {
       ss << "mate " << (v > 0 ? VALUE_MATE - v + 1 : -VALUE_MATE - v) / 2;
 #endif
 
+#ifdef GPSFISH_UTIL
   ss << (v >= beta ? " lowerbound" : v <= alpha ? " upperbound" : "");
+#endif
 
   return ss.str();
 }

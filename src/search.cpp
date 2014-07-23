@@ -1932,7 +1932,7 @@ moves_loop: // When in check and at SpNode search starts from here
            << " nodes "     << pos.nodes_searched()
            << " nps "       << pos.nodes_searched() * 1000 / elapsed
            << " time "      << elapsed
-#ifdef GPSFISH
+#ifdef GPSFISH_UTIL
            << " hashfull "  << TT.get_hashfull()
 #endif
            << " multipv "   << i + 1
